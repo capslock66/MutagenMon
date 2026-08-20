@@ -1,0 +1,243 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\sources\\mutagenMon\\dotNet\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{AC3538CC-DEDB-49F8-8FF8-8B51C5995881}|src\\MutagenMon.Core\\MutagenMon.Core.csproj|c:\\sources\\mutagenmon\\dotnet\\src\\mutagenmon.core\\mutagen\\mutagensynclistparser.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AC3538CC-DEDB-49F8-8FF8-8B51C5995881}|src\\MutagenMon.Core\\MutagenMon.Core.csproj|solutionrelative:src\\mutagenmon.core\\mutagen\\mutagensynclistparser.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AC3538CC-DEDB-49F8-8FF8-8B51C5995881}|src\\MutagenMon.Core\\MutagenMon.Core.csproj|c:\\sources\\mutagenmon\\dotnet\\src\\mutagenmon.core\\monitoring\\sessionmonitorservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AC3538CC-DEDB-49F8-8FF8-8B51C5995881}|src\\MutagenMon.Core\\MutagenMon.Core.csproj|solutionrelative:src\\mutagenmon.core\\monitoring\\sessionmonitorservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AC3538CC-DEDB-49F8-8FF8-8B51C5995881}|src\\MutagenMon.Core\\MutagenMon.Core.csproj|c:\\sources\\mutagenmon\\dotnet\\src\\mutagenmon.core\\status\\sessionstatetracker.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AC3538CC-DEDB-49F8-8FF8-8B51C5995881}|src\\MutagenMon.Core\\MutagenMon.Core.csproj|solutionrelative:src\\mutagenmon.core\\status\\sessionstatetracker.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E59B7503-F7B2-46BE-A29A-542EA523BA83}|src\\MutagenMon.App\\MutagenMon.App.csproj|c:\\sources\\mutagenmon\\dotnet\\src\\mutagenmon.app\\trayiconcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E59B7503-F7B2-46BE-A29A-542EA523BA83}|src\\MutagenMon.App\\MutagenMon.App.csproj|solutionrelative:src\\mutagenmon.app\\trayiconcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E59B7503-F7B2-46BE-A29A-542EA523BA83}|src\\MutagenMon.App\\MutagenMon.App.csproj|c:\\sources\\mutagenmon\\dotnet\\src\\mutagenmon.app\\mutagenmon.app.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{E59B7503-F7B2-46BE-A29A-542EA523BA83}|src\\MutagenMon.App\\MutagenMon.App.csproj|solutionrelative:src\\mutagenmon.app\\mutagenmon.app.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 21,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:129:0:{13b12e3e-c1b4-4539-9371-4fe9a0d523fc}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:130:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{b03e7fb9-8379-52db-b904-eb2479499478}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{5c0a8096-0216-4116-858a-17792a4fdd91}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c64b9c2-e352-428e-a56d-0ace190b99a6}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{3ae79031-e1bc-11d0-8f78-00a0c9110057}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{5c0a8096-0216-4116-858a-17792a4fdd92}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:131:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:132:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:133:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:130:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:133:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:129:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{0d88d125-84f9-49ef-ae2f-e54b55205e08}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:131:0:{13b12e3e-c1b4-4539-9371-4fe9a0d523fc}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{e1b7d1f8-9b3c-49b1-8f4f-bfc63a88835d}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:132:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{b38c6cbc-524d-4f30-8a18-936e3104b734}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "SessionStateTracker.cs",
+              "DocumentMoniker": "C:\\sources\\mutagenMon\\dotNet\\src\\MutagenMon.Core\\Status\\SessionStateTracker.cs",
+              "RelativeDocumentMoniker": "src\\MutagenMon.Core\\Status\\SessionStateTracker.cs",
+              "ToolTip": "C:\\sources\\mutagenMon\\dotNet\\src\\MutagenMon.Core\\Status\\SessionStateTracker.cs",
+              "RelativeToolTip": "src\\MutagenMon.Core\\Status\\SessionStateTracker.cs",
+              "ViewState": "AgIAAA0AAAAAAAAAAAAUwB0AAAAaAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-17T14:49:03.439Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "SessionMonitorService.cs",
+              "DocumentMoniker": "C:\\sources\\mutagenMon\\dotNet\\src\\MutagenMon.Core\\Monitoring\\SessionMonitorService.cs",
+              "RelativeDocumentMoniker": "src\\MutagenMon.Core\\Monitoring\\SessionMonitorService.cs",
+              "ToolTip": "C:\\sources\\mutagenMon\\dotNet\\src\\MutagenMon.Core\\Monitoring\\SessionMonitorService.cs",
+              "RelativeToolTip": "src\\MutagenMon.Core\\Monitoring\\SessionMonitorService.cs",
+              "ViewState": "AgIAAF8AAAAAAAAAAAAswGYAAACXAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-17T13:45:37.232Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "MutagenSyncListParser.cs",
+              "DocumentMoniker": "C:\\sources\\mutagenMon\\dotNet\\src\\MutagenMon.Core\\Mutagen\\MutagenSyncListParser.cs",
+              "RelativeDocumentMoniker": "src\\MutagenMon.Core\\Mutagen\\MutagenSyncListParser.cs",
+              "ToolTip": "C:\\sources\\mutagenMon\\dotNet\\src\\MutagenMon.Core\\Mutagen\\MutagenSyncListParser.cs",
+              "RelativeToolTip": "src\\MutagenMon.Core\\Mutagen\\MutagenSyncListParser.cs",
+              "ViewState": "AgIAAEEAAAAAAAAAAAAcwEsAAAA4AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-17T13:45:23.106Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "TrayIconController.cs",
+              "DocumentMoniker": "C:\\sources\\mutagenMon\\dotNet\\src\\MutagenMon.App\\TrayIconController.cs",
+              "RelativeDocumentMoniker": "src\\MutagenMon.App\\TrayIconController.cs",
+              "ToolTip": "C:\\sources\\mutagenMon\\dotNet\\src\\MutagenMon.App\\TrayIconController.cs",
+              "RelativeToolTip": "src\\MutagenMon.App\\TrayIconController.cs",
+              "ViewState": "AgIAAH4AAAAAAAAAAAA0wJEAAAAJAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-17T13:39:53.358Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "MutagenMon.App",
+              "DocumentMoniker": "C:\\sources\\mutagenMon\\dotNet\\src\\MutagenMon.App\\MutagenMon.App.csproj",
+              "RelativeDocumentMoniker": "src\\MutagenMon.App\\MutagenMon.App.csproj",
+              "ToolTip": "C:\\sources\\mutagenMon\\dotNet\\src\\MutagenMon.App\\MutagenMon.App.csproj",
+              "RelativeToolTip": "src\\MutagenMon.App\\MutagenMon.App.csproj",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAABPAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2026-08-17T13:26:53.111Z",
+              "EditorCaption": ""
+            }
+          ]
+        },
+        {
+          "DockedWidth": 1221,
+          "SelectedChildIndex": -1,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{5a4e9529-b6a0-46b5-be4f-0f0b239bc0eb}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{da1e233c-cfa8-5021-b06c-abc3d02f44e8}"
+            }
+          ]
+        },
+        {
+          "DockedWidth": 140,
+          "SelectedChildIndex": -1,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:20:0:{57d563b6-44a5-47df-85be-f4199ad6b651}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{4b538c34-ddd2-58b8-90ee-7021c5348de1}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{ca8cc5c7-0231-406a-95cd-aa5ed6ac0190}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{0ad07096-bba9-4900-a651-0598d26f6d24}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{ebac7c74-3b95-5b1e-b483-338a08cbadf2}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{34e76e81-ee4a-11d0-ae2e-00a0c90fffc3}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{d78612c7-9962-4b83-95d9-268046dad23a}"
+            }
+          ]
+        },
+        {
+          "DockedWidth": 457,
+          "SelectedChildIndex": -1,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{a80febb4-e7e0-4147-b476-21aaf2453969}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{004be353-6879-467c-9d1e-9ac23cdf6d49}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

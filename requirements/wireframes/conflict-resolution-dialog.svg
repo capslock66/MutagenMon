@@ -1,0 +1,61 @@
+<svg viewBox="0 0 680 560" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+  <style>
+    .bg { fill: #f3f4f6; }
+    .win { fill: #ffffff; stroke: #9aa0a6; stroke-width: 1.5; }
+    .titlebar { fill: #e8e9eb; stroke: #9aa0a6; }
+    .titletext { fill: #1f2328; font-size: 13px; font-weight: 700; }
+    .label { fill: #2b2f36; font-size: 12px; }
+    .mono { fill: #2b2f36; font-size: 11.5px; font-family: Consolas, monospace; }
+    .radioRing { fill: none; stroke: #5b6068; stroke-width: 1.5; }
+    .radioDot { fill: #2f6fed; }
+    .btnPrimary { fill: #2f6fed; stroke: #1d4fbf; }
+    .btnPrimaryText { fill: #ffffff; font-size: 12px; font-weight: 700; }
+    .btn { fill: #f0f0f0; stroke: #8a8f98; }
+    .btntext { fill: #1f2328; font-size: 12px; }
+    .caption { fill: #1f2328; font-size: 20px; font-weight: 700; }
+    .sub { fill: #5b6068; font-size: 12px; }
+    .panel { fill: #f8f9fa; stroke: #e1e2e4; }
+  </style>
+  <rect class="bg" width="680" height="560"/>
+  <text class="caption" x="30" y="35">Conflict resolution chooser</text>
+  <text class="sub" x="30" y="55">wx.SingleChoiceDialog — mutagenmonlib/remote/resolve.py: resolve_single(). See FR-9.1..FR-9.4.</text>
+
+  <g transform="translate(90,80)">
+    <rect class="win" x="0" y="0" width="500" height="420" rx="3"/>
+    <rect class="titlebar" x="0" y="0" width="500" height="30"/>
+    <text class="titletext" x="14" y="19">MutagenMon: resolve file conflict 2 of 3</text>
+    <text x="480" y="19" text-anchor="end" font-size="14" fill="#5b6068">✕</text>
+
+    <text class="label" x="16" y="52" font-weight="700">report.docx</text>
+
+    <rect class="panel" x="16" y="66" width="468" height="66" rx="4"/>
+    <text class="mono" x="26" y="86" font-weight="700">A:</text>
+    <text class="mono" x="46" y="86">myserver:/home/me/docs</text>
+    <text class="mono" x="26" y="104">18 432 bytes, 2026-08-13 09:38:11</text>
+    <text class="mono" x="26" y="122" fill="#2f6fed" font-weight="700">(most recent — pre-selected)</text>
+
+    <rect class="panel" x="16" y="140" width="468" height="50" rx="4"/>
+    <text class="mono" x="26" y="160" font-weight="700">B:</text>
+    <text class="mono" x="46" y="160">C:/Users/me/Docs</text>
+    <text class="mono" x="26" y="178">17 990 bytes, 2026-08-13 09:35:47</text>
+
+    <!-- radio choices -->
+    <circle class="radioRing" cx="30" cy="220" r="7"/>
+    <text class="label" x="46" y="225">Visual merge</text>
+
+    <circle class="radioRing" cx="30" cy="248" r="7"/>
+    <circle class="radioDot" cx="30" cy="248" r="3.5"/>
+    <text class="label" x="46" y="253" font-weight="700">A wins</text>
+
+    <circle class="radioRing" cx="30" cy="276" r="7"/>
+    <text class="label" x="46" y="281">B wins</text>
+
+    <rect class="btn" x="290" y="370" width="90" height="32" rx="3"/>
+    <text class="btntext" x="335" y="391" text-anchor="middle">Cancel</text>
+    <rect class="btnPrimary" x="390" y="370" width="90" height="32" rx="3"/>
+    <text class="btnPrimaryText" x="435" y="391" text-anchor="middle">OK</text>
+  </g>
+
+  <text class="sub" x="30" y="520">Default selection = side with the most recent mtime (FR-9.3). Cancel aborts the whole batch (FR-9.4).</text>
+  <text class="sub" x="30" y="540">"Visual merge" launches an external diff/merge tool (e.g. WinMerge) on local copies of both files.</text>
+</svg>

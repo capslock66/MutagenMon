@@ -1,0 +1,221 @@
+<svg viewBox="0 0 820 900" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+  <style>
+    .bg { fill: #f3f4f6; }
+    .chip { fill: #ffffff; stroke: #b9bdc4; stroke-width: 1.5; rx: 10; }
+    .title { fill: #1f2328; font-size: 13px; font-weight: 700; }
+    .tooltip { fill: #5b6068; font-size: 10.5px; font-style: italic; }
+    .code { fill: #8a8f98; font-size: 10px; font-family: Consolas, monospace; }
+    .warn { fill: #c62828; font-size: 9.5px; font-weight: 700; }
+    .caption { fill: #1f2328; font-size: 20px; font-weight: 700; }
+    .sub { fill: #5b6068; font-size: 12px; }
+  </style>
+  <rect class="bg" x="0" y="0" width="820" height="900"/>
+  <text class="caption" x="40" y="35">Tray icon — full state matrix (sketch)</text>
+  <text class="sub" x="40" y="55">Source: mutagenmonlib/wx/icon.py — TaskBarIcon.update_icon(). See requirements/03-tray-icon-requirements.md §3.</text>
+
+  <!-- Row generator manually laid out: 4 columns x 170 spacing, cell 170x140 -->
+  <!-- Helper legend -->
+  <g transform="translate(40,70)">
+
+    <!-- Cell macro instances (hand unrolled) -->
+    <!-- Cell 0 -->
+    <g transform="translate(0,0)">
+      <rect class="chip" width="170" height="150" rx="10"/>
+      <circle cx="30" cy="30" r="16" fill="#d9d9d9" stroke="#aeb1b6"/>
+      <text class="code" x="120" y="18">code 0</text>
+      <text class="title" x="12" y="60">Waiting for status</text>
+      <text class="tooltip" x="12" y="78">waiting for status...</text>
+      <text class="tooltip" x="12" y="94">(initial state, before</text>
+      <text class="tooltip" x="12" y="108">first poll completes)</text>
+      <text class="code" x="12" y="136">lightgray.png</text>
+    </g>
+
+    <!-- Cell 1 -->
+    <g transform="translate(190,0)">
+      <rect class="chip" width="170" height="150" rx="10"/>
+      <circle cx="30" cy="30" r="16" fill="#3fae4a"/>
+      <text class="code" x="118" y="18">code 100</text>
+      <text class="title" x="12" y="60">Ready</text>
+      <text class="tooltip" x="12" y="78">mutagen is watching</text>
+      <text class="tooltip" x="12" y="92">for changes</text>
+      <text class="code" x="12" y="136">green.png</text>
+    </g>
+
+    <!-- Cell 2 -->
+    <g transform="translate(380,0)">
+      <rect class="chip" width="170" height="150" rx="10"/>
+      <circle cx="30" cy="30" r="16" fill="#6fd07a"/>
+      <path d="M46,14 l4,4 l-4,4 l-4,-4 Z" fill="#ffd54f"/>
+      <text class="code" x="106" y="18">code 100+upd</text>
+      <text class="title" x="12" y="60">Ready (updated)</text>
+      <text class="tooltip" x="12" y="78">watching for changes</text>
+      <text class="tooltip" x="12" y="92">(updated)</text>
+      <text class="warn" x="12" y="112">⚠ unreachable today (§7.2)</text>
+      <text class="code" x="12" y="136">green-success.png</text>
+    </g>
+
+    <!-- Cell 3 -->
+    <g transform="translate(570,0)">
+      <rect class="chip" width="170" height="150" rx="10"/>
+      <circle cx="30" cy="30" r="16" fill="#2f8f6b"/>
+      <rect x="24" y="24" width="12" height="12" fill="#ffffff"/>
+      <text class="code" x="122" y="18">code 100</text>
+      <text class="title" x="12" y="60">Stopping</text>
+      <text class="tooltip" x="12" y="78">mutagen is stopping</text>
+      <text class="tooltip" x="12" y="92">(monitoring disabled)</text>
+      <text class="code" x="12" y="136">green-stop.png</text>
+    </g>
+
+    <!-- Row 2 (y=170) -->
+    <!-- Cell 4 -->
+    <g transform="translate(0,170)">
+      <rect class="chip" width="170" height="150" rx="10"/>
+      <circle cx="30" cy="30" r="16" fill="#3fae4a"/>
+      <circle cx="42" cy="18" r="7" fill="#ffb300" stroke="#8a6100"/>
+      <text class="code" x="118" y="18">code 60</text>
+      <text class="title" x="12" y="60">Conflicts detected</text>
+      <text class="tooltip" x="12" y="78">conflicts</text>
+      <text class="code" x="12" y="136">green-conflict.png</text>
+    </g>
+
+    <!-- Cell 5 -->
+    <g transform="translate(190,170)">
+      <rect class="chip" width="170" height="150" rx="10"/>
+      <circle cx="30" cy="30" r="16" fill="#3fae4a"/>
+      <circle cx="42" cy="18" r="7" fill="#e53935" stroke="#7a0000"/>
+      <text class="code" x="118" y="18">code 50</text>
+      <text class="title" x="12" y="60">Problems detected</text>
+      <text class="tooltip" x="12" y="78">problems</text>
+      <text class="code" x="12" y="136">green-error.png</text>
+    </g>
+
+    <!-- Cell 6 -->
+    <g transform="translate(380,170)">
+      <rect class="chip" width="170" height="150" rx="10"/>
+      <circle cx="30" cy="30" r="16" fill="#3fae4a"/>
+      <path d="M38,12 a10,10 0 1 1 -2,-6" stroke="#1565c0" stroke-width="2" fill="none"/>
+      <text class="code" x="118" y="18">code 40</text>
+      <text class="title" x="12" y="60">Syncing</text>
+      <text class="tooltip" x="12" y="78">mutagen is syncing</text>
+      <text class="code" x="12" y="136">green-sync.png</text>
+    </g>
+
+    <!-- Cell 7 -->
+    <g transform="translate(570,170)">
+      <rect class="chip" width="170" height="150" rx="10"/>
+      <circle cx="30" cy="30" r="16" fill="#6fd07a"/>
+      <path d="M46,14 l4,4 l-4,4 l-4,-4 Z" fill="#ffd54f"/>
+      <text class="code" x="100" y="18">code 40+upd</text>
+      <text class="title" x="12" y="60">Syncing (updated)</text>
+      <text class="tooltip" x="12" y="78">syncing (updated)</text>
+      <text class="code" x="12" y="136">green-success.png</text>
+    </g>
+
+    <!-- Row 3 (y=340) -->
+    <!-- Cell 8 -->
+    <g transform="translate(0,340)">
+      <rect class="chip" width="170" height="150" rx="10"/>
+      <circle cx="30" cy="30" r="16" fill="#3fae4a" stroke-dasharray="3,2" stroke="#c62828" stroke-width="2"/>
+      <text class="code" x="118" y="18">code 30</text>
+      <text class="title" x="12" y="60">Scanning</text>
+      <text class="tooltip" x="12" y="78">mutagen is scanning</text>
+      <text class="warn" x="12" y="98">⚠ asset missing (§7.1):</text>
+      <text class="code" x="12" y="136">green-scan.png (absent)</text>
+    </g>
+
+    <!-- Cell 9 -->
+    <g transform="translate(190,340)">
+      <rect class="chip" width="170" height="150" rx="10"/>
+      <circle cx="30" cy="30" r="16" fill="#6fd07a"/>
+      <path d="M46,14 l4,4 l-4,4 l-4,-4 Z" fill="#ffd54f"/>
+      <text class="code" x="100" y="18">code 30+upd</text>
+      <text class="title" x="12" y="60">Scanning (updated)</text>
+      <text class="tooltip" x="12" y="78">scanning (updated)</text>
+      <text class="code" x="12" y="136">green-success.png</text>
+    </g>
+
+    <!-- Cell 10: stale info -->
+    <g transform="translate(380,340)">
+      <rect class="chip" width="170" height="150" rx="10"/>
+      <circle cx="30" cy="30" r="16" fill="#eef7ee" stroke="#3fae4a" stroke-dasharray="2,2"/>
+      <text class="code" x="112" y="18">stale: Info</text>
+      <text class="title" x="12" y="60">Stale &gt; 4s</text>
+      <text class="tooltip" x="12" y="78">(...) (stale)</text>
+      <text class="warn" x="12" y="98">⚠ asset missing (§7.1):</text>
+      <text class="code" x="12" y="136">green-timeout-white.png</text>
+    </g>
+
+    <!-- Cell 11: stale warning -->
+    <g transform="translate(570,340)">
+      <rect class="chip" width="170" height="150" rx="10"/>
+      <circle cx="30" cy="30" r="16" fill="#ffe082" stroke="#f9a825"/>
+      <text class="code" x="90" y="18">stale: Warning</text>
+      <text class="title" x="12" y="60">Stale &gt; 15s</text>
+      <text class="tooltip" x="12" y="78">(...) (stale)</text>
+      <text class="code" x="12" y="136">green-timeout.png</text>
+    </g>
+
+    <!-- Row 4 (y=510) -->
+    <!-- Cell 12: stale error -->
+    <g transform="translate(0,510)">
+      <rect class="chip" width="170" height="150" rx="10"/>
+      <circle cx="30" cy="30" r="16" fill="#ef9a9a" stroke="#c62828"/>
+      <text class="code" x="98" y="18">stale: Error</text>
+      <text class="title" x="12" y="60">Stale &gt; 50s</text>
+      <text class="tooltip" x="12" y="78">(...) (stale)</text>
+      <text class="warn" x="12" y="98">⚠ asset missing (§7.1):</text>
+      <text class="code" x="12" y="136">green-timeout-red.png</text>
+    </g>
+
+    <!-- Cell 13 -->
+    <g transform="translate(190,510)">
+      <rect class="chip" width="170" height="150" rx="10"/>
+      <circle cx="30" cy="30" r="16" fill="#5a5f66"/>
+      <path d="M38,12 a10,10 0 1 1 -2,-6" stroke="#ffffff" stroke-width="2" fill="none"/>
+      <text class="code" x="126" y="18">code -1</text>
+      <text class="title" x="12" y="60">Not running</text>
+      <text class="tooltip" x="12" y="78">not running (starting)</text>
+      <text class="tooltip" x="12" y="92">— auto-recovering</text>
+      <text class="code" x="12" y="136">darkgray-restart.png</text>
+    </g>
+
+    <!-- Cell 14 -->
+    <g transform="translate(380,510)">
+      <rect class="chip" width="170" height="150" rx="10"/>
+      <circle cx="30" cy="30" r="16" fill="#5a5f66"/>
+      <text class="code" x="126" y="18">code -1</text>
+      <text class="title" x="12" y="60">Not running</text>
+      <text class="tooltip" x="12" y="78">not running (disabled)</text>
+      <text class="tooltip" x="12" y="92">— paused by user</text>
+      <text class="code" x="12" y="136">darkgray.png</text>
+    </g>
+
+    <!-- Cell 15 -->
+    <g transform="translate(570,510)">
+      <rect class="chip" width="170" height="150" rx="10"/>
+      <circle cx="30" cy="30" r="16" fill="#ff9800"/>
+      <path d="M38,12 a10,10 0 1 1 -2,-6" stroke="#ffffff" stroke-width="2" fill="none"/>
+      <text class="code" x="126" y="18">code -2</text>
+      <text class="title" x="12" y="60">Cannot connect</text>
+      <text class="tooltip" x="12" y="78">error (starting)</text>
+      <text class="tooltip" x="12" y="92">— auto-recovering</text>
+      <text class="code" x="12" y="136">orange-restart.png</text>
+    </g>
+
+    <!-- Row 5 (y=680) -->
+    <!-- Cell 16 -->
+    <g transform="translate(0,680)">
+      <rect class="chip" width="170" height="150" rx="10"/>
+      <circle cx="30" cy="30" r="16" fill="#ff9800"/>
+      <text class="code" x="126" y="18">code -2</text>
+      <text class="title" x="12" y="60">Cannot connect</text>
+      <text class="tooltip" x="12" y="78">error (disabled)</text>
+      <text class="tooltip" x="12" y="92">— paused by user</text>
+      <text class="code" x="12" y="136">orange.png</text>
+    </g>
+
+  </g>
+
+  <text class="sub" x="40" y="860">Aggregation rule: the icon always shows the WORST session among all configured sessions (min of numeric codes).</text>
+  <text class="sub" x="40" y="880">Update cadence: every 1000 ms (UI timer) reading state from an independent 1000 ms background poller. See FR-3/FR-4/TIC-1..TIC-4.</text>
+</svg>

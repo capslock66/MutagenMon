@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AssemblyName>MutagenMon</AssemblyName>
+    <RootNamespace>MutagenMon.App</RootNamespace>
+    <!-- Overrides Directory.Build.props: WPF's default control templates (e.g.
+         ContextMenu) rely on resolving a specific culture via
+         XmlLanguage.GetSpecificCulture(), which throws under Invariant
+         Globalization Mode ("Cannot find non-neutral culture related to
+         'en-us'"). MutagenMon.Core/Core.Tests keep the invariant default (no
+         WPF dependency, smaller footprint); only the WPF host needs full ICU
+         data. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="H.NotifyIcon.Wpf" Version="2.4.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../MutagenMon.Core/MutagenMon.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets/Icons/**" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="config/**" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="mutagen/**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,43 @@
+<svg viewBox="0 0 640 460" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+  <style>
+    .bg { fill: #f3f4f6; }
+    .win { fill: #ffffff; stroke: #9aa0a6; stroke-width: 1.5; }
+    .titlebar { fill: #e8e9eb; stroke: #9aa0a6; }
+    .titletext { fill: #1f2328; font-size: 13px; font-weight: 700; }
+    .body { fill: #2b2f36; font-size: 12px; font-family: Consolas, monospace; }
+    .btn { fill: #f0f0f0; stroke: #8a8f98; }
+    .btntext { fill: #1f2328; font-size: 12px; }
+    .caption { fill: #1f2328; font-size: 20px; font-weight: 700; }
+    .sub { fill: #5b6068; font-size: 12px; }
+  </style>
+  <rect class="bg" width="640" height="460"/>
+  <text class="caption" x="30" y="35">Status view — no conflicts (informational)</text>
+  <text class="sub" x="30" y="55">wx.MessageDialog(OK, ICON_INFORMATION) — TaskBarIcon.on_left_down(). Also reused (different text) for:</text>
+  <text class="sub" x="30" y="72">merge-resolved confirmation, too-many-conflicts guard, duplicate-session-name warning.</text>
+
+  <g transform="translate(70,95)">
+    <rect class="win" x="0" y="0" width="500" height="320" rx="3"/>
+    <rect class="titlebar" x="0" y="0" width="500" height="30"/>
+    <circle cx="18" cy="15" r="7" fill="#4a90d9"/>
+    <text class="titletext" x="34" y="19">MutagenMon: mutagen is watching for changes</text>
+    <text x="480" y="19" text-anchor="end" font-size="14" fill="#5b6068">✕</text>
+
+    <circle cx="30" cy="55" r="12" fill="#4a90d9"/>
+    <text x="30" y="60" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">i</text>
+
+    <text class="body" x="55" y="52">2026-08-13 09:41:02</text>
+    <text class="body" x="55" y="70">Name: photos-sync</text>
+    <text class="body" x="55" y="86">Status: Watching for changes</text>
+    <text class="body" x="55" y="102">Alpha: C:/Users/me/Photos</text>
+    <text class="body" x="55" y="118">Beta: myserver:/home/me/photos</text>
+    <text class="body" x="55" y="142">Name: docs-sync</text>
+    <text class="body" x="55" y="158">Status: Watching for changes</text>
+    <text class="body" x="55" y="174">Alpha: C:/Users/me/Docs</text>
+    <text class="body" x="55" y="190">Beta: myserver:/home/me/docs</text>
+
+    <rect class="btn" x="400" y="270" width="80" height="30" rx="3"/>
+    <text class="btntext" x="440" y="290" text-anchor="middle">OK</text>
+  </g>
+
+  <text class="sub" x="30" y="440">Content = get_nice_log(): cleaned "mutagen sync list" output, identifiers/URLs stripped for readability (FR-8.1).</text>
+</svg>

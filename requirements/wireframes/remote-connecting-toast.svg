@@ -1,0 +1,20 @@
+<svg viewBox="0 0 640 300" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+  <style>
+    .bg { fill: #f3f4f6; }
+    .win { fill: #ffffff; stroke: #9aa0a6; stroke-width: 1.5; }
+    .text { fill: #1f2328; font-size: 13px; }
+    .caption { fill: #1f2328; font-size: 20px; font-weight: 700; }
+    .sub { fill: #5b6068; font-size: 12px; }
+  </style>
+  <rect class="bg" width="640" height="300"/>
+  <text class="caption" x="30" y="35">Transient "connecting" indicator</text>
+  <text class="sub" x="30" y="55">Undecorated wx.Dialog, no buttons — mutagenmonlib/wx/wx.py: info_message(). Closed programmatically by the caller.</text>
+
+  <g transform="translate(170,90)">
+    <rect class="win" x="0" y="0" width="300" height="60" rx="3"/>
+    <text class="text" x="20" y="35">Remote connection...</text>
+  </g>
+
+  <text class="sub" x="30" y="220">Shown while fetching remote file size/mtime over SSH, or while copying files during conflict resolution.</text>
+  <text class="sub" x="30" y="240">The caller explicitly destroys it once the blocking remote call returns — the user cannot dismiss it manually (FR-9.6).</text>
+</svg>

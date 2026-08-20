@@ -1,0 +1,31 @@
+<svg viewBox="0 0 640 380" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+  <style>
+    .bg { fill: #f3f4f6; }
+    .win { fill: #2b2f36; stroke: #14161a; stroke-width: 1; }
+    .titletext { fill: #ffffff; font-size: 13px; font-weight: 700; }
+    .body { fill: #c7cad0; font-size: 12px; }
+    .caption { fill: #1f2328; font-size: 20px; font-weight: 700; }
+    .sub { fill: #5b6068; font-size: 12px; }
+  </style>
+  <rect class="bg" width="640" height="380"/>
+  <text class="caption" x="30" y="35">OS desktop notification (balloon / toast)</text>
+  <text class="sub" x="30" y="55">TaskBarIcon.notify() — ShowBalloon(), falling back to wx.adv.NotificationMessage. Non-modal, auto-dismissing.</text>
+
+  <g transform="translate(340,90)">
+    <rect class="win" x="0" y="0" width="260" height="90" rx="6"/>
+    <circle cx="24" cy="24" r="10" fill="#f9a825"/>
+    <text class="titletext" x="46" y="28">New conflicts</text>
+    <text class="body" x="20" y="55">photos-sync:IMG_0231.jpg</text>
+    <text class="body" x="20" y="72">docs-sync:report.docx</text>
+  </g>
+
+  <g transform="translate(340,210)">
+    <rect class="win" x="0" y="0" width="260" height="80" rx="6"/>
+    <circle cx="24" cy="24" r="10" fill="#3fae4a"/>
+    <text class="titletext" x="46" y="28">Auto-resolved conflict: A wins</text>
+    <text class="body" x="20" y="55">photos-sync: notes.txt</text>
+  </g>
+
+  <text class="sub" x="30" y="330">Independently toggleable per event type (FR-11): new conflicts, auto-resolve, stuck-connection restart, profile update.</text>
+  <text class="sub" x="30" y="350">Drained from a thread-safe message queue on every 1s UI tick (TIC-1 step 4), never blocking the background poller.</text>
+</svg>

@@ -1,0 +1,63 @@
+{
+# Not currently used: logging always writes every level to log/mutagenMon.log
+"DEBUG_LEVEL": 0,
+
+# Notify when conflicts are detected
+"NOTIFY_CONFLICTS": true,
+
+# Notify when conflicts are autoresolved
+"NOTIFY_AUTORESOLVE": true,
+
+# If MutagenMon should start enabled
+# (enabled means that it restarts mutagen sessions if they have errors or are not running)
+"START_ENABLED": true,
+
+# Paths to binary files
+"MERGE_PATH": "C:\\Program Files (x86)\\WinMerge\\WinMergeU",
+"SCP_PATH": "C:\\Program Files\\Git\\usr\\bin\\scp",
+"SSH_PATH": "C:\\Program Files\\Git\\usr\\bin\\ssh",
+"MUTAGEN_PATH": "C:\\Tools\\mutagen\\mutagen.exe",
+
+"TRAY_TOOLTIP": "MutagenMon",
+
+# Path for log files
+"LOG_PATH": "c:\\sources\\mutagenMon\\dotNet\\src\\log",
+
+# Path to mutagen sessions config
+"MUTAGEN_SESSIONS_BAT_FILE": "mutagen/mutagen-create.bat",
+
+# Number of pollings with "not connected" errors to allow before restarting mutagen session
+"SESSION_MAX_ERRORS": 30000,
+
+# Number of pollings with no session found to allow before restarting mutagen session
+"SESSION_MAX_NOSESSION": 200,
+
+# Number of pollings with duplicate session found to allow before restarting mutagen sessions
+"SESSION_MAX_DUPLICATE": 10000,
+
+# Number of milliseconds to wait between polling "mutagen sync list"
+"MUTAGEN_POLL_PERIOD": 1000,
+
+# Number of seconds to allow for status lag before changing tray icon to "stale" and restart MutagenMon
+"STATUS_MAX_LAG": {"Info": 4, "Warning": 15, "Error": 50, "Restart": 90},
+
+# Set to mutagen directory with caches and archives
+"MUTAGEN_PROFILE_DIR": "%USERPROFILE%\\.mutagen",
+
+# Watch mutagen profile dir for session updates (in seconds, or 0 to disable)
+"MUTAGEN_PROFILE_DIR_WATCH_PERIOD": 1,
+
+# Ignore more frequent session updates than this (in seconds)
+"MUTAGEN_PROFILE_GRACE": 4,
+
+# Show notifications for mutagen session profile update
+"NOTIFY_MUTAGEN_PROFILE_UPDATE": false,
+
+# Add records matching filenames:
+# filepath - specify regular expression to match whole path with directory and filename
+# resolve - specify "A wins" or "B wins" to choose conflict resolution behavior
+"AUTORESOLVE": [],
+
+# How long to remember autoresolved conflicts not to try to autoresolve them again (in seconds)
+"AUTORESOLVE_HISTORY_AGE": 30
+}

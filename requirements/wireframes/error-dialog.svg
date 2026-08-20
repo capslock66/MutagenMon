@@ -1,0 +1,39 @@
+<svg viewBox="0 0 640 380" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+  <style>
+    .bg { fill: #f3f4f6; }
+    .win { fill: #ffffff; stroke: #9aa0a6; stroke-width: 1.5; }
+    .titlebar { fill: #e8e9eb; stroke: #9aa0a6; }
+    .titletext { fill: #1f2328; font-size: 13px; font-weight: 700; }
+    .mono { fill: #7a0000; font-size: 11px; font-family: Consolas, monospace; }
+    .btn { fill: #f0f0f0; stroke: #8a8f98; }
+    .btntext { fill: #1f2328; font-size: 12px; }
+    .caption { fill: #1f2328; font-size: 20px; font-weight: 700; }
+    .sub { fill: #5b6068; font-size: 12px; }
+  </style>
+  <rect class="bg" width="640" height="380"/>
+  <text class="caption" x="30" y="35">Fatal error dialog</text>
+  <text class="sub" x="30" y="55">wx.MessageDialog(OK, ICON_ERROR) — mutagenmonlib/wx/wx.py: errorBox(). Raised from the global exception hook and run.py.</text>
+
+  <g transform="translate(70,80)">
+    <rect class="win" x="0" y="0" width="500" height="220" rx="3"/>
+    <rect class="titlebar" x="0" y="0" width="500" height="30"/>
+    <circle cx="18" cy="15" r="7" fill="#c62828"/>
+    <text class="titletext" x="34" y="19">MutagenMon exception</text>
+    <text x="480" y="19" text-anchor="end" font-size="14" fill="#5b6068">✕</text>
+
+    <circle cx="30" cy="55" r="12" fill="#c62828"/>
+    <text x="30" y="60" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">!</text>
+
+    <text class="mono" x="55" y="50">subprocess.CalledProcessError</text>
+    <text class="mono" x="55" y="66">['mutagen', 'sync', 'list']</text>
+    <text class="mono" x="55" y="82">Error: could not connect to daemon</text>
+    <text class="mono" x="55" y="98">Traceback (most recent call last):</text>
+    <text class="mono" x="55" y="114">  File "monitor.py", line 117, in run</text>
+
+    <rect class="btn" x="400" y="170" width="80" height="30" rx="3"/>
+    <text class="btntext" x="440" y="190" text-anchor="middle">OK</text>
+  </g>
+
+  <text class="sub" x="30" y="325">Every occurrence is also appended to log/error.log (FR-14.1) before the dialog is shown; blocks the process until dismissed.</text>
+  <text class="sub" x="30" y="345">Can be disabled via DEBUG_EXCEPTIONS_TO_CONSOLE (prints to console instead of showing a dialog).</text>
+</svg>
