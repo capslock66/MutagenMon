@@ -3,11 +3,13 @@
 This is the .NET rewrite scaffolded per
 [requirements/05-wpf-migration-notes.md](../requirements/05-wpf-migration-notes.md).
 Current scope: **Phase 0 (scaffolding) + Phase 1 (real-time tray icon
-core)** — background polling, session status classification/aggregation,
-and the tray icon's full state machine. The full context menu,
-status/conflict dialogs, notifications, automatic conflict resolution, and
-session auto-restart execution are **not yet implemented** — see
-"Out of scope" in the plan this was built from.
+core) + Phase 2 (context menu & status view)** — background polling,
+session status classification/aggregation, the tray icon's full state
+machine, the full context menu (reload/stop-start/show status/exit, FR-7),
+and the status view with a conflicts section (FR-8). Manual conflict
+resolution, notifications, automatic conflict resolution, and session
+auto-restart execution are **not yet implemented** — see "Out of scope" in
+the plan this was built from.
 
 > This started as a Blazor Hybrid app (WPF + `BlazorWebView`) and was
 > pivoted to plain WPF after real Blazor/WebView2 runtime failures on
@@ -74,8 +76,23 @@ tray icon need an actual Windows desktop session. On a Windows machine:
      [03-tray-icon-requirements.md](../requirements/03-tray-icon-requirements.md) §3.
    - As mutagen scans/syncs/settles, the icon and its tooltip move through
      Scanning → Syncing → Ready, matching that same table exactly.
-   - Right-click → **Show status** opens a small native WPF window with
-     placeholder content (the real status view is Phase 2).
+   - Left-click, or right-click → **Show status**, opens the status view:
+     one Name/Status/Alpha/Beta block per configured session, and — if any
+     session has an unresolved conflict — a CONFLICTS section plus a
+     "Resolve conflicts" button (currently a placeholder message; the real
+     workflow is FR-9, Phase 3).
+   - Right-click → **Reload config & restart mutagen** terminates every
+     running session, then restarts the whole process once they've all
+     stopped (watch the context menu collapse to a disabled
+     "Restarting..." item in the meantime, and check `log/mutagenMon.log`
+     for the restart entry).
+   - Right-click → **Stop Mutagen sessions** terminates every running
+     session and flips the item to **Start Mutagen sessions**; the tray
+     icon should reflect the "disabled" variant of its current state
+     (see `Enabled` in the icon decision table). Note: re-enabling does
+     not itself relaunch a terminated session — that's the auto-recovery
+     logic, FR-13, Phase 5 — so sessions stay down until the next
+     "Reload config & restart mutagen" or a manual app restart.
    - Right-click → **Exit MutagenMon** removes the tray icon and closes
      the process cleanly.
    - Tray icon assets are loaded from `Assets/Icons/*.ico` via
@@ -134,12 +151,13 @@ killing the process. If even that's empty, check `mutagenMon.fatal.log`.
 
 ## Known limitations of this phase
 
-- The context menu only has **Show status** and **Exit** — no
-  start/stop/reload yet (FR-7, Phase 2).
-- No conflict resolution UI (FR-9), no desktop notifications (FR-11), no
-  automatic session restart execution (FR-13) — the app observes and
-  classifies status but does not yet act on problems beyond the tray
-  icon's own self-restart.
+- The status view's "Resolve conflicts" button (FR-8.2) is wired but shows
+  a placeholder message — the actual manual resolution workflow (FR-9) is
+  Phase 3.
+- No desktop notifications (FR-11), no automatic session restart execution
+  (FR-13) — "Start Mutagen sessions" re-enables monitoring but does not
+  itself relaunch a session that "Stop Mutagen sessions" (or a poll
+  failure) terminated; that revival is the auto-recovery logic, Phase 5.
 - Three icon assets (`green-scan`, `green-timeout-white`,
   `green-timeout-red`) are generated placeholders, not final design assets
   — see [requirements/03-tray-icon-requirements.md](../requirements/03-tray-icon-requirements.md) §3.1/§7.1.

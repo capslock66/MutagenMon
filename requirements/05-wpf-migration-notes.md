@@ -125,7 +125,9 @@ full key list). Strongly recommended additions for the rewrite:
    staleness/self-restart (FR-6). This alone delivers the "most important
    requirement" stated by the business. **Done** — see `dotNet/README.md`.
 2. **Phase 2**: status view + context menu actions (FR-7, FR-8), now as a
-   native `StatusWindow` per §4 above instead of a Blazor page.
+   native `StatusWindow` per §4 above instead of a Blazor page. **Done** —
+   see `dotNet/README.md`. The status view's "Resolve conflicts" action
+   (FR-8.2) is wired to a placeholder; the actual workflow is Phase 3.
 3. **Phase 3**: manual conflict resolution workflow (FR-9) and visual
    merge integration.
 4. **Phase 4**: automatic conflict resolution (FR-10), notifications
