@@ -129,7 +129,7 @@ full key list). Strongly recommended additions for the rewrite:
    see `dotNet/README.md`. The status view's "Resolve conflicts" action
    (FR-8.2) is wired to a placeholder; the actual workflow is Phase 3.
 3. **Phase 3**: manual conflict resolution workflow (FR-9) and visual
-   merge integration.
+   merge integration. **Done** — see `dotNet/README.md`.
 4. **Phase 4**: automatic conflict resolution (FR-10), notifications
    (FR-11), profile-change detection (FR-12).
 5. **Phase 5**: session auto-recovery (FR-13) and logging/diagnostics

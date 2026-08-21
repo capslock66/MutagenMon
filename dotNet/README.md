@@ -3,13 +3,14 @@
 This is the .NET rewrite scaffolded per
 [requirements/05-wpf-migration-notes.md](../requirements/05-wpf-migration-notes.md).
 Current scope: **Phase 0 (scaffolding) + Phase 1 (real-time tray icon
-core) + Phase 2 (context menu & status view)** — background polling,
-session status classification/aggregation, the tray icon's full state
-machine, the full context menu (reload/stop-start/show status/exit, FR-7),
-and the status view with a conflicts section (FR-8). Manual conflict
-resolution, notifications, automatic conflict resolution, and session
-auto-restart execution are **not yet implemented** — see "Out of scope" in
-the plan this was built from.
+core) + Phase 2 (context menu & status view) + Phase 3 (manual conflict
+resolution)** — background polling, session status
+classification/aggregation, the tray icon's full state machine, the full
+context menu (reload/stop-start/show status/exit, FR-7), the status view
+with a conflicts section (FR-8), and the manual conflict resolution
+workflow with visual merge integration (FR-9). Automatic conflict
+resolution, notifications, and session auto-restart execution are **not
+yet implemented** — see "Out of scope" in the plan this was built from.
 
 > This started as a Blazor Hybrid app (WPF + `BlazorWebView`) and was
 > pivoted to plain WPF after real Blazor/WebView2 runtime failures on
@@ -79,8 +80,12 @@ tray icon need an actual Windows desktop session. On a Windows machine:
    - Left-click, or right-click → **Show status**, opens the status view:
      one Name/Status/Alpha/Beta block per configured session, and — if any
      session has an unresolved conflict — a CONFLICTS section plus a
-     "Resolve conflicts" button (currently a placeholder message; the real
-     workflow is FR-9, Phase 3).
+     "Resolve conflicts" button that starts the manual resolution workflow
+     (FR-9): one conflict at a time, numbered "N of total", with an A/B
+     comparison (URL, size, last-modified) and a Visual merge / A wins / B
+     wins choice pre-selected by whichever side was modified more
+     recently. Cancelling aborts the whole batch. Every resolution is
+     appended to `log/resolve.log`.
    - Right-click → **Reload config & restart mutagen** terminates every
      running session, then restarts the whole process once they've all
      stopped (watch the context menu collapse to a disabled
@@ -151,9 +156,13 @@ killing the process. If even that's empty, check `mutagenMon.fatal.log`.
 
 ## Known limitations of this phase
 
-- The status view's "Resolve conflicts" button (FR-8.2) is wired but shows
-  a placeholder message — the actual manual resolution workflow (FR-9) is
-  Phase 3.
+- Manual conflict resolution (FR-9) needs real `ssh`/`scp`/merge-tool
+  binaries and cannot be exercised end-to-end on Linux — only the pure
+  logic (`ConflictBatchPlanner`, `ConflictResolutionService` against a
+  fake `IConflictFileClient`, `ResolveLogWriter`) is unit-tested there;
+  the actual SSH/copy/merge-tool invocation
+  (`MutagenMon.Core/Resolution/ConflictFileClient.cs`) needs Windows
+  verification like the rest of the WPF layer.
 - No desktop notifications (FR-11), no automatic session restart execution
   (FR-13) — "Start Mutagen sessions" re-enables monitoring but does not
   itself relaunch a session that "Stop Mutagen sessions" (or a poll

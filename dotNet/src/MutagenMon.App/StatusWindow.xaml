@@ -20,6 +20,7 @@
             <Button x:Name="OkButton" Content="OK" Width="90" Click="OnOkClick" />
             <Button x:Name="CancelButton" Content="Cancel" Width="90" Margin="8,0,0,0" Click="OnCancelClick" />
             <Button x:Name="ResolveConflictsButton" Content="Resolve conflicts" Width="130" Margin="8,0,0,0" Click="OnResolveConflictsClick" />
+            <Button x:Name="BoomButton" Content="Boum" Width="70" Margin="8,0,0,0" Click="OnBoomClick" />
         </StackPanel>
     </Grid>
 </Window>

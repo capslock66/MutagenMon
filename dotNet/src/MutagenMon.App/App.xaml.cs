@@ -11,6 +11,7 @@ using MutagenMon.Core.Configuration;
 using MutagenMon.Core.Monitoring;
 using MutagenMon.Core.Mutagen;
 using MutagenMon.Core.ProfileWatch;
+using MutagenMon.Core.Resolution;
 using MutagenMon.Core.Sessions;
 
 namespace MutagenMon.App;
@@ -43,6 +44,8 @@ public partial class App : Application
     private StatusWindow? _statusWindow;
     private SessionMonitorService? _monitorService;
     private ISessionStateStore? _stateStore;
+    private ConflictResolutionService? _conflictResolutionService;
+    private ILogger<ConflictResolutionController>? _conflictResolutionControllerLogger;
     private IReadOnlyList<string> _sessionNames = Array.Empty<string>();
 
     protected override async void OnStartup(StartupEventArgs e)
@@ -100,6 +103,9 @@ public partial class App : Application
             builder.Services.AddSingleton<IFileTimestampProvider, FileTimestampProvider>();
             builder.Services.AddSingleton<SessionMonitorService>();
             builder.Services.AddHostedService(sp => sp.GetRequiredService<SessionMonitorService>());
+            builder.Services.AddSingleton<IConflictFileClient, ConflictFileClient>();
+            builder.Services.AddSingleton(new ResolveLogWriter(ResolveLogDirectory(baseDir, options.LogPath)));
+            builder.Services.AddSingleton<ConflictResolutionService>();
 
             _host = builder.Build();
             _logger.LogInformation("Starting background session monitor");
@@ -110,6 +116,8 @@ public partial class App : Application
             _monitorService = _host.Services.GetRequiredService<SessionMonitorService>();
             var stateStore = _host.Services.GetRequiredService<ISessionStateStore>();
             _stateStore = stateStore;
+            _conflictResolutionService = _host.Services.GetRequiredService<ConflictResolutionService>();
+            _conflictResolutionControllerLogger = _host.Services.GetRequiredService<ILogger<ConflictResolutionController>>();
             var iconCache = new IconImageCache(Path.Combine(baseDir, "Assets", "Icons"));
             _logger.LogInformation("Acquiring tray icon resource");
             var trayIcon = (TaskbarIcon)Resources["TrayIcon"];
@@ -150,7 +158,11 @@ public partial class App : Application
     private void OnShowStatusClick(object sender, RoutedEventArgs e)
     {
         _logger?.LogDebug("Show status clicked");
-        _statusWindow ??= new StatusWindow();
+        if (_statusWindow is null)
+        {
+            _statusWindow = new StatusWindow();
+            _statusWindow.ResolveConflictsRequested += OnResolveConflictsRequested;
+        }
         if (_stateStore is not null)
         {
             var title = ((TaskbarIcon)Resources["TrayIcon"]).ToolTipText ?? "MutagenMon";
@@ -158,6 +170,23 @@ public partial class App : Application
         }
         _statusWindow.Show();
         _statusWindow.Activate();
+    }
+
+    /// <summary>Ports mutagenmonlib/remote/resolve.py: resolve_all() being
+    /// invoked from the status view's "Resolve conflicts" action (FR-8.2 ->
+    /// FR-9). Composes a fresh <see cref="ConflictResolutionController"/> per
+    /// invocation — no state to keep between runs.</summary>
+    private async void OnResolveConflictsRequested(object? sender, EventArgs e)
+    {
+        if (_stateStore is null || _conflictResolutionService is null || _conflictResolutionControllerLogger is null || _statusWindow is null)
+        {
+            return;
+        }
+
+        _logger?.LogInformation("Resolve conflicts requested");
+        var controller = new ConflictResolutionController(
+            _statusWindow, _stateStore, _sessionNames, _conflictResolutionService, _conflictResolutionControllerLogger);
+        await controller.RunAsync();
     }
 
     /// <summary>Ports mutagenmonlib/wx/icon.py: TaskBarIcon.on_restart() (FR-7.1):
@@ -263,10 +292,16 @@ public partial class App : Application
     /// <summary>Resolves logPath to a log directory (relative to baseDir
     /// unless logPath is itself rooted/absolute), creates it if needed, and
     /// returns the full path to mutagenMon.log inside it.</summary>
-    private static string ResolveLogFilePath(string baseDir, string logPath)
+    private static string ResolveLogFilePath(string baseDir, string logPath) =>
+        Path.Combine(ResolveLogDirectory(baseDir, logPath), "mutagenMon.log");
+
+    /// <summary>Shared by the primary log (mutagenMon.log) and the dedicated
+    /// resolve log (resolve.log, FR-9.7/FR-14.3) — same LOG_PATH resolution
+    /// rule (relative to baseDir unless rooted/absolute).</summary>
+    private static string ResolveLogDirectory(string baseDir, string logPath)
     {
         var logDir = Path.IsPathRooted(logPath) ? logPath : Path.Combine(baseDir, logPath);
         Directory.CreateDirectory(logDir);
-        return Path.Combine(logDir, "mutagenMon.log");
+        return logDir;
     }
 }

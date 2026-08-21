@@ -13,7 +13,7 @@
 "START_ENABLED": true,
 
 # Paths to binary files
-"MERGE_PATH": "C:\\Program Files (x86)\\WinMerge\\WinMergeU",
+"MERGE_PATH": "C:\\Users\\tparent\\AppData\\Local\\Programs\\WinMerge\\WinMergeU.exe",
 "SCP_PATH": "C:\\Program Files\\Git\\usr\\bin\\scp",
 "SSH_PATH": "C:\\Program Files\\Git\\usr\\bin\\ssh",
 "MUTAGEN_PATH": "C:\\Tools\\mutagen\\mutagen.exe",

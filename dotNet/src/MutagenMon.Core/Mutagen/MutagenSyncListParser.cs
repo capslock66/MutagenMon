@@ -152,11 +152,25 @@ public static partial class MutagenSyncListParser
         return b;
     }
 
+    /// <summary>Ports mutagen's own SCP-style-vs-Windows-path disambiguation:
+    /// a single character before the first ':' is a Windows drive letter
+    /// (e.g. "C:\..." or "C:/..."), not an SSH host. Anything else with a
+    /// ':' is "[user@]host:path" — the path may or may not start with '/'
+    /// (absolute vs. relative-to-home are both valid SSH specs).
+    ///
+    /// Bug fix: the previous heuristic required the literal substring ":/"
+    /// (i.e. only matched an *absolute* remote path), so a relative-to-home
+    /// endpoint like "tparent@pc-ub1:sources/appman" — a real, common mutagen
+    /// URL, and exactly the one that surfaced this in production use — was
+    /// misclassified as Local. That fed straight into ConflictFileClient's
+    /// local-file-IO branch, which then tried to open "sources/appman/..."
+    /// as a local path relative to the app's own working directory and threw
+    /// an IOException.</summary>
     private static SessionEndpoint BuildEndpoint(string url)
     {
-        var sepIndex = url.IndexOf(":/", StringComparison.Ordinal);
-        return sepIndex >= 0
-            ? new SessionEndpoint(url, TransportKind.Ssh, url[..sepIndex], url[(sepIndex + 1)..])
+        var colonIndex = url.IndexOf(':', StringComparison.Ordinal);
+        return colonIndex > 1
+            ? new SessionEndpoint(url, TransportKind.Ssh, url[..colonIndex], url[(colonIndex + 1)..])
             : new SessionEndpoint(url, TransportKind.Local, null, null);
     }
 

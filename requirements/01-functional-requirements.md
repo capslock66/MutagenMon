@@ -249,13 +249,14 @@ for the rationale:
   verification (a startup exception produced literally no log output,
   because logging hadn't even been configured yet at the point it was
   thrown) — always-on beats "remember to flip a flag after the fact."
-- **FR-14.3 (deferred)**: not yet implemented. Dedicated restart/resolve
-  log files depend on FR-13 (automatic session restart execution) and
-  FR-9/FR-10 (conflict resolution), none of which are built yet (Phase
-  3/5 per the migration notes' phased plan). Until then, the one
-  self-restart mechanism that *is* implemented in Phase 1 (the tray
-  icon's staleness watchdog, FR-6) logs to the same single file as
-  everything else.
+- **FR-14.3 (partially implemented, Phase 3)**: the conflict-resolution
+  half is done — every manual resolution (FR-9) appends to a dedicated
+  `resolve.log`, independent of the main log
+  (`MutagenMon.Core/Resolution/ResolveLogWriter.cs`). The restart-log half
+  still depends on FR-13 (automatic session restart execution, Phase 5),
+  not yet built; until then, the one self-restart mechanism that *is*
+  implemented in Phase 1 (the tray icon's staleness watchdog, FR-6) logs
+  to the same single file as everything else.
 
 ## FR-15 — Single, always-on background operation
 

@@ -7,7 +7,17 @@ namespace MutagenMon.Core.Mutagen;
 
 /// <summary>Ports mutagenmonlib/remote/mutagen.py: mutagen_sync_list()'s process
 /// invocation half (the text-cleanup half moved into
-/// <see cref="MutagenSyncListParser"/> — see its Normalize step).</summary>
+/// <see cref="MutagenSyncListParser"/> — see its Normalize step).
+///
+/// Deliberate deviation from the legacy behavior: invokes `sync list
+/// --long`, not plain `sync list`. The legacy called the latter, but on
+/// real mutagen builds that only prints a `Conflicts: N` summary count —
+/// the per-file `(alpha) .../(beta) ...` detail lines
+/// <see cref="MutagenSyncListParser"/> depends on (and that FR-8's
+/// conflicts section / FR-9's resolution workflow both need) only appear
+/// with `--long`. Confirmed against a real conflict in production use:
+/// without the flag, HasConflicts was correctly true but the conflict
+/// list stayed empty, so no "Resolve conflicts" UI ever appeared.</summary>
 public sealed class MutagenCliClient : IMutagenCliClient
 {
     private readonly string _mutagenPath;
@@ -31,8 +41,9 @@ public sealed class MutagenCliClient : IMutagenCliClient
         };
         psi.ArgumentList.Add("sync");
         psi.ArgumentList.Add("list");
+        psi.ArgumentList.Add("--long");
 
-        _logger.LogDebug("Invoking '{MutagenPath} sync list'", _mutagenPath);
+        _logger.LogDebug("Invoking '{MutagenPath} sync list --long'", _mutagenPath);
 
         using var process = new Process { StartInfo = psi };
         process.Start();

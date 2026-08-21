@@ -297,14 +297,16 @@ pour la justification :
   sortie de journal, car la journalisation n'était même pas encore
   configurée au moment où elle a été levée) — un journal toujours actif
   vaut mieux que « se souvenir d'activer un indicateur après coup ».
-- **FR-14.3 (différé)** : pas encore implémenté. Les fichiers de journal
-  dédiés au redémarrage/à la résolution dépendent de FR-13 (exécution du
-  redémarrage automatique de session) et de FR-9/FR-10 (résolution des
-  conflits), qui ne sont pas encore construits (Phase 3/5 selon le plan
-  par phases des notes de migration). D'ici là, le seul mécanisme
-  d'auto-redémarrage *effectivement* implémenté en Phase 1 (le
-  chien de garde d'obsolescence de l'icône de la zone de notification,
-  FR-6) journalise dans le même fichier unique que tout le reste.
+- **FR-14.3 (partiellement implémenté, Phase 3)** : la moitié consacrée à
+  la résolution des conflits est faite — chaque résolution manuelle
+  (FR-9) est ajoutée à un `resolve.log` dédié, indépendant du journal
+  principal (`MutagenMon.Core/Resolution/ResolveLogWriter.cs`). La moitié
+  consacrée au journal de redémarrage dépend toujours de FR-13
+  (exécution du redémarrage automatique de session, Phase 5), pas encore
+  construite ; d'ici là, le seul mécanisme d'auto-redémarrage
+  *effectivement* implémenté en Phase 1 (le chien de garde d'obsolescence
+  de l'icône de la zone de notification, FR-6) journalise dans le même
+  fichier unique que tout le reste.
 
 ## FR-15 — Fonctionnement en arrière-plan unique et permanent
 

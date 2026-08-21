@@ -4,14 +4,16 @@ Ceci est la réécriture .NET créée selon
 [requirements/05-wpf-migration-notes.md](../requirements/05-wpf-migration-notes.md).
 Périmètre actuel : **Phase 0 (scaffolding) + Phase 1 (cœur de l'icône de
 barre d'état système en temps réel) + Phase 2 (menu contextuel & vue de
-statut)** — sondage en arrière-plan, classification/agrégation du statut
-des sessions, la machine à états complète de l'icône de la barre d'état
-système, le menu contextuel complet (recharger/arrêter-démarrer/afficher le
-statut/quitter, FR-7), et la vue de statut avec sa section de conflits
-(FR-8). La résolution manuelle des conflits, les notifications, la
-résolution automatique des conflits, et l'exécution du redémarrage
-automatique des sessions ne sont **pas encore implémentés** — voir la
-section "Out of scope" du plan à partir duquel ceci a été construit.
+statut) + Phase 3 (résolution manuelle des conflits)** — sondage en
+arrière-plan, classification/agrégation du statut des sessions, la
+machine à états complète de l'icône de la barre d'état système, le menu
+contextuel complet (recharger/arrêter-démarrer/afficher le
+statut/quitter, FR-7), la vue de statut avec sa section de conflits
+(FR-8), et le workflow de résolution manuelle des conflits avec
+intégration de la fusion visuelle (FR-9). La résolution automatique des
+conflits, les notifications, et l'exécution du redémarrage automatique
+des sessions ne sont **pas encore implémentés** — voir la section "Out of
+scope" du plan à partir duquel ceci a été construit.
 
 > Ceci a commencé comme une application Blazor Hybrid (WPF +
 > `BlazorWebView`) et a été réorienté vers du WPF pur après de véritables
@@ -86,8 +88,12 @@ session de bureau Windows. Sur une machine Windows :
    - Clic gauche, ou clic droit → **Show status**, ouvre la vue de statut :
      un bloc Name/Status/Alpha/Beta par session configurée, et — si une
      session a un conflit non résolu — une section CONFLICTS avec un
-     bouton "Resolve conflicts" (actuellement un message provisoire ; le
-     véritable workflow est FR-9, Phase 3).
+     bouton "Resolve conflicts" qui démarre le workflow de résolution
+     manuelle (FR-9) : un conflit à la fois, numéroté « N sur total »,
+     avec une comparaison A/B (URL, taille, dernière modification) et un
+     choix Visual merge / A wins / B wins présélectionné selon le côté
+     modifié le plus récemment. Annuler interrompt tout le lot. Chaque
+     résolution est ajoutée à `log/resolve.log`.
    - Clic droit → **Reload config & restart mutagen** termine toutes les
      sessions en cours, puis redémarre tout le processus une fois qu'elles
      sont toutes arrêtées (observer le menu contextuel se réduire à un
@@ -174,9 +180,14 @@ est vide, vérifier `mutagenMon.fatal.log`.
 
 ## Limitations connues de cette phase
 
-- Le bouton "Resolve conflicts" de la vue de statut (FR-8.2) est câblé
-  mais affiche un message provisoire — le véritable workflow de
-  résolution manuelle (FR-9) est la Phase 3.
+- La résolution manuelle des conflits (FR-9) nécessite de véritables
+  binaires `ssh`/`scp`/outil de fusion et ne peut pas être exercée de
+  bout en bout sous Linux — seule la logique pure
+  (`ConflictBatchPlanner`, `ConflictResolutionService` face à un
+  `IConflictFileClient` factice, `ResolveLogWriter`) y est testée
+  unitairement ; l'invocation réelle SSH/copie/outil de fusion
+  (`MutagenMon.Core/Resolution/ConflictFileClient.cs`) nécessite une
+  vérification sous Windows, comme le reste de la couche WPF.
 - Pas de notifications de bureau (FR-11), pas d'exécution automatique du
   redémarrage des sessions (FR-13) — "Start Mutagen sessions" réactive le
   monitoring mais ne relance pas lui-même une session que "Stop Mutagen

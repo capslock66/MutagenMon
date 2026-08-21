@@ -78,6 +78,28 @@ public class MutagenSyncListParserTests
     }
 
     [Fact]
+    public void ParsesSshEndpointWithHomeRelativePathAsSshNotLocal()
+    {
+        const string raw = """
+            Name: relative-sync
+            Identifier: sync_DDDD
+            Status: Watching for changes
+            Alpha:
+            	URL: C:\sources\appman
+            Beta:
+            	URL: tparent@pc-ub1:sources/appman
+            """;
+
+        var result = MutagenSyncListParser.Parse(raw, new[] { "relative-sync" });
+        var status = result.SessionStatuses["relative-sync"];
+
+        Assert.NotNull(status);
+        Assert.Equal(TransportKind.Ssh, status!.Beta!.Transport);
+        Assert.Equal("tparent@pc-ub1", status.Beta.Server);
+        Assert.Equal("sources/appman", status.Beta.RemoteDirectory);
+    }
+
+    [Fact]
     public void ParsesSyncingSessionWithTwoLocalEndpoints()
     {
         var result = MutagenSyncListParser.Parse(Raw, KnownSessions);

@@ -1,4 +1,6 @@
 using System.ComponentModel;
+using System.IO;
+using System.Threading.Tasks;
 using System.Windows;
 using MutagenMon.Core.Monitoring;
 using MutagenMon.Core.Status;
@@ -16,6 +18,11 @@ namespace MutagenMon.App;
 /// </summary>
 public partial class StatusWindow : Window
 {
+    /// <summary>Raised when the user clicks "Resolve conflicts" (FR-8.2) —
+    /// the actual FR-9 workflow is composed and run by the caller
+    /// (App.xaml.cs), which owns the DI-provided services it needs.</summary>
+    public event EventHandler? ResolveConflictsRequested;
+
     public StatusWindow()
     {
         InitializeComponent();
@@ -46,9 +53,23 @@ public partial class StatusWindow : Window
 
     private void OnResolveConflictsClick(object sender, RoutedEventArgs e)
     {
-        // FR-9 (manual conflict resolution) is a later phase — see
-        // requirements/05-wpf-migration-notes.md §6 Phase 3.
-        GenericMessageDialog.ShowInfo(this, "MutagenMon", "Conflict resolution isn't implemented yet.");
+        Hide();
+        ResolveConflictsRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Deliberate test button — throws the exact exception
+    /// type/message hit in production by the FR-9 SSH-endpoint
+    /// misclassification bug (an embedded ':' in a path segment is invalid
+    /// NTFS syntax: IOException "The filename, directory name, or volume
+    /// label syntax is incorrect."), on a background thread awaited from an
+    /// async void handler — the same propagation path the real bug went
+    /// through. Lets the unhandled-exception logging
+    /// (App.xaml.cs: OnDispatcherUnhandledException /
+    /// OnDispatcherUnhandledExceptionFilter) be re-verified on demand
+    /// without needing a real mutagen conflict.</summary>
+    private async void OnBoomClick(object sender, RoutedEventArgs e)
+    {
+        await Task.Run(() => _ = new FileInfo(@"C:\boom:test.txt").Length);
     }
 
     protected override void OnClosing(CancelEventArgs e)

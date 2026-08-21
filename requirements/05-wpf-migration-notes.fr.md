@@ -148,7 +148,7 @@ complète des clés). Ajouts fortement recommandés pour la réécriture :
    "Resolve conflicts" de la vue de statut (FR-8.2) est câblée vers un
    message provisoire ; le véritable workflow est la Phase 3.
 3. **Phase 3** : flux de résolution manuelle de conflit (FR-9) et
-   intégration de la fusion visuelle.
+   intégration de la fusion visuelle. **Fait** — voir `dotNet/README.md`.
 4. **Phase 4** : résolution automatique de conflit (FR-10), notifications
    (FR-11), détection de changement de profil (FR-12).
 5. **Phase 5** : récupération automatique de session (FR-13) et
