@@ -53,4 +53,36 @@ public sealed class MutagenCliClient : IMutagenCliClient
 
         return stdout + stderr;
     }
+
+    public async Task TerminateSessionAsync(string sessionName, CancellationToken cancellationToken)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = _mutagenPath,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+        psi.ArgumentList.Add("sync");
+        psi.ArgumentList.Add("terminate");
+        psi.ArgumentList.Add(sessionName);
+
+        _logger.LogDebug("Invoking '{MutagenPath} sync terminate {SessionName}'", _mutagenPath, sessionName);
+
+        using var process = new Process { StartInfo = psi };
+        process.Start();
+
+        var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken);
+        var stdout = await stdoutTask;
+        var stderr = await stderrTask;
+
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException(
+                $"'{_mutagenPath} sync terminate {sessionName}' exited with code {process.ExitCode}: {stdout}{stderr}");
+        }
+    }
 }

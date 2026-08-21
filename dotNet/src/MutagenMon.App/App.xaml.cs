@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Threading;
 using H.NotifyIcon;
 using Microsoft.Extensions.DependencyInjection;
@@ -40,6 +41,9 @@ public partial class App : Application
     private IHost? _host;
     private TrayIconController? _trayIconController;
     private StatusWindow? _statusWindow;
+    private SessionMonitorService? _monitorService;
+    private ISessionStateStore? _stateStore;
+    private IReadOnlyList<string> _sessionNames = Array.Empty<string>();
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -94,14 +98,18 @@ public partial class App : Application
             builder.Services.AddSingleton<IMutagenCliClient, MutagenCliClient>();
             builder.Services.AddSingleton<ISessionStateStore, SessionStateStore>();
             builder.Services.AddSingleton<IFileTimestampProvider, FileTimestampProvider>();
-            builder.Services.AddHostedService<SessionMonitorService>();
+            builder.Services.AddSingleton<SessionMonitorService>();
+            builder.Services.AddHostedService(sp => sp.GetRequiredService<SessionMonitorService>());
 
             _host = builder.Build();
             _logger.LogInformation("Starting background session monitor");
             await _host.StartAsync();
             _logger.LogInformation("Background session monitor started");
 
+            _sessionNames = sessionResult.Sessions.Select(s => s.Name).ToArray();
+            _monitorService = _host.Services.GetRequiredService<SessionMonitorService>();
             var stateStore = _host.Services.GetRequiredService<ISessionStateStore>();
+            _stateStore = stateStore;
             var iconCache = new IconImageCache(Path.Combine(baseDir, "Assets", "Icons"));
             _logger.LogInformation("Acquiring tray icon resource");
             var trayIcon = (TaskbarIcon)Resources["TrayIcon"];
@@ -117,7 +125,7 @@ public partial class App : Application
 
             _trayIconController = new TrayIconController(
                 trayIcon, stateStore, iconCache, options.TrayTooltip, options.StatusMaxLag.ToLagThresholds(),
-                OnSelfRestartNeeded, trayIconLogger);
+                _sessionNames, OnSelfRestartNeeded, trayIconLogger);
             _trayIconController.Start();
             _logger.LogInformation("MutagenMon startup complete — tray icon is live");
         }
@@ -143,8 +151,65 @@ public partial class App : Application
     {
         _logger?.LogDebug("Show status clicked");
         _statusWindow ??= new StatusWindow();
+        if (_stateStore is not null)
+        {
+            var title = ((TaskbarIcon)Resources["TrayIcon"]).ToolTipText ?? "MutagenMon";
+            _statusWindow.UpdateContent(title, _stateStore.Get(), _sessionNames);
+        }
         _statusWindow.Show();
         _statusWindow.Activate();
+    }
+
+    /// <summary>Ports mutagenmonlib/wx/icon.py: TaskBarIcon.on_restart() (FR-7.1):
+    /// disable monitoring (terminating every session on the next poll) and
+    /// arm the tray icon controller's restart-readiness check.</summary>
+    private void OnReloadClick(object sender, RoutedEventArgs e)
+    {
+        _logger?.LogInformation("Reload config & restart mutagen requested");
+        _monitorService?.SetEnabled(false);
+        _trayIconController?.RequestRestart();
+    }
+
+    /// <summary>Ports mutagenmonlib/wx/icon.py: TaskBarIcon.on_start()/on_stop() (FR-7.2).</summary>
+    private void OnToggleMonitoringClick(object sender, RoutedEventArgs e)
+    {
+        if (_monitorService is null) return;
+        var newEnabled = !_monitorService.IsEnabled;
+        _logger?.LogInformation("Toggling monitoring to {Enabled}", newEnabled);
+        _monitorService.SetEnabled(newEnabled);
+    }
+
+    /// <summary>Ports mutagenmonlib/wx/icon.py: TaskBarIcon.CreatePopupMenu()
+    /// (FR-7.2/FR-7.5) — refreshes the toggle item's label and collapses
+    /// everything but "Restarting.../Exit" while a restart is in progress,
+    /// right before the menu is actually shown. Items are addressed by
+    /// position (matching the fixed order in App.xaml) rather than by name:
+    /// x:Name on elements nested inside Application.Resources is not
+    /// connected to a code-behind field the way it would be for a Window.</summary>
+    private void OnTrayContextMenuOpened(object sender, RoutedEventArgs e)
+    {
+        if (sender is not ContextMenu menu) return;
+
+        var reloadItem = (MenuItem)menu.Items[0];
+        var toggleItem = (MenuItem)menu.Items[1];
+        var topSeparator = (UIElement)menu.Items[2];
+        var showStatusItem = (MenuItem)menu.Items[3];
+        var bottomSeparator = (UIElement)menu.Items[4];
+        var restartingItem = (MenuItem)menu.Items[5];
+
+        var restarting = _trayIconController?.IsRestartInProgress ?? false;
+
+        reloadItem.Visibility = restarting ? Visibility.Collapsed : Visibility.Visible;
+        toggleItem.Visibility = restarting ? Visibility.Collapsed : Visibility.Visible;
+        topSeparator.Visibility = restarting ? Visibility.Collapsed : Visibility.Visible;
+        showStatusItem.Visibility = restarting ? Visibility.Collapsed : Visibility.Visible;
+        bottomSeparator.Visibility = restarting ? Visibility.Collapsed : Visibility.Visible;
+        restartingItem.Visibility = restarting ? Visibility.Visible : Visibility.Collapsed;
+
+        if (!restarting && _monitorService is not null)
+        {
+            toggleItem.Header = _monitorService.IsEnabled ? "Stop Mutagen sessions" : "Start Mutagen sessions";
+        }
     }
 
     private async void OnExitClick(object sender, RoutedEventArgs e)

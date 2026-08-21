@@ -9,4 +9,8 @@ namespace MutagenMon.Core.Mutagen;
 public interface IMutagenCliClient
 {
     Task<string> GetSyncListRawAsync(CancellationToken cancellationToken);
+
+    /// <summary>Ports mutagenmonlib/remote/mutagen.py: stop_session() —
+    /// `mutagen sync terminate &lt;name&gt;`.</summary>
+    Task TerminateSessionAsync(string sessionName, CancellationToken cancellationToken);
 }

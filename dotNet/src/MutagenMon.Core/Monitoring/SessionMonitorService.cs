@@ -32,8 +32,24 @@ public sealed class SessionMonitorService : BackgroundService
     private readonly SessionStateTracker _tracker = new();
     private readonly SessionProfileWatcher _profileWatcher;
     private readonly TimeSpan _pollPeriod;
-    private readonly bool _enabled;
+    private volatile bool _enabled;
     private readonly ILogger<SessionMonitorService> _logger;
+
+    /// <summary>Current monitoring-enabled state (FR-7.2). Read each poll to
+    /// decide whether to actively terminate sessions.</summary>
+    public bool IsEnabled => _enabled;
+
+    /// <summary>Ports mutagenmonlib/remote/monitor.py: StartMutagen()/
+    /// DisableMutagen() (FR-7.2). Disabling takes effect on the next poll —
+    /// see <see cref="PollOnceAsync"/>'s termination pass. Enabling does not
+    /// itself restart anything: reviving missing/stopped sessions is the
+    /// auto-recovery logic (FR-13, Phase 5), not yet implemented.</summary>
+    public void SetEnabled(bool enabled)
+    {
+        if (_enabled == enabled) return;
+        _logger.LogInformation("Monitoring {State}", enabled ? "enabled" : "disabled");
+        _enabled = enabled;
+    }
 
     public SessionMonitorService(
         IMutagenCliClient cliClient,
@@ -98,19 +114,6 @@ public sealed class SessionMonitorService : BackgroundService
                     worst = code;
             }
 
-            foreach (var (name,status) in parsed.SessionStatuses)        // KeyValuePair<string, ParsedSessionStatus?>
-            {
-                _logger.LogInformation($"Session '{name}' status: {status.Status}, hasProblem: {status.HasProblems}, HasConflicts: {status.HasConflicts}");
-                //TTrace.Debug.Send($"Session '{name}' status: {status}");
-
-                var code = _tracker.Update(name, status);
-                if (code < worst) 
-                    worst = code;
-                
-            }
-
-
-
             var profileUpdated = _profileWatcher.Tick(parsed.SessionStatuses);
 
             _logger.LogInformation(
@@ -125,10 +128,41 @@ public sealed class SessionMonitorService : BackgroundService
                 parsed.RawLog,
                 parsed.SessionStatuses,
                 parsed.Conflicts));
+
+            if (!_enabled)
+            {
+                await TerminateRunningSessionsAsync(parsed.SessionStatuses, cancellationToken);
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogWarning(ex, "Mutagen status poll failed; keeping the last published snapshot and retrying next cycle");
+        }
+    }
+
+    /// <summary>Ports mutagenmonlib/remote/monitor.py: stop_mutagen() — while
+    /// monitoring is disabled, every session that still reports a status is
+    /// actively terminated. Per-session failures are logged and swallowed
+    /// (mirrors the legacy's bare except/pass) so one unreachable session
+    /// doesn't stop the others from being terminated.</summary>
+    private async Task TerminateRunningSessionsAsync(
+        IReadOnlyDictionary<string, ParsedSessionStatus?> statuses, CancellationToken cancellationToken)
+    {
+        foreach (var name in _sessionNames)
+        {
+            if (!statuses.TryGetValue(name, out var status) || status is null || string.IsNullOrEmpty(status.Status))
+            {
+                continue;
+            }
+
+            try
+            {
+                await _cliClient.TerminateSessionAsync(name, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "Failed to terminate session '{SessionName}' while monitoring is disabled", name);
+            }
         }
     }
 }

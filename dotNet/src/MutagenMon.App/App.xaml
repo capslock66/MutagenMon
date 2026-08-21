@@ -4,11 +4,15 @@
              xmlns:tb="clr-namespace:H.NotifyIcon;assembly=H.NotifyIcon.Wpf"
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
-        <tb:TaskbarIcon x:Key="TrayIcon" ToolTipText="MutagenMon: waiting for status...">
+        <tb:TaskbarIcon x:Key="TrayIcon" ToolTipText="MutagenMon: waiting for status..." TrayLeftMouseUp="OnShowStatusClick">
             <tb:TaskbarIcon.ContextMenu>
-                <ContextMenu>
+                <ContextMenu Opened="OnTrayContextMenuOpened">
+                    <MenuItem Header="Reload config &amp; restart mutagen" Click="OnReloadClick" />
+                    <MenuItem Header="Stop Mutagen sessions" Click="OnToggleMonitoringClick" />
+                    <Separator />
                     <MenuItem Header="Show status" Click="OnShowStatusClick" />
                     <Separator />
+                    <MenuItem Header="Restarting..." IsEnabled="False" Visibility="Collapsed" />
                     <MenuItem Header="Exit MutagenMon" Click="OnExitClick" />
                 </ContextMenu>
             </tb:TaskbarIcon.ContextMenu>

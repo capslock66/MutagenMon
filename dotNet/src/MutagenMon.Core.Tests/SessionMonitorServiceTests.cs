@@ -21,12 +21,25 @@ public class SessionMonitorServiceTests
     private sealed class FakeMutagenCliClient : IMutagenCliClient
     {
         private readonly Queue<Func<string>> _responses = new();
+        public readonly List<string> TerminatedSessions = new();
+        public string? FailTerminationFor;
 
         public void Enqueue(string response) => _responses.Enqueue(() => response);
         public void EnqueueFailure(string message) => _responses.Enqueue(() => throw new InvalidOperationException(message));
 
         public Task<string> GetSyncListRawAsync(CancellationToken cancellationToken) =>
             Task.FromResult(_responses.Count > 0 ? _responses.Dequeue()() : "");
+
+        public Task TerminateSessionAsync(string sessionName, CancellationToken cancellationToken)
+        {
+            if (sessionName == FailTerminationFor)
+            {
+                throw new InvalidOperationException($"cannot terminate '{sessionName}'");
+            }
+
+            TerminatedSessions.Add(sessionName);
+            return Task.CompletedTask;
+        }
     }
 
     private static string ReadySession(string name, string id) => $"""
@@ -159,5 +172,77 @@ public class SessionMonitorServiceTests
         await service.PollOnceAsync(CancellationToken.None);
 
         Assert.Equal(SessionStatusCode.Ready, store.Get().WorstCode);
+    }
+
+    [Fact]
+    public void IsEnabledReflectsTheConfiguredStartEnabledByDefault()
+    {
+        var cli = new FakeMutagenCliClient();
+        var service = BuildService(cli, new SessionStateStore(), out _);
+
+        Assert.True(service.IsEnabled);
+    }
+
+    [Fact]
+    public async Task DisablingTerminatesEverySessionThatStillReportsAStatus()
+    {
+        var cli = new FakeMutagenCliClient();
+        cli.Enqueue(ReadySession("alpha-sync", "id-a") + "\n" + ReadySession("beta-sync", "id-b"));
+        var store = new SessionStateStore();
+        var service = BuildService(cli, store, out _);
+
+        service.SetEnabled(false);
+        await service.PollOnceAsync(CancellationToken.None);
+
+        Assert.False(store.Get().Enabled);
+        Assert.Equal(new[] { "alpha-sync", "beta-sync" }, cli.TerminatedSessions);
+    }
+
+    [Fact]
+    public async Task DisablingDoesNotTerminateASessionThatIsAlreadyNotReporting()
+    {
+        var cli = new FakeMutagenCliClient();
+        cli.Enqueue(ReadySession("alpha-sync", "id-a")); // beta-sync never shows up
+        var store = new SessionStateStore();
+        var service = BuildService(cli, store, out _);
+
+        service.SetEnabled(false);
+        await service.PollOnceAsync(CancellationToken.None);
+
+        Assert.Equal(new[] { "alpha-sync" }, cli.TerminatedSessions);
+    }
+
+    [Fact]
+    public async Task ATerminationFailureForOneSessionDoesNotPreventTheOthersFromBeingTerminated()
+    {
+        var cli = new FakeMutagenCliClient { FailTerminationFor = "alpha-sync" };
+        cli.Enqueue(ReadySession("alpha-sync", "id-a") + "\n" + ReadySession("beta-sync", "id-b"));
+        var store = new SessionStateStore();
+        var service = BuildService(cli, store, out _);
+
+        service.SetEnabled(false);
+        await service.PollOnceAsync(CancellationToken.None);
+
+        Assert.Equal(new[] { "beta-sync" }, cli.TerminatedSessions);
+    }
+
+    [Fact]
+    public async Task EnablingAgainStopsFurtherTerminationAttempts()
+    {
+        var cli = new FakeMutagenCliClient();
+        cli.Enqueue(ReadySession("alpha-sync", "id-a") + "\n" + ReadySession("beta-sync", "id-b"));
+        cli.Enqueue(ReadySession("alpha-sync", "id-a") + "\n" + ReadySession("beta-sync", "id-b"));
+        var store = new SessionStateStore();
+        var service = BuildService(cli, store, out _);
+
+        service.SetEnabled(false);
+        await service.PollOnceAsync(CancellationToken.None);
+        cli.TerminatedSessions.Clear();
+
+        service.SetEnabled(true);
+        await service.PollOnceAsync(CancellationToken.None);
+
+        Assert.Empty(cli.TerminatedSessions);
+        Assert.True(store.Get().Enabled);
     }
 }

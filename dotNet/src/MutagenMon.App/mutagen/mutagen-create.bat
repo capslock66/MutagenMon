@@ -10,6 +10,6 @@ mutagen sync create --name=pc-ub1-appman      --sync-mode=two-way-resolved "C:\s
 mutagen sync list
 timeout /t 3
 mutagen sync list -l
-pause
+timeout /t 3
 
 
