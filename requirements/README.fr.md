@@ -27,6 +27,10 @@ spécification pour une réécriture sous forme d'application de bureau
    — comment héberger ce comportement sur la pile technique WPF
    (correspondance des composants, modèle de threading, plan de livraison
    par phases).
+7. [UserTests.md](UserTests.md) — script de tests d'acceptation manuels,
+   clic par clic, pour vérifier chaque exigence sur l'application
+   `dotNet/` en cours d'exécution, tenu à jour avec l'avancement de
+   l'implémentation.
 
 ## Ressources d'icônes
 

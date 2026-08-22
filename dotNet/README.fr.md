@@ -4,16 +4,22 @@ Ceci est la réécriture .NET créée selon
 [requirements/05-wpf-migration-notes.md](../requirements/05-wpf-migration-notes.md).
 Périmètre actuel : **Phase 0 (scaffolding) + Phase 1 (cœur de l'icône de
 barre d'état système en temps réel) + Phase 2 (menu contextuel & vue de
-statut) + Phase 3 (résolution manuelle des conflits)** — sondage en
-arrière-plan, classification/agrégation du statut des sessions, la
-machine à états complète de l'icône de la barre d'état système, le menu
-contextuel complet (recharger/arrêter-démarrer/afficher le
-statut/quitter, FR-7), la vue de statut avec sa section de conflits
-(FR-8), et le workflow de résolution manuelle des conflits avec
-intégration de la fusion visuelle (FR-9). La résolution automatique des
-conflits, les notifications, et l'exécution du redémarrage automatique
-des sessions ne sont **pas encore implémentés** — voir la section "Out of
-scope" du plan à partir duquel ceci a été construit.
+statut) + Phase 3 (résolution manuelle des conflits) + Phase 4 FR-10
+(résolution automatique des conflits)** — sondage en arrière-plan,
+classification/agrégation du statut des sessions, la machine à états
+complète de l'icône de la barre d'état système, le menu contextuel
+complet (recharger/arrêter-démarrer/afficher le statut/quitter, FR-7), la
+vue de statut avec sa section de conflits (FR-8), le workflow de
+résolution manuelle des conflits avec intégration de la fusion visuelle
+(FR-9), et la résolution automatique des conflits via des règles regex
+configurables (FR-10). Les notifications de bureau (FR-11), le signal de
+changement de profil débounced/gracé dont FR-11.4/FR-12.2 ont besoin (le
+signal brut, non débouncé, d'augmentation de la date de modification qui
+alimente le flash "vient d'être mis à jour" de l'icône de la barre d'état
+système a déjà été porté lors d'une phase antérieure — voir
+`SessionProfileWatcher`), et l'exécution du redémarrage automatique des
+sessions ne sont **pas encore implémentés** — voir la liste de suivi
+Phase 4/5 ci-dessous.
 
 > Ceci a commencé comme une application Blazor Hybrid (WPF +
 > `BlazorWebView`) et a été réorienté vers du WPF pur après de véritables
@@ -178,6 +184,38 @@ processus (la cause la plus fréquente étant un
 manquant/mal configuré, ou un `MUTAGEN_PATH` invalide). Si même ce fichier
 est vide, vérifier `mutagenMon.fatal.log`.
 
+## Liste de suivi Phase 4 / Phase 5
+
+Statut granulaire, FR par FR, pour les phases encore en cours (reflète
+[requirements/05-wpf-migration-notes.fr.md §6](../requirements/05-wpf-migration-notes.fr.md)).
+Cocher la case et ajouter une courte note de statut dès qu'une FR précise
+est livrée ou consciemment reportée — ne pas attendre que toute la phase
+soit terminée.
+
+- **Phase 4**
+  - [x] FR-10 — résolution automatique des conflits. **Fait** — règles
+    regex ordonnées (`AUTORESOLVE`) comparées au nom de fichier de chaque
+    nouveau conflit, première correspondance appliquée immédiatement via
+    les mêmes mécanismes de copie que le "A wins"/"B wins" manuel de FR-9,
+    avec une période de grâce `AUTORESOLVE_HISTORY_AGE` pour qu'un conflit
+    que mutagen continue de signaler ne soit pas retraité à chaque sondage.
+    Voir `MutagenMon.Core/Resolution/AutoResolveEngine.cs`, câblé dans
+    `SessionMonitorService.PollOnceAsync` avant la publication de
+    l'instantané. La notification conditionnée par `NOTIFY_AUTORESOLVE`
+    (FR-10.4) est laissée sous forme de point d'extension événementiel
+    (`AutoResolveEngine.ConflictAutoResolved`) pour que FR-11 s'y abonne
+    plus tard — aucune notification réelle n'est encore émise.
+  - [ ] FR-11 — notifications de bureau
+  - [ ] FR-12 — détection de changement de profil de session (seul le
+    signal brut, non débouncé, de date de modification est fait — voir
+    `SessionProfileWatcher` ; la période de grâce/debounce pour le
+    déclencheur de notification de FR-11.4 ne l'est pas)
+- **Phase 5**
+  - [ ] FR-13 — récupération automatique de session
+  - [ ] FR-14 — finalisation de la journalisation/du diagnostic
+    (journalisation de base déjà faite en Phase 1, voir « Journalisation »
+    ci-dessus)
+
 ## Limitations connues de cette phase
 
 - La résolution manuelle des conflits (FR-9) nécessite de véritables
@@ -188,6 +226,12 @@ est vide, vérifier `mutagenMon.fatal.log`.
   unitairement ; l'invocation réelle SSH/copie/outil de fusion
   (`MutagenMon.Core/Resolution/ConflictFileClient.cs`) nécessite une
   vérification sous Windows, comme le reste de la couche WPF.
+- La résolution automatique des conflits (FR-10) nécessite de véritables
+  binaires `ssh`/`scp` pour exercer la copie réelle de bout en bout sous
+  Linux, même réserve que pour FR-9 ci-dessus — seule la logique de
+  correspondance de règles/historique d'`AutoResolveEngine` y est testée
+  unitairement (`AutoResolveEngineTests`, face à un `IConflictFileClient`
+  factice).
 - Pas de notifications de bureau (FR-11), pas d'exécution automatique du
   redémarrage des sessions (FR-13) — "Start Mutagen sessions" réactive le
   monitoring mais ne relance pas lui-même une session que "Stop Mutagen

@@ -22,6 +22,9 @@ baseline for a rewrite as a **.NET WPF** desktop application.
 6. [05-wpf-migration-notes.md](05-wpf-migration-notes.md)
    — how to host this behavior on the WPF stack (component mapping,
    threading model, phased delivery plan).
+7. [UserTests.md](UserTests.md) — manual, click-by-click acceptance test
+   script for verifying each requirement against the running `dotNet/`
+   application, kept in step with implementation progress.
 
 ## Icon assets
 

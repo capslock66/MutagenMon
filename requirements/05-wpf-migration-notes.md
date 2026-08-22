@@ -132,8 +132,25 @@ full key list). Strongly recommended additions for the rewrite:
    merge integration. **Done** — see `dotNet/README.md`.
 4. **Phase 4**: automatic conflict resolution (FR-10), notifications
    (FR-11), profile-change detection (FR-12).
+   - [x] FR-10 — automatic conflict resolution (ordered regex rules,
+     `AUTORESOLVE_HISTORY_AGE` grace period). **Done** — see
+     `dotNet/README.md`.
+   - [ ] FR-11 — desktop notifications (new conflicts, auto-resolve,
+     restart, profile update).
+   - [ ] FR-12 — session profile change detection (archive mtime watch).
 5. **Phase 5**: session auto-recovery (FR-13) and logging/diagnostics
    polish (FR-14).
+   - [ ] FR-13 — automatic session recovery (restart on `SESSION_MAX_NOSESSION`).
+   - [ ] FR-14 — logging/diagnostics polish (base logging already **Done**
+     in Phase 1, see §7 below; this item covers the remaining FR-14 items
+     not yet mapped, e.g. FR-14.3 resolution-log cross-referencing).
+
+Each `[ ]`/`[x]` line is a standalone tracking unit: check the box, and
+append a one-line status note (**Done** — see `dotNet/README.md`, or
+**Skipped** — with a reason) the moment that specific FR is finished or
+consciously deferred — don't wait for every FR in the phase to land before
+updating this list. This lets a phase be worked on FR-by-FR (e.g. "do only
+FR-10 of Phase 4") without losing track of what's left.
 
 Each phase should close with the corresponding gaps from
 03-tray-icon-requirements.md §7 explicitly triaged (fixed or consciously

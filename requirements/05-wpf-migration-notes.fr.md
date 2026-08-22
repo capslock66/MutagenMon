@@ -151,8 +151,29 @@ complète des clés). Ajouts fortement recommandés pour la réécriture :
    intégration de la fusion visuelle. **Fait** — voir `dotNet/README.md`.
 4. **Phase 4** : résolution automatique de conflit (FR-10), notifications
    (FR-11), détection de changement de profil (FR-12).
+   - [x] FR-10 — résolution automatique de conflit (règles regex ordonnées,
+     période de grâce `AUTORESOLVE_HISTORY_AGE`). **Fait** — voir
+     `dotNet/README.md`.
+   - [ ] FR-11 — notifications de bureau (nouveaux conflits, résolution
+     automatique, redémarrage, mise à jour de profil).
+   - [ ] FR-12 — détection de changement de profil de session (surveillance
+     de la date de modification de l'archive).
 5. **Phase 5** : récupération automatique de session (FR-13) et
    finalisation de la journalisation/du diagnostic (FR-14).
+   - [ ] FR-13 — récupération automatique de session (redémarrage sur
+     `SESSION_MAX_NOSESSION`).
+   - [ ] FR-14 — finalisation de la journalisation/du diagnostic
+     (journalisation de base déjà **Fait** en Phase 1, voir §7 ci-dessous ;
+     cet élément couvre les points FR-14 restants non encore traités, par
+     ex. le croisement du journal de résolution en FR-14.3).
+
+Chaque ligne `[ ]`/`[x]` est une unité de suivi autonome : cocher la case
+et ajouter une courte note de statut (**Fait** — voir `dotNet/README.md`,
+ou **Ignoré** — avec la raison) dès que cette FR précise est terminée ou
+consciemment reportée — ne pas attendre que toutes les FR de la phase
+soient livrées avant de mettre à jour cette liste. Cela permet de traiter
+une phase FR par FR (par ex. « ne faire que la FR-10 de la Phase 4 »)
+sans perdre le fil de ce qui reste à faire.
 
 Chaque phase doit se clôturer par un examen explicite (triage) des lacunes
 correspondantes de 03-tray-icon-requirements.md §7 (corrigées ou

@@ -4,13 +4,18 @@ This is the .NET rewrite scaffolded per
 [requirements/05-wpf-migration-notes.md](../requirements/05-wpf-migration-notes.md).
 Current scope: **Phase 0 (scaffolding) + Phase 1 (real-time tray icon
 core) + Phase 2 (context menu & status view) + Phase 3 (manual conflict
-resolution)** — background polling, session status
-classification/aggregation, the tray icon's full state machine, the full
-context menu (reload/stop-start/show status/exit, FR-7), the status view
-with a conflicts section (FR-8), and the manual conflict resolution
-workflow with visual merge integration (FR-9). Automatic conflict
-resolution, notifications, and session auto-restart execution are **not
-yet implemented** — see "Out of scope" in the plan this was built from.
+resolution) + Phase 4 FR-10 (automatic conflict resolution)** —
+background polling, session status classification/aggregation, the tray
+icon's full state machine, the full context menu
+(reload/stop-start/show status/exit, FR-7), the status view with a
+conflicts section (FR-8), the manual conflict resolution workflow with
+visual merge integration (FR-9), and automatic conflict resolution via
+configurable regex rules (FR-10). Desktop notifications (FR-11), the
+debounced/graced profile-change signal FR-11.4/FR-12.2 needs (the raw,
+undebounced mtime-increase signal that feeds the tray icon's "just
+updated" flash was already ported in an earlier phase — see
+`SessionProfileWatcher`), and session auto-restart execution are **not
+yet implemented** — see the Phase 4/5 checklist below.
 
 > This started as a Blazor Hybrid app (WPF + `BlazorWebView`) and was
 > pivoted to plain WPF after real Blazor/WebView2 runtime failures on
@@ -154,6 +159,33 @@ missing/misconfigured `config/config_mutagenmon.json`,
 guaranteed to be logged and shown in a message box instead of silently
 killing the process. If even that's empty, check `mutagenMon.fatal.log`.
 
+## Phase 4 / Phase 5 checklist
+
+Granular, FR-by-FR status for the phases still in progress (mirrors
+[requirements/05-wpf-migration-notes.md §6](../requirements/05-wpf-migration-notes.md)).
+Update the box and add a one-line status the moment an individual FR lands
+or is consciously deferred — don't wait for the whole phase.
+
+- **Phase 4**
+  - [x] FR-10 — automatic conflict resolution. **Done** — ordered regex
+    rules (`AUTORESOLVE`) matched against each newly-seen conflict's file
+    name, first match applied immediately via the same copy mechanics as
+    FR-9's manual "A wins"/"B wins", with an `AUTORESOLVE_HISTORY_AGE`
+    grace period so a conflict mutagen keeps re-reporting isn't reprocessed
+    every poll. See `MutagenMon.Core/Resolution/AutoResolveEngine.cs`,
+    wired into `SessionMonitorService.PollOnceAsync` before the snapshot is
+    published. `NOTIFY_AUTORESOLVE`-gated notification (FR-10.4) is left as
+    an event hook (`AutoResolveEngine.ConflictAutoResolved`) for FR-11 to
+    subscribe to later — no actual notification is raised yet.
+  - [ ] FR-11 — desktop notifications
+  - [ ] FR-12 — session profile change detection (only the raw,
+    undebounced mtime signal is done — see `SessionProfileWatcher`; the
+    debounce/grace period for FR-11.4's notification gate is not)
+- **Phase 5**
+  - [ ] FR-13 — automatic session recovery
+  - [ ] FR-14 — logging/diagnostics polish (base logging already done in
+    Phase 1, see "Logging" above)
+
 ## Known limitations of this phase
 
 - Manual conflict resolution (FR-9) needs real `ssh`/`scp`/merge-tool
@@ -163,6 +195,10 @@ killing the process. If even that's empty, check `mutagenMon.fatal.log`.
   the actual SSH/copy/merge-tool invocation
   (`MutagenMon.Core/Resolution/ConflictFileClient.cs`) needs Windows
   verification like the rest of the WPF layer.
+- Automatic conflict resolution (FR-10) needs real `ssh`/`scp` binaries to
+  exercise the actual copy end-to-end on Linux, same caveat as FR-9 above —
+  only `AutoResolveEngine`'s rule-matching/history logic is unit-tested
+  there (`AutoResolveEngineTests`, against a fake `IConflictFileClient`).
 - No desktop notifications (FR-11), no automatic session restart execution
   (FR-13) — "Start Mutagen sessions" re-enables monitoring but does not
   itself relaunch a session that "Stop Mutagen sessions" (or a poll
