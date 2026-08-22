@@ -135,12 +135,17 @@ full key list). Strongly recommended additions for the rewrite:
    - [x] FR-10 — automatic conflict resolution (ordered regex rules,
      `AUTORESOLVE_HISTORY_AGE` grace period). **Done** — see
      `dotNet/README.md`.
-   - [ ] FR-11 — desktop notifications (new conflicts, auto-resolve,
-     restart, profile update).
+   - [x] FR-11.1/FR-11.2 — desktop notifications for new conflicts and
+     auto-resolve. **Done** — see `dotNet/README.md`. FR-11.3
+     (stuck-connection-restart notification) moved to Phase 5 below — it
+     depends on FR-13's per-session restart trigger, which doesn't exist
+     yet. FR-11.4 (profile update) is pending FR-12's debounce, below.
    - [ ] FR-12 — session profile change detection (archive mtime watch).
 5. **Phase 5**: session auto-recovery (FR-13) and logging/diagnostics
    polish (FR-14).
-   - [ ] FR-13 — automatic session recovery (restart on `SESSION_MAX_NOSESSION`).
+   - [ ] FR-13 — automatic session recovery (restart on
+     `SESSION_MAX_NOSESSION`), plus the FR-11.3 stuck-connection-restart
+     notification it gates.
    - [ ] FR-14 — logging/diagnostics polish (base logging already **Done**
      in Phase 1, see §7 below; this item covers the remaining FR-14 items
      not yet mapped, e.g. FR-14.3 resolution-log cross-referencing).

@@ -461,11 +461,71 @@ FR-10.2)** ✅
 * A new `resolve.log` entry appears for that session/file once the grace
   period has elapsed.
 
-## FR-11 — Desktop notifications ⏳ NOT IMPLEMENTED YET
+## FR-11 — Desktop notifications
 
-No test steps — this requirement has not been built (see
-[05-wpf-migration-notes.md §6, Phase 4](05-wpf-migration-notes.md#6-suggested-phased-delivery)).
-Come back to this section once FR-11 lands.
+FR-11.3 and FR-11.4 are called out separately below — their trigger points
+don't exist yet in this codebase (see
+[05-wpf-migration-notes.md §6](05-wpf-migration-notes.md#6-suggested-phased-delivery)).
+FR-11.1 and FR-11.2 are fully implemented.
+
+**UT-11.1 — New conflict raises a toast notification (FR-11.1)** ✅
+
+* Ensure `"NOTIFY_CONFLICTS": true` in `config/config_mutagenmon.json`.
+* Produce a conflict (see the FR-9 setup).
+* Within one poll cycle (~1 second) a non-modal toast notification titled
+  "New conflicts" appears near the tray icon, naming the session and file
+  (`session:file`), then disappears on its own.
+
+**UT-11.2 — The same conflict is not renotified every poll (FR-11.1)** ✅
+
+* With the conflict from UT-11.1 still unresolved, wait a few more poll
+  cycles.
+* No further "New conflicts" toast appears for that same session/file
+  while it stays unresolved.
+* Resolve it (manually or otherwise) until the tray icon returns to Ready,
+  then produce the exact same conflict again.
+* A new "New conflicts" toast appears — the conflict is treated as new
+  again once everything had gone back to Ready in between.
+
+**UT-11.3 — Auto-resolved conflicts are excluded from the "new conflicts"
+toast (FR-10.2/FR-11.1)** ✅
+
+* With an `AUTORESOLVE` rule configured to match a file (see UT-10.1),
+  produce a matching conflict.
+* No "New conflicts" toast appears for that file — it goes straight to the
+  auto-resolve notification below instead.
+
+**UT-11.4 — Auto-resolve notification names the rule and the file
+(FR-11.2/FR-10.4)** ✅
+
+* Ensure `"NOTIFY_AUTORESOLVE": true` in `config/config_mutagenmon.json`.
+* Produce a conflict matching an `AUTORESOLVE` rule (see UT-10.1).
+* Within one poll cycle a toast titled "Conflict auto-resolved" appears,
+  naming the session, file, and the resolution applied (e.g. "A wins").
+
+**UT-11.5 — Each notification type is independently toggleable (FR-11)**
+✅
+
+* Set `"NOTIFY_CONFLICTS": false` and `"NOTIFY_AUTORESOLVE": true`, restart
+  MutagenMon, and produce a plain (non-auto-resolved) conflict.
+* No "New conflicts" toast appears.
+* With the same config, produce a conflict matching an `AUTORESOLVE` rule.
+* The "Conflict auto-resolved" toast still appears — the two toggles are
+  independent.
+
+**UT-11.6 — Stuck-connection-restart notification (FR-11.3) ⏳ NOT
+IMPLEMENTED YET**
+
+No test steps — moved to
+[05-wpf-migration-notes.md §6, Phase 5](05-wpf-migration-notes.md#6-suggested-phased-delivery)
+together with FR-13, whose per-session restart-on-connecting-threshold
+logic this notification depends on and which doesn't exist yet. The
+`NOTIFY_RESTART_CONNECTION` config toggle exists but is not read anywhere.
+
+**UT-11.7 — Profile-update notification (FR-11.4) ⏳ NOT IMPLEMENTED YET**
+
+No test steps — see UT-12.2 below; this notification depends on FR-12's
+debounced update signal, which isn't built yet.
 
 ## FR-12 — Session profile change detection
 
@@ -561,8 +621,11 @@ defects:
   [03-tray-icon-requirements.md §3.1/§7.1](03-tray-icon-requirements.md).
 * Duplicate session names (UT-1.2) are only logged, not shown in a popup
   — a deliberate, currently-accepted deviation from the legacy app.
-* FR-11 (notifications), FR-12.2 (debounced profile-update signal),
-  FR-13 (automatic session recovery), FR-14.2 (verbosity gate), and the
-  restart half of FR-14.3 are not implemented — see the ⏳ sections above
-  and [05-wpf-migration-notes.md §6](05-wpf-migration-notes.md#6-suggested-phased-delivery)
+* FR-11.1/FR-11.2 (new-conflict and auto-resolve notifications) are
+  implemented. FR-11.3 (stuck-connection-restart notification, moved to
+  Phase 5 with FR-13), FR-11.4 (profile-update notification, gated by
+  FR-12.2), FR-12.2 (debounced profile-update signal), FR-13 (automatic
+  session recovery), FR-14.2 (verbosity gate), and the restart half of
+  FR-14.3 are not implemented — see the ⏳ sections above and
+  [05-wpf-migration-notes.md §6](05-wpf-migration-notes.md#6-suggested-phased-delivery)
   for the plan.

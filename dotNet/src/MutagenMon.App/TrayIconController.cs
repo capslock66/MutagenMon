@@ -4,6 +4,7 @@ using System.Windows.Threading;
 using H.NotifyIcon;
 using Microsoft.Extensions.Logging;
 using MutagenMon.Core.Monitoring;
+using MutagenMon.Core.Notifications;
 using MutagenMon.Core.Status;
 
 namespace MutagenMon.App;
@@ -15,7 +16,12 @@ namespace MutagenMon.App;
 /// it actually changed — updates the H.NotifyIcon TaskbarIcon (de-duplicating
 /// repeated updates per requirements/03-tray-icon-requirements.md §7 item 4,
 /// which is a presentation concern and therefore lives here, not in Core).
-/// Also watches for the self-restart threshold (TIC-9/TIC-10).
+/// Also watches for the self-restart threshold (TIC-9/TIC-10), and — every
+/// tick — drains any desktop notification (FR-11) queued by the background
+/// poller and shows it via <c>TaskbarIcon.ShowNotification</c>; queued
+/// messages are only ever consumed here, on the UI thread, matching the
+/// pull-based thread-safety pattern already used for
+/// <see cref="ISessionStateStore"/>.
 /// </summary>
 public sealed class TrayIconController
 {
@@ -25,6 +31,7 @@ public sealed class TrayIconController
     private readonly string _appName;
     private readonly LagThresholds _lagThresholds;
     private readonly IReadOnlyList<string> _sessionNames;
+    private readonly INotificationQueue _notificationQueue;
     private readonly Action _onSelfRestartNeeded;
     private readonly ILogger<TrayIconController> _logger;
     private readonly DispatcherTimer _timer;
@@ -46,6 +53,7 @@ public sealed class TrayIconController
         string appName,
         LagThresholds lagThresholds,
         IReadOnlyList<string> sessionNames,
+        INotificationQueue notificationQueue,
         Action onSelfRestartNeeded,
         ILogger<TrayIconController> logger)
     {
@@ -55,6 +63,7 @@ public sealed class TrayIconController
         _appName = appName;
         _lagThresholds = lagThresholds;
         _sessionNames = sessionNames;
+        _notificationQueue = notificationQueue;
         _onSelfRestartNeeded = onSelfRestartNeeded;
         _logger = logger;
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -147,6 +156,11 @@ public sealed class TrayIconController
 
     private void Tick()
     {
+        foreach (var message in _notificationQueue.DrainAll())
+        {
+            _taskbarIcon.ShowNotification(message.Title, message.Body);
+        }
+
         var snapshot = _stateStore.Get();
         var now = DateTimeOffset.UtcNow;
 

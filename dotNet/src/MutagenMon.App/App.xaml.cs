@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using MutagenMon.Core.Configuration;
 using MutagenMon.Core.Monitoring;
 using MutagenMon.Core.Mutagen;
+using MutagenMon.Core.Notifications;
 using MutagenMon.Core.ProfileWatch;
 using MutagenMon.Core.Resolution;
 using MutagenMon.Core.Sessions;
@@ -121,6 +122,7 @@ public partial class App : Application
             builder.Services.AddSingleton<IMutagenCliClient, MutagenCliClient>();
             builder.Services.AddSingleton<ISessionStateStore, SessionStateStore>();
             builder.Services.AddSingleton<IFileTimestampProvider, FileTimestampProvider>();
+            builder.Services.AddSingleton<INotificationQueue, NotificationQueue>();
             builder.Services.AddSingleton<SessionMonitorService>();
             builder.Services.AddHostedService(sp => sp.GetRequiredService<SessionMonitorService>());
             builder.Services.AddSingleton<IConflictFileClient, ConflictFileClient>();
@@ -139,10 +141,11 @@ public partial class App : Application
             _conflictResolutionService = _host.Services.GetRequiredService<ConflictResolutionService>();
             _conflictResolutionControllerLogger = _host.Services.GetRequiredService<ILogger<ConflictResolutionController>>();
             var trayIconLogger = _host.Services.GetRequiredService<ILogger<TrayIconController>>();
+            var notificationQueue = _host.Services.GetRequiredService<INotificationQueue>();
 
             _trayIconController = new TrayIconController(
                 trayIcon, stateStore, iconCache, options.TrayTooltip, options.StatusMaxLag.ToLagThresholds(),
-                _sessionNames, OnSelfRestartNeeded, trayIconLogger);
+                _sessionNames, notificationQueue, OnSelfRestartNeeded, trayIconLogger);
             _trayIconController.Start();
             _logger.LogInformation("MutagenMon startup complete — tray icon is live");
         }

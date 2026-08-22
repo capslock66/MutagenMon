@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MutagenMon.Core.Configuration;
 using MutagenMon.Core.Mutagen;
+using MutagenMon.Core.Notifications;
 using MutagenMon.Core.ProfileWatch;
 using MutagenMon.Core.Resolution;
 using MutagenMon.Core.Sessions;
@@ -13,12 +14,13 @@ namespace MutagenMon.Core.Monitoring;
 
 /// <summary>
 /// Ports mutagenmonlib/remote/monitor.py: Monitor's polling loop (the
-/// restart/notification pieces of that class are out of scope for this
-/// phase — see requirements/05-wpf-migration-notes.md §6 Phases 4/5).
+/// per-session restart pieces of that class are out of scope for this
+/// phase — see requirements/05-wpf-migration-notes.md §6 Phase 5, FR-13).
 /// Every poll: calls the mutagen CLI, parses, classifies every known
 /// session while tracking the single worst code across them, runs the
-/// auto-resolve pass (FR-10) over the freshly-parsed conflicts, checks for
-/// profile updates, and publishes one immutable
+/// auto-resolve pass (FR-10) over the freshly-parsed conflicts, queues any
+/// desktop notification FR-11.1/FR-11.2 call for (new conflicts,
+/// auto-resolve), checks for profile updates, and publishes one immutable
 /// <see cref="MonitorSnapshot"/>.
 ///
 /// <see cref="PollOnceAsync"/> is exposed (not just the BackgroundService's
@@ -34,6 +36,8 @@ public sealed class SessionMonitorService : BackgroundService
     private readonly SessionStateTracker _tracker = new();
     private readonly SessionProfileWatcher _profileWatcher;
     private readonly AutoResolveEngine _autoResolveEngine;
+    private readonly ConflictNotificationTracker _conflictNotificationTracker = new();
+    private readonly NotificationDispatcher _notificationDispatcher;
     private readonly TimeSpan _pollPeriod;
     private volatile bool _enabled;
     private readonly ILogger<SessionMonitorService> _logger;
@@ -61,6 +65,7 @@ public sealed class SessionMonitorService : BackgroundService
         IReadOnlyList<SessionDefinition> sessions,
         IFileTimestampProvider timestampProvider,
         ConflictResolutionService conflictResolutionService,
+        INotificationQueue notificationQueue,
         ILogger<SessionMonitorService> logger)
     {
         _cliClient = cliClient;
@@ -74,8 +79,12 @@ public sealed class SessionMonitorService : BackgroundService
         _profileWatcher = new SessionProfileWatcher(timestampProvider, opts.MutagenProfileDir, opts.MutagenProfileDirWatchPeriod);
         _autoResolveEngine = new AutoResolveEngine(
             opts.AutoResolve, TimeSpan.FromSeconds(opts.AutoResolveHistoryAgeSeconds), conflictResolutionService);
+        _notificationDispatcher = new NotificationDispatcher(notificationQueue, opts.NotifyConflicts, opts.NotifyAutoresolve);
         _autoResolveEngine.ConflictAutoResolved += (_, e) =>
+        {
             _logger.LogInformation("Auto-resolved conflict {Session}:{File} via rule '{Rule}'", e.SessionName, e.FileName, e.Rule);
+            _notificationDispatcher.NotifyAutoResolved(e.SessionName, e.FileName, e.Rule);
+        };
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -126,6 +135,9 @@ public sealed class SessionMonitorService : BackgroundService
 
             var nowUtc = DateTimeOffset.UtcNow;
             var conflicts = await _autoResolveEngine.ApplyAsync(parsed.Conflicts, parsed.SessionStatuses, nowUtc, cancellationToken);
+
+            var newConflictKeys = _conflictNotificationTracker.DetectNew(conflicts, worst);
+            _notificationDispatcher.NotifyNewConflicts(newConflictKeys);
 
             _logger.LogInformation(
                 "Poll succeeded: worst={Worst}, enabled={Enabled}, profileUpdated={ProfileUpdated}",

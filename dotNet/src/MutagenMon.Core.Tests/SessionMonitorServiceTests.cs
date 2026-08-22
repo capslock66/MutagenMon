@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using MutagenMon.Core.Configuration;
 using MutagenMon.Core.Monitoring;
 using MutagenMon.Core.Mutagen;
+using MutagenMon.Core.Notifications;
 using MutagenMon.Core.ProfileWatch;
 using MutagenMon.Core.Resolution;
 using MutagenMon.Core.Sessions;
@@ -103,7 +104,9 @@ public class SessionMonitorServiceTests
 
     private static SessionMonitorService BuildService(
         FakeMutagenCliClient cli, ISessionStateStore store, IReadOnlyList<SessionDefinition> sessions,
-        IReadOnlyList<AutoResolveRule>? autoResolveRules = null, IConflictFileClient? conflictFileClient = null)
+        IReadOnlyList<AutoResolveRule>? autoResolveRules = null, IConflictFileClient? conflictFileClient = null,
+        INotificationQueue? notificationQueue = null,
+        bool notifyConflicts = true, bool notifyAutoresolve = true)
     {
         var options = Options.Create(new MutagenMonOptions
         {
@@ -112,6 +115,8 @@ public class SessionMonitorServiceTests
             MutagenProfileDirWatchPeriod = 0, // disable profile watching for this test
             AutoResolve = autoResolveRules?.ToList() ?? new List<AutoResolveRule>(),
             AutoResolveHistoryAgeSeconds = 30,
+            NotifyConflicts = notifyConflicts,
+            NotifyAutoresolve = notifyAutoresolve,
         });
         var resolveLog = new ResolveLogWriter(
             Path.Combine(Path.GetTempPath(), "MutagenMon.Tests", Guid.NewGuid().ToString("N")));
@@ -119,6 +124,7 @@ public class SessionMonitorServiceTests
             conflictFileClient ?? new RecordingConflictFileClient(), resolveLog);
         return new SessionMonitorService(
             cli, store, options, sessions, new FileTimestampProvider(), conflictResolutionService,
+            notificationQueue ?? new NotificationQueue(),
             NullLogger<SessionMonitorService>.Instance);
     }
 
@@ -276,5 +282,96 @@ public class SessionMonitorServiceTests
 
         Assert.Empty(cli.TerminatedSessions);
         Assert.True(store.Get().Enabled);
+    }
+
+    // FR-11.1 — new-conflict notifications.
+
+    [Fact]
+    public async Task ANewConflictQueuesOneGroupedNotification()
+    {
+        var cli = new FakeMutagenCliClient();
+        cli.Enqueue(ConflictedSession("alpha-sync", "id-a") + "\n" + ReadySession("beta-sync", "id-b"));
+        var store = new SessionStateStore();
+        var queue = new NotificationQueue();
+        var service = BuildService(cli, store, new[]
+        {
+            new SessionDefinition("alpha-sync", "..."), new SessionDefinition("beta-sync", "..."),
+        }, notificationQueue: queue);
+
+        await service.PollOnceAsync(CancellationToken.None);
+
+        var message = Assert.Single(queue.DrainAll());
+        Assert.Equal("New conflicts", message.Title);
+        Assert.Equal("alpha-sync:shared.txt", message.Body);
+    }
+
+    [Fact]
+    public async Task AConflictThatPersistsAcrossPollsIsNotNotifiedAgain()
+    {
+        var cli = new FakeMutagenCliClient();
+        cli.Enqueue(ConflictedSession("alpha-sync", "id-a") + "\n" + ReadySession("beta-sync", "id-b"));
+        cli.Enqueue(ConflictedSession("alpha-sync", "id-a") + "\n" + ReadySession("beta-sync", "id-b"));
+        var store = new SessionStateStore();
+        var queue = new NotificationQueue();
+        var sessions = new[] { new SessionDefinition("alpha-sync", "..."), new SessionDefinition("beta-sync", "...") };
+        var service = BuildService(cli, store, sessions, notificationQueue: queue);
+
+        await service.PollOnceAsync(CancellationToken.None);
+        queue.DrainAll(); // consume the first notification, as the UI-thread timer would
+
+        await service.PollOnceAsync(CancellationToken.None);
+
+        Assert.Empty(queue.DrainAll());
+    }
+
+    [Fact]
+    public async Task NoNewConflictNotificationIsQueuedWhenNotifyConflictsIsDisabled()
+    {
+        var cli = new FakeMutagenCliClient();
+        cli.Enqueue(ConflictedSession("alpha-sync", "id-a") + "\n" + ReadySession("beta-sync", "id-b"));
+        var store = new SessionStateStore();
+        var queue = new NotificationQueue();
+        var sessions = new[] { new SessionDefinition("alpha-sync", "..."), new SessionDefinition("beta-sync", "...") };
+        var service = BuildService(cli, store, sessions, notificationQueue: queue, notifyConflicts: false);
+
+        await service.PollOnceAsync(CancellationToken.None);
+
+        Assert.Empty(queue.DrainAll());
+    }
+
+    // FR-11.2/FR-10.4 — auto-resolve notifications.
+
+    [Fact]
+    public async Task AnAutoResolvedConflictQueuesANotificationNamingTheRuleAndFile()
+    {
+        var cli = new FakeMutagenCliClient();
+        cli.Enqueue(ConflictedSession("alpha-sync", "id-a") + "\n" + ReadySession("beta-sync", "id-b"));
+        var store = new SessionStateStore();
+        var queue = new NotificationQueue();
+        var sessions = new[] { new SessionDefinition("alpha-sync", "..."), new SessionDefinition("beta-sync", "...") };
+        var rules = new[] { new AutoResolveRule { FilePath = "shared", Resolve = "A wins" } };
+        var service = BuildService(cli, store, sessions, autoResolveRules: rules, notificationQueue: queue);
+
+        await service.PollOnceAsync(CancellationToken.None);
+
+        var messages = queue.DrainAll();
+        var autoResolveMessage = Assert.Single(messages, m => m.Title == "Conflict auto-resolved");
+        Assert.Equal("alpha-sync:shared.txt — A wins", autoResolveMessage.Body);
+    }
+
+    [Fact]
+    public async Task NoAutoResolveNotificationIsQueuedWhenNotifyAutoresolveIsDisabled()
+    {
+        var cli = new FakeMutagenCliClient();
+        cli.Enqueue(ConflictedSession("alpha-sync", "id-a") + "\n" + ReadySession("beta-sync", "id-b"));
+        var store = new SessionStateStore();
+        var queue = new NotificationQueue();
+        var sessions = new[] { new SessionDefinition("alpha-sync", "..."), new SessionDefinition("beta-sync", "...") };
+        var rules = new[] { new AutoResolveRule { FilePath = "shared", Resolve = "A wins" } };
+        var service = BuildService(cli, store, sessions, autoResolveRules: rules, notificationQueue: queue, notifyAutoresolve: false);
+
+        await service.PollOnceAsync(CancellationToken.None);
+
+        Assert.DoesNotContain(queue.DrainAll(), m => m.Title == "Conflict auto-resolved");
     }
 }

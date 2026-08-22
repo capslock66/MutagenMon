@@ -4,18 +4,21 @@ This is the .NET rewrite scaffolded per
 [requirements/05-wpf-migration-notes.md](../requirements/05-wpf-migration-notes.md).
 Current scope: **Phase 0 (scaffolding) + Phase 1 (real-time tray icon
 core) + Phase 2 (context menu & status view) + Phase 3 (manual conflict
-resolution) + Phase 4 FR-10 (automatic conflict resolution)** —
-background polling, session status classification/aggregation, the tray
-icon's full state machine, the full context menu
-(reload/stop-start/show status/exit, FR-7), the status view with a
-conflicts section (FR-8), the manual conflict resolution workflow with
-visual merge integration (FR-9), and automatic conflict resolution via
-configurable regex rules (FR-10). Desktop notifications (FR-11), the
-debounced/graced profile-change signal FR-11.4/FR-12.2 needs (the raw,
-undebounced mtime-increase signal that feeds the tray icon's "just
-updated" flash was already ported in an earlier phase — see
-`SessionProfileWatcher`), and session auto-restart execution are **not
-yet implemented** — see the Phase 4/5 checklist below.
+resolution) + Phase 4 FR-10/FR-11.1/FR-11.2 (automatic conflict resolution
+and desktop notifications)** — background polling, session status
+classification/aggregation, the tray icon's full state machine, the full
+context menu (reload/stop-start/show status/exit, FR-7), the status view
+with a conflicts section (FR-8), the manual conflict resolution workflow
+with visual merge integration (FR-9), automatic conflict resolution via
+configurable regex rules (FR-10), and desktop toast notifications for new
+conflicts and auto-resolve (FR-11.1/FR-11.2). FR-11.3 (stuck-connection
+restart notification) has been moved to Phase 5 alongside FR-13, whose
+per-session restart trigger it depends on. FR-11.4 (profile-update
+notification) needs FR-12's debounced update signal (the raw, undebounced
+mtime-increase signal that feeds the tray icon's "just updated" flash was
+already ported in an earlier phase — see `SessionProfileWatcher`) and is
+**not yet implemented**, nor is session auto-restart execution (FR-13) —
+see the Phase 4/5 checklist below.
 
 > This started as a Blazor Hybrid app (WPF + `BlazorWebView`) and was
 > pivoted to plain WPF after real Blazor/WebView2 runtime failures on
@@ -91,6 +94,13 @@ tray icon need an actual Windows desktop session. On a Windows machine:
      wins choice pre-selected by whichever side was modified more
      recently. Cancelling aborts the whole batch. Every resolution is
      appended to `log/resolve.log`.
+   - **Notifications (FR-11.1/FR-11.2):** with `NOTIFY_CONFLICTS`/
+     `NOTIFY_AUTORESOLVE` at their default `true`, a new (non-auto-resolved)
+     conflict raises a "New conflicts" toast naming the `session:file` key
+     within one poll cycle, and a conflict matching an `AUTORESOLVE` rule
+     raises a "Conflict auto-resolved" toast naming the rule and file
+     instead — see UT-11.1..UT-11.5 in
+     [requirements/UserTests.md](../requirements/UserTests.md).
    - Right-click → **Reload config & restart mutagen** terminates every
      running session, then restarts the whole process once they've all
      stopped (watch the context menu collapse to a disabled
@@ -177,12 +187,25 @@ or is consciously deferred — don't wait for the whole phase.
     published. `NOTIFY_AUTORESOLVE`-gated notification (FR-10.4) is left as
     an event hook (`AutoResolveEngine.ConflictAutoResolved`) for FR-11 to
     subscribe to later — no actual notification is raised yet.
-  - [ ] FR-11 — desktop notifications
+  - [x] FR-11.1/FR-11.2 — desktop notifications for new conflicts and
+    auto-resolve. **Done** — `NOTIFY_CONFLICTS`-gated toast grouping every
+    newly-seen `session:file` conflict key (excluding auto-resolved ones,
+    per FR-10.2), and a `NOTIFY_AUTORESOLVE`-gated toast per auto-resolved
+    conflict naming the rule and file. See
+    `MutagenMon.Core/Notifications/` (`ConflictNotificationTracker`,
+    `NotificationDispatcher`, `NotificationQueue`), wired into
+    `SessionMonitorService.PollOnceAsync` and drained/shown each UI tick by
+    `TrayIconController` via `TaskbarIcon.ShowNotification`.
+    FR-11.3 (stuck-connection-restart notification) moved to Phase 5 below
+    — it depends on FR-13's per-session restart trigger, which doesn't
+    exist yet. FR-11.4 (profile-update notification) stays not implemented
+    — it depends on FR-12's debounced update signal below.
   - [ ] FR-12 — session profile change detection (only the raw,
     undebounced mtime signal is done — see `SessionProfileWatcher`; the
     debounce/grace period for FR-11.4's notification gate is not)
 - **Phase 5**
-  - [ ] FR-13 — automatic session recovery
+  - [ ] FR-13 — automatic session recovery, plus the FR-11.3
+    stuck-connection-restart notification it gates
   - [ ] FR-14 — logging/diagnostics polish (base logging already done in
     Phase 1, see "Logging" above)
 
@@ -199,10 +222,13 @@ or is consciously deferred — don't wait for the whole phase.
   exercise the actual copy end-to-end on Linux, same caveat as FR-9 above —
   only `AutoResolveEngine`'s rule-matching/history logic is unit-tested
   there (`AutoResolveEngineTests`, against a fake `IConflictFileClient`).
-- No desktop notifications (FR-11), no automatic session restart execution
-  (FR-13) — "Start Mutagen sessions" re-enables monitoring but does not
-  itself relaunch a session that "Stop Mutagen sessions" (or a poll
-  failure) terminated; that revival is the auto-recovery logic, Phase 5.
+- Desktop notifications only cover new conflicts and auto-resolve
+  (FR-11.1/FR-11.2); no stuck-connection-restart or profile-update
+  notification (FR-11.3/FR-11.4), and no automatic session restart
+  execution (FR-13) — "Start Mutagen sessions" re-enables monitoring but
+  does not itself relaunch a session that "Stop Mutagen sessions" (or a
+  poll failure) terminated; that revival is the auto-recovery logic,
+  Phase 5.
 - Three icon assets (`green-scan`, `green-timeout-white`,
   `green-timeout-red`) are generated placeholders, not final design assets
   — see [requirements/03-tray-icon-requirements.md](../requirements/03-tray-icon-requirements.md) §3.1/§7.1.

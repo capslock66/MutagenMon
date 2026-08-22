@@ -154,14 +154,20 @@ complète des clés). Ajouts fortement recommandés pour la réécriture :
    - [x] FR-10 — résolution automatique de conflit (règles regex ordonnées,
      période de grâce `AUTORESOLVE_HISTORY_AGE`). **Fait** — voir
      `dotNet/README.md`.
-   - [ ] FR-11 — notifications de bureau (nouveaux conflits, résolution
-     automatique, redémarrage, mise à jour de profil).
+   - [x] FR-11.1/FR-11.2 — notifications de bureau pour les nouveaux
+     conflits et la résolution automatique. **Fait** — voir
+     `dotNet/README.md`. FR-11.3 (notification de redémarrage suite à
+     connexion bloquée) déplacée en Phase 5 ci-dessous — elle dépend du
+     déclencheur de redémarrage par session de FR-13, qui n'existe pas
+     encore. FR-11.4 (mise à jour de profil) reste en attente du debounce
+     de FR-12, ci-dessous.
    - [ ] FR-12 — détection de changement de profil de session (surveillance
      de la date de modification de l'archive).
 5. **Phase 5** : récupération automatique de session (FR-13) et
    finalisation de la journalisation/du diagnostic (FR-14).
    - [ ] FR-13 — récupération automatique de session (redémarrage sur
-     `SESSION_MAX_NOSESSION`).
+     `SESSION_MAX_NOSESSION`), ainsi que la notification de redémarrage
+     suite à connexion bloquée (FR-11.3) qu'elle conditionne.
    - [ ] FR-14 — finalisation de la journalisation/du diagnostic
      (journalisation de base déjà **Fait** en Phase 1, voir §7 ci-dessous ;
      cet élément couvre les points FR-14 restants non encore traités, par
