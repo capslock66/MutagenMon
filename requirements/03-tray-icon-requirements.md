@@ -62,7 +62,7 @@ Error-stale if the underlying data hasn't refreshed recently. Past the
 
 | Code | State | Enabled | Updated | Stale tier | Tooltip suffix | Icon asset — preview / runtime ([icons/](icons)) |
 |---|---|---|---|---|---|---|
-| `0` | Waiting for first status | — | — | — | "waiting for status..." | [`lightgray.png`](icons/lightgray.png) / [`.ico`](icons/lightgray.ico) |
+| `0` | Waiting for first status | — | — | — | "waiting for status..." | [`lightgray-init.png`](icons/lightgray-init.png) / [`.ico`](icons/lightgray-init.ico) |
 | `100` | Ready / watching for changes | yes | no | none | "mutagen is watching for changes" | [`green.png`](icons/green.png) / [`.ico`](icons/green.ico) |
 | `100` | Ready, freshly updated | yes | **yes** | none | "mutagen is watching for changes (updated)" | [`green-success.png`](icons/green-success.png) / [`.ico`](icons/green-success.ico) *(see quirk §6.2 — currently unreachable)* |
 | `100` | Ready, but monitoring being turned off | **no** | — | any | "mutagen is stopping" | [`green-stop.png`](icons/green-stop.png) / [`.ico`](icons/green-stop.ico) |
@@ -104,11 +104,22 @@ it needs without reading `python/img/`:
   used as a Icon.` for some PNGs (observed in practice during Phase 1
   manual verification). Loading a real `.ico` directly via the `Icon`
   property sidesteps that conversion entirely.
-- **12 real, verified source images** copied unchanged from the legacy
-  `python/img/` folder: `lightgray`, `green`, `green-success`,
+- **11 real, verified source images** copied unchanged from the legacy
+  `python/img/` folder: `green`, `green-success`,
   `green-stop`, `green-conflict`, `green-error`,
   `green-sync`, `green-timeout`, `darkgray`,
   `darkgray-restart`, `orange`, `orange-restart`.
+- **1 WPF-specific asset derived from a legacy image**: `lightgray-init`
+  (code `0`, "waiting for first status") is the legacy `lightgray.png`
+  with a badge added — the same blue circle badge already used for
+  `darkgray-restart`/`orange-restart`, but with three dots instead of the
+  restart arrow — so the very first icon shown at process startup (before
+  config/session loading and DI container build even run, see
+  `App.xaml.cs`) visibly reads as "initializing" rather than looking like
+  a stalled/broken tray icon. Renamed from the legacy's plain `lightgray`
+  because that name no longer described what the icon shows. This is a
+  deliberate rewrite-only improvement, not a legacy behavior to preserve —
+  `python/` keeps using its own unmodified `lightgray.png`.
 - **3 generated placeholders** for assets that are referenced by
   `icon.py` but were **never present** in `python/img/` even in the
   legacy app (a real, pre-existing bug — §6.1): `green-scan`,

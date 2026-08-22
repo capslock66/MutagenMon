@@ -27,7 +27,7 @@ public class TrayIconStateResolverTests
     public static TheoryData<SessionStatusCode, bool, bool, StalenessTier, string, string> Rows() => new()
     {
         // code 0 — waiting for first status
-        { SessionStatusCode.Unknown, true, false, StalenessTier.None, "lightgray", "waiting for status..." },
+        { SessionStatusCode.Unknown, true, false, StalenessTier.None, "lightgray-init", "waiting for status..." },
 
         // code 100 — ready
         { SessionStatusCode.Ready, true, false, StalenessTier.None, "green", "mutagen is watching for changes" },

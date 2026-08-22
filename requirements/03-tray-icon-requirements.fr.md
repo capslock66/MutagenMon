@@ -71,7 +71,7 @@ automatiquement au lieu d'afficher une icône quelconque (TIC-9).
 
 | Code | État | Activé | Mis à jour | Palier d'obsolescence | Suffixe de l'infobulle | Ressource icône — aperçu / exécution ([icons/](icons)) |
 |---|---|---|---|---|---|---|
-| `0` | En attente du premier statut | — | — | — | "waiting for status..." | [`lightgray.png`](icons/lightgray.png) / [`.ico`](icons/lightgray.ico) |
+| `0` | En attente du premier statut | — | — | — | "waiting for status..." | [`lightgray-init.png`](icons/lightgray-init.png) / [`.ico`](icons/lightgray-init.ico) |
 | `100` | Prêt / surveille les changements | oui | non | aucun | "mutagen is watching for changes" | [`green.png`](icons/green.png) / [`.ico`](icons/green.ico) |
 | `100` | Prêt, tout juste mis à jour | oui | **oui** | aucun | "mutagen is watching for changes (updated)" | [`green-success.png`](icons/green-success.png) / [`.ico`](icons/green-success.ico) *(voir particularité §6.2 — actuellement inatteignable)* |
 | `100` | Prêt, mais la surveillance est en cours d'arrêt | **non** | — | quelconque | "mutagen is stopping" | [`green-stop.png`](icons/green-stop.png) / [`.ico`](icons/green-stop.ico) |
@@ -116,11 +116,24 @@ tout ce dont elle a besoin sans avoir à lire `python/img/` :
   pratique lors de la vérification manuelle de la Phase 1). Charger
   directement un véritable `.ico` via la propriété `Icon` contourne
   entièrement cette conversion.
-- **12 images source réelles et vérifiées** copiées sans modification
-  depuis le dossier legacy `python/img/` : `lightgray`, `green`,
+- **11 images source réelles et vérifiées** copiées sans modification
+  depuis le dossier legacy `python/img/` : `green`,
   `green-success`, `green-stop`, `green-conflict`, `green-error`,
   `green-sync`, `green-timeout`, `darkgray`, `darkgray-restart`, `orange`,
   `orange-restart`.
+- **1 ressource spécifique à WPF, dérivée d'une image legacy** :
+  `lightgray-init` (code `0`, « en attente du premier statut ») reprend le
+  `lightgray.png` legacy avec un badge ajouté — le même badge en cercle
+  bleu déjà utilisé pour `darkgray-restart`/`orange-restart`, mais avec
+  trois points au lieu de la flèche de redémarrage — afin que la toute
+  première icône affichée au démarrage du processus (avant même le
+  chargement de la config/session et la construction du conteneur DI, voir
+  `App.xaml.cs`) se lise visiblement comme « en cours d'initialisation »
+  plutôt que comme une icône figée/défectueuse. Renommée depuis le
+  `lightgray` legacy car ce nom ne décrivait plus ce que montre l'icône.
+  C'est une amélioration délibérée propre à la réécriture, pas un
+  comportement legacy à préserver — `python/` continue d'utiliser son
+  `lightgray.png` non modifié.
 - **3 placeholders générés** pour des ressources référencées par `icon.py`
   mais qui **n'ont jamais été présentes** dans `python/img/`, même dans
   l'application legacy (un bug réel et préexistant — §6.1) :

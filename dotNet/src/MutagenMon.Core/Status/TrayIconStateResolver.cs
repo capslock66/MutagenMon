@@ -38,7 +38,7 @@ public static class TrayIconStateResolver
         switch (input.WorstCode)
         {
             case SessionStatusCode.Unknown:
-                return new TrayIconState("lightgray", prefix + "waiting for status...");
+                return new TrayIconState("lightgray-init", prefix + "waiting for status...");
 
             case SessionStatusCode.NotRunning:
                 return input.Enabled

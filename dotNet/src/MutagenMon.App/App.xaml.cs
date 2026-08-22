@@ -74,6 +74,26 @@ public partial class App : Application
 
         try
         {
+            // Show the tray icon before the rest of startup (config/session
+            // loading, DI container build, host start below all take real
+            // time). With no main window, nothing else makes the app visible
+            // in the meantime, so the user would otherwise stare at what
+            // looks like a failed launch. TIC-3's "waiting for status"
+            // (lightgray-init) state is exactly the right placeholder here —
+            // it already means "no poll result yet", which is true at this
+            // point by construction.
+            var iconCache = new IconImageCache(Path.Combine(baseDir, "Assets", "Icons"));
+            var trayIcon = (TaskbarIcon)Resources["TrayIcon"];
+            // With no main window, TaskbarIcon's native icon is never created
+            // implicitly (it normally happens on Loaded, when a control enters
+            // a live visual tree — which never happens for a resource that is
+            // only ever referenced from code). ForceCreate() is the pattern
+            // H.NotifyIcon's own "windowless" sample app uses for exactly this
+            // case; without it, the app runs with no visible tray icon at all.
+            trayIcon.ForceCreate();
+            trayIcon.Icon = iconCache.Get("lightgray-init");
+            _logger.LogInformation("Tray icon shown early (lightgray-init, waiting for status)");
+
             var configPath = Path.Combine(baseDir, "config", "config_mutagenmon.json");
             _logger.LogInformation("Loading configuration from {ConfigPath}", configPath);
             var options = ConfigLoader.Load(configPath);
@@ -118,17 +138,6 @@ public partial class App : Application
             _stateStore = stateStore;
             _conflictResolutionService = _host.Services.GetRequiredService<ConflictResolutionService>();
             _conflictResolutionControllerLogger = _host.Services.GetRequiredService<ILogger<ConflictResolutionController>>();
-            var iconCache = new IconImageCache(Path.Combine(baseDir, "Assets", "Icons"));
-            _logger.LogInformation("Acquiring tray icon resource");
-            var trayIcon = (TaskbarIcon)Resources["TrayIcon"];
-            // With no main window, TaskbarIcon's native icon is never created
-            // implicitly (it normally happens on Loaded, when a control enters
-            // a live visual tree — which never happens for a resource that is
-            // only ever referenced from code). ForceCreate() is the pattern
-            // H.NotifyIcon's own "windowless" sample app uses for exactly this
-            // case; without it, the app runs with no visible tray icon at all.
-            trayIcon.ForceCreate();
-            _logger.LogInformation("Tray icon resource created (ForceCreate)");
             var trayIconLogger = _host.Services.GetRequiredService<ILogger<TrayIconController>>();
 
             _trayIconController = new TrayIconController(
