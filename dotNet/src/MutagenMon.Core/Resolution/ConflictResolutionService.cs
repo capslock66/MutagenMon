@@ -27,9 +27,12 @@ public sealed class ConflictResolutionService
         _fileClient.StatAsync(conflict.Beta, conflict.FileName, cancellationToken);
 
     /// <summary>Ports resolve(): copies the winning side over the other and
-    /// appends a resolve-log entry (FR-9.2/FR-9.7).</summary>
+    /// appends a resolve-log entry (FR-9.2/FR-9.7). <paramref name="automatic"/>
+    /// is true when called from <see cref="AutoResolveEngine"/> (FR-10.2)
+    /// rather than the manual resolution UI loop (FR-9).</summary>
     public async Task ResolveAsync(
-        PendingConflict conflict, ConflictResolutionChoice choice, DateTimeOffset timestampUtc, CancellationToken cancellationToken)
+        PendingConflict conflict, ConflictResolutionChoice choice, DateTimeOffset timestampUtc, CancellationToken cancellationToken,
+        bool automatic = false)
     {
         var (source, destination) = choice == ConflictResolutionChoice.AWins
             ? (conflict.Alpha, conflict.Beta)
@@ -38,7 +41,7 @@ public sealed class ConflictResolutionService
         await _fileClient.CopyBetweenEndpointsAsync(source, destination, conflict.FileName, cancellationToken);
         _resolveLog.Append(
             conflict.SessionName, conflict.Alpha.Url, conflict.Beta.Url, conflict.FileName,
-            choice == ConflictResolutionChoice.AWins ? "A wins" : "B wins", automatic: false, timestampUtc);
+            choice == ConflictResolutionChoice.AWins ? "A wins" : "B wins", automatic, timestampUtc);
     }
 
     /// <summary>Ports the "fetch" half of visual_merge() — split out from

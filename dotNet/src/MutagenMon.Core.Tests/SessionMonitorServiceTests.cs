@@ -4,6 +4,7 @@ using MutagenMon.Core.Configuration;
 using MutagenMon.Core.Monitoring;
 using MutagenMon.Core.Mutagen;
 using MutagenMon.Core.ProfileWatch;
+using MutagenMon.Core.Resolution;
 using MutagenMon.Core.Sessions;
 using MutagenMon.Core.Status;
 using Xunit;
@@ -42,6 +43,29 @@ public class SessionMonitorServiceTests
         }
     }
 
+    private sealed class RecordingConflictFileClient : IConflictFileClient
+    {
+        public readonly List<(SessionEndpoint Source, SessionEndpoint Destination, string RelativePath)> Copies = new();
+
+        public Task<FileStat> StatAsync(SessionEndpoint endpoint, string relativePath, CancellationToken cancellationToken) =>
+            Task.FromResult(new FileStat(1, DateTimeOffset.UtcNow));
+
+        public Task CopyBetweenEndpointsAsync(SessionEndpoint source, SessionEndpoint destination, string relativePath, CancellationToken cancellationToken)
+        {
+            Copies.Add((source, destination, relativePath));
+            return Task.CompletedTask;
+        }
+
+        public Task<string> FetchLocalCopyAsync(SessionEndpoint endpoint, string relativePath, int side, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task PushLocalFileAsync(string localPath, SessionEndpoint destination, string relativePath, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task RunMergeToolAsync(string localPath1, string localPath2, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
     private static string ReadySession(string name, string id) => $"""
         Name: {name}
         Identifier: {id}
@@ -78,16 +102,24 @@ public class SessionMonitorServiceTests
     }
 
     private static SessionMonitorService BuildService(
-        FakeMutagenCliClient cli, ISessionStateStore store, IReadOnlyList<SessionDefinition> sessions)
+        FakeMutagenCliClient cli, ISessionStateStore store, IReadOnlyList<SessionDefinition> sessions,
+        IReadOnlyList<AutoResolveRule>? autoResolveRules = null, IConflictFileClient? conflictFileClient = null)
     {
         var options = Options.Create(new MutagenMonOptions
         {
             MutagenPollPeriodMs = 1000,
             StartEnabled = true,
             MutagenProfileDirWatchPeriod = 0, // disable profile watching for this test
+            AutoResolve = autoResolveRules?.ToList() ?? new List<AutoResolveRule>(),
+            AutoResolveHistoryAgeSeconds = 30,
         });
+        var resolveLog = new ResolveLogWriter(
+            Path.Combine(Path.GetTempPath(), "MutagenMon.Tests", Guid.NewGuid().ToString("N")));
+        var conflictResolutionService = new ConflictResolutionService(
+            conflictFileClient ?? new RecordingConflictFileClient(), resolveLog);
         return new SessionMonitorService(
-            cli, store, options, sessions, new FileTimestampProvider(), NullLogger<SessionMonitorService>.Instance);
+            cli, store, options, sessions, new FileTimestampProvider(), conflictResolutionService,
+            NullLogger<SessionMonitorService>.Instance);
     }
 
     [Fact]
