@@ -522,10 +522,15 @@ together with FR-13, whose per-session restart-on-connecting-threshold
 logic this notification depends on and which doesn't exist yet. The
 `NOTIFY_RESTART_CONNECTION` config toggle exists but is not read anywhere.
 
-**UT-11.7 — Profile-update notification (FR-11.4) ⏳ NOT IMPLEMENTED YET**
+**UT-11.7 — Profile-update notification (FR-11.4)** ✅
 
-No test steps — see UT-12.2 below; this notification depends on FR-12's
-debounced update signal, which isn't built yet.
+* Ensure `"NOTIFY_MUTAGEN_PROFILE_UPDATE": true` in
+  `config/config_mutagenmon.json`.
+* Trigger a real file sync on a monitored session (e.g. save a file inside
+  a synced folder) and wait past `MUTAGEN_PROFILE_GRACE` seconds (default
+  4s) without further writes.
+* A toast titled "Updated" appears, naming the session.
+* See UT-12.2 below for the debounce behavior that gates this toast.
 
 ## FR-12 — Session profile change detection
 
@@ -533,14 +538,19 @@ debounced update signal, which isn't built yet.
 FR-12.3)** ✅
 
 Covered above by UT-T.3 — the "updated" icon flash is this requirement's
-only user-visible effect today.
+only user-visible tray effect today.
 
 **UT-12.2 — Debounced profile-update notification (FR-12.2, gates
-FR-11.4)** ⏳ NOT IMPLEMENTED YET
+FR-11.4)** ✅
 
-No test steps — the debounce/grace period (`MUTAGEN_PROFILE_GRACE`) and
-the desktop notification it would gate are not built yet; only the raw,
-undebounced signal behind UT-12.1 exists today.
+* Ensure `"NOTIFY_MUTAGEN_PROFILE_UPDATE": true` and a short
+  `MUTAGEN_PROFILE_GRACE` (e.g. `4`) in `config/config_mutagenmon.json`.
+* Trigger several rapid successive writes on a monitored session within
+  less than the grace period — no "Updated" toast appears yet (each write
+  keeps pushing the archive mtime forward, so the debounce window never
+  elapses).
+* Stop writing and wait past the grace period.
+* Exactly one "Updated" toast appears for that session, not one per write.
 
 ## FR-13 — Automatic session recovery ⏳ NOT IMPLEMENTED YET
 
@@ -621,11 +631,12 @@ defects:
   [03-tray-icon-requirements.md §3.1/§7.1](03-tray-icon-requirements.md).
 * Duplicate session names (UT-1.2) are only logged, not shown in a popup
   — a deliberate, currently-accepted deviation from the legacy app.
-* FR-11.1/FR-11.2 (new-conflict and auto-resolve notifications) are
-  implemented. FR-11.3 (stuck-connection-restart notification, moved to
-  Phase 5 with FR-13), FR-11.4 (profile-update notification, gated by
-  FR-12.2), FR-12.2 (debounced profile-update signal), FR-13 (automatic
-  session recovery), FR-14.2 (verbosity gate), and the restart half of
-  FR-14.3 are not implemented — see the ⏳ sections above and
+* FR-11.1/FR-11.2/FR-11.4 (new-conflict, auto-resolve, and profile-update
+  notifications) and FR-12 (session profile change detection, including
+  the FR-12.2 debounce) are implemented. FR-11.3
+  (stuck-connection-restart notification, moved to Phase 5 with FR-13),
+  FR-13 (automatic session recovery), FR-14.2 (verbosity gate), and the
+  restart half of FR-14.3 are not implemented — see the ⏳ sections above
+  and
   [05-wpf-migration-notes.md §6](05-wpf-migration-notes.md#6-suggested-phased-delivery)
   for the plan.

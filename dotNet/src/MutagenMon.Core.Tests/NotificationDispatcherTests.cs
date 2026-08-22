@@ -1,3 +1,4 @@
+using System.Linq;
 using MutagenMon.Core.Notifications;
 using Xunit;
 
@@ -11,7 +12,7 @@ public class NotificationDispatcherTests
     public void NewConflictsAreQueuedAsOneGroupedNotificationWhenEnabled()
     {
         var queue = new NotificationQueue();
-        var dispatcher = new NotificationDispatcher(queue, notifyConflicts: true, notifyAutoresolve: true);
+        var dispatcher = new NotificationDispatcher(queue, notifyConflicts: true, notifyAutoresolve: true, notifyProfileUpdate: true);
 
         dispatcher.NotifyNewConflicts(new[] { "alpha-sync:a.txt", "alpha-sync:b.txt" });
 
@@ -24,7 +25,7 @@ public class NotificationDispatcherTests
     public void NewConflictsAreNotQueuedWhenTheListIsEmpty()
     {
         var queue = new NotificationQueue();
-        var dispatcher = new NotificationDispatcher(queue, notifyConflicts: true, notifyAutoresolve: true);
+        var dispatcher = new NotificationDispatcher(queue, notifyConflicts: true, notifyAutoresolve: true, notifyProfileUpdate: true);
 
         dispatcher.NotifyNewConflicts(Array.Empty<string>());
 
@@ -35,7 +36,7 @@ public class NotificationDispatcherTests
     public void NewConflictsAreNotQueuedWhenDisabled()
     {
         var queue = new NotificationQueue();
-        var dispatcher = new NotificationDispatcher(queue, notifyConflicts: false, notifyAutoresolve: true);
+        var dispatcher = new NotificationDispatcher(queue, notifyConflicts: false, notifyAutoresolve: true, notifyProfileUpdate: true);
 
         dispatcher.NotifyNewConflicts(new[] { "alpha-sync:a.txt" });
 
@@ -46,7 +47,7 @@ public class NotificationDispatcherTests
     public void AnAutoResolveIsQueuedNamingTheSessionFileAndRuleWhenEnabled()
     {
         var queue = new NotificationQueue();
-        var dispatcher = new NotificationDispatcher(queue, notifyConflicts: true, notifyAutoresolve: true);
+        var dispatcher = new NotificationDispatcher(queue, notifyConflicts: true, notifyAutoresolve: true, notifyProfileUpdate: true);
 
         dispatcher.NotifyAutoResolved("alpha-sync", "shared.txt", "A wins");
 
@@ -59,9 +60,45 @@ public class NotificationDispatcherTests
     public void AnAutoResolveIsNotQueuedWhenDisabled()
     {
         var queue = new NotificationQueue();
-        var dispatcher = new NotificationDispatcher(queue, notifyConflicts: true, notifyAutoresolve: false);
+        var dispatcher = new NotificationDispatcher(queue, notifyConflicts: true, notifyAutoresolve: false, notifyProfileUpdate: true);
 
         dispatcher.NotifyAutoResolved("alpha-sync", "shared.txt", "A wins");
+
+        Assert.Empty(queue.DrainAll());
+    }
+
+    [Fact]
+    public void AConfirmedProfileUpdateIsQueuedOncePerSessionWhenEnabled()
+    {
+        var queue = new NotificationQueue();
+        var dispatcher = new NotificationDispatcher(queue, notifyConflicts: true, notifyAutoresolve: true, notifyProfileUpdate: true);
+
+        dispatcher.NotifyProfileUpdated(new[] { "alpha-sync", "beta-sync" });
+
+        var messages = queue.DrainAll();
+        Assert.Equal(2, messages.Count);
+        Assert.All(messages, m => Assert.Equal("Updated", m.Title));
+        Assert.Equal(new[] { "alpha-sync", "beta-sync" }, messages.Select(m => m.Body));
+    }
+
+    [Fact]
+    public void AConfirmedProfileUpdateIsNotQueuedWhenDisabled()
+    {
+        var queue = new NotificationQueue();
+        var dispatcher = new NotificationDispatcher(queue, notifyConflicts: true, notifyAutoresolve: true, notifyProfileUpdate: false);
+
+        dispatcher.NotifyProfileUpdated(new[] { "alpha-sync" });
+
+        Assert.Empty(queue.DrainAll());
+    }
+
+    [Fact]
+    public void NoProfileUpdateIsQueuedWhenTheListIsEmpty()
+    {
+        var queue = new NotificationQueue();
+        var dispatcher = new NotificationDispatcher(queue, notifyConflicts: true, notifyAutoresolve: true, notifyProfileUpdate: true);
+
+        dispatcher.NotifyProfileUpdated(Array.Empty<string>());
 
         Assert.Empty(queue.DrainAll());
     }

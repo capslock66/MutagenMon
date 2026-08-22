@@ -18,10 +18,10 @@ namespace MutagenMon.Core.Monitoring;
 /// phase — see requirements/05-wpf-migration-notes.md §6 Phase 5, FR-13).
 /// Every poll: calls the mutagen CLI, parses, classifies every known
 /// session while tracking the single worst code across them, runs the
-/// auto-resolve pass (FR-10) over the freshly-parsed conflicts, queues any
-/// desktop notification FR-11.1/FR-11.2 call for (new conflicts,
-/// auto-resolve), checks for profile updates, and publishes one immutable
-/// <see cref="MonitorSnapshot"/>.
+/// auto-resolve pass (FR-10) over the freshly-parsed conflicts, checks for
+/// profile updates (FR-12), queues any desktop notification call for (new
+/// conflicts FR-11.1, auto-resolve FR-11.2, confirmed profile update
+/// FR-11.4), and publishes one immutable <see cref="MonitorSnapshot"/>.
 ///
 /// <see cref="PollOnceAsync"/> is exposed (not just the BackgroundService's
 /// internal timer loop) so tests can drive the whole pipeline deterministically
@@ -76,10 +76,12 @@ public sealed class SessionMonitorService : BackgroundService
         var opts = options.Value;
         _pollPeriod = TimeSpan.FromMilliseconds(opts.MutagenPollPeriodMs);
         _enabled = opts.StartEnabled;
-        _profileWatcher = new SessionProfileWatcher(timestampProvider, opts.MutagenProfileDir, opts.MutagenProfileDirWatchPeriod);
+        _profileWatcher = new SessionProfileWatcher(
+            timestampProvider, opts.MutagenProfileDir, opts.MutagenProfileDirWatchPeriod, opts.MutagenProfileGraceSeconds);
         _autoResolveEngine = new AutoResolveEngine(
             opts.AutoResolve, TimeSpan.FromSeconds(opts.AutoResolveHistoryAgeSeconds), conflictResolutionService);
-        _notificationDispatcher = new NotificationDispatcher(notificationQueue, opts.NotifyConflicts, opts.NotifyAutoresolve);
+        _notificationDispatcher = new NotificationDispatcher(
+            notificationQueue, opts.NotifyConflicts, opts.NotifyAutoresolve, opts.NotifyMutagenProfileUpdate);
         _autoResolveEngine.ConflictAutoResolved += (_, e) =>
         {
             _logger.LogInformation("Auto-resolved conflict {Session}:{File} via rule '{Rule}'", e.SessionName, e.FileName, e.Rule);
@@ -132,6 +134,7 @@ public sealed class SessionMonitorService : BackgroundService
             }
 
             var profileUpdated = _profileWatcher.Tick(parsed.SessionStatuses);
+            _notificationDispatcher.NotifyProfileUpdated(_profileWatcher.ConfirmedUpdatedSessions);
 
             var nowUtc = DateTimeOffset.UtcNow;
             var conflicts = await _autoResolveEngine.ApplyAsync(parsed.Conflicts, parsed.SessionStatuses, nowUtc, cancellationToken);

@@ -21,7 +21,7 @@
 "TRAY_TOOLTIP": "MutagenMon",
 
 # Path for log files
-"LOG_PATH": "c:\\sources\\mutagenMon\\dotNet\\src\\log",
+"LOG_PATH": "c:\\logs\\mutagenMon",
 
 # Path to mutagen sessions config
 "MUTAGEN_SESSIONS_BAT_FILE": "mutagen/mutagen-create.bat",

@@ -578,12 +578,17 @@ avec la FR-13, dont dépend la logique de redémarrage par session sur
 seuil de connexion, qui n'existe pas encore. La bascule de config
 `NOTIFY_RESTART_CONNECTION` existe mais n'est lue nulle part.
 
-**UT-11.7 — Notification de mise à jour de profil (FR-11.4) ⏳ PAS ENCORE
-IMPLÉMENTÉ**
+**UT-11.7 — Notification de mise à jour de profil (FR-11.4)** ✅
 
-Aucune étape de test — voir l'UT-12.2 ci-dessous ; cette notification
-dépend du signal de mise à jour avec debounce de la FR-12, qui n'est pas
-encore construit.
+* S'assurer que `"NOTIFY_MUTAGEN_PROFILE_UPDATE": true` dans
+  `config/config_mutagenmon.json`.
+* Déclencher une vraie synchronisation de fichier sur une session
+  surveillée (par ex. enregistrer un fichier dans un dossier synchronisé)
+  et attendre plus de `MUTAGEN_PROFILE_GRACE` secondes (4s par défaut)
+  sans nouvelle écriture.
+* Un toast intitulé « Updated » apparaît, nommant la session.
+* Voir l'UT-12.2 ci-dessous pour le comportement de debounce qui
+  conditionne ce toast.
 
 ## FR-12 — Détection de changement de profil de session
 
@@ -591,15 +596,22 @@ encore construit.
 d'archive (FR-12.1/FR-12.3)** ✅
 
 Couvert ci-dessus par l'UT-T.3 — le flash « updated » de l'icône est le
-seul effet visible pour l'utilisateur de cette exigence aujourd'hui.
+seul effet visible pour l'utilisateur sur la zone de notification
+aujourd'hui.
 
 **UT-12.2 — Notification de mise à jour de profil avec debounce
-(FR-12.2, conditionne FR-11.4)** ⏳ PAS ENCORE IMPLÉMENTÉ
+(FR-12.2, conditionne FR-11.4)** ✅
 
-Aucune étape de test — la période de grâce/debounce
-(`MUTAGEN_PROFILE_GRACE`) et la notification de bureau qu'elle
-conditionnerait ne sont pas encore construites ; seul le signal brut, non
-débouncé, derrière l'UT-12.1 existe aujourd'hui.
+* S'assurer que `"NOTIFY_MUTAGEN_PROFILE_UPDATE": true` et une
+  `MUTAGEN_PROFILE_GRACE` courte (par ex. `4`) dans
+  `config/config_mutagenmon.json`.
+* Déclencher plusieurs écritures successives rapprochées sur une session
+  surveillée, en moins de la période de grâce — aucun toast « Updated »
+  n'apparaît encore (chaque écriture repousse la date de modification de
+  l'archive, donc la fenêtre de debounce ne s'écoule jamais).
+* Arrêter d'écrire et attendre plus que la période de grâce.
+* Exactement un toast « Updated » apparaît pour cette session, pas un par
+  écriture.
 
 ## FR-13 — Récupération automatique de session ⏳ PAS ENCORE IMPLÉMENTÉ
 
@@ -686,13 +698,13 @@ pas des défauts :
 * Les noms de session en double (UT-1.2) sont uniquement journalisés, pas
   affichés dans une fenêtre contextuelle — une déviation délibérée et
   actuellement acceptée par rapport à l'ancienne application.
-* La FR-11.1/FR-11.2 (notifications de nouveaux conflits et
-  d'auto-résolution) sont implémentées. La FR-11.3 (notification de
-  redémarrage suite à connexion bloquée, déplacée en Phase 5 avec la
-  FR-13), la FR-11.4 (notification de mise à jour de profil, conditionnée
-  par la FR-12.2), la FR-12.2 (signal de mise à jour de profil avec
-  debounce), la FR-13 (récupération automatique de session), la
-  FR-14.2 (filtre de verbosité), et la moitié « redémarrage » de la
-  FR-14.3 ne sont pas implémentées — voir les sections ⏳ ci-dessus et
+* La FR-11.1/FR-11.2/FR-11.4 (notifications de nouveaux conflits,
+  d'auto-résolution et de mise à jour de profil) et la FR-12 (détection de
+  changement de profil de session, y compris le debounce de la FR-12.2)
+  sont implémentées. La FR-11.3 (notification de redémarrage suite à
+  connexion bloquée, déplacée en Phase 5 avec la FR-13), la FR-13
+  (récupération automatique de session), la FR-14.2 (filtre de verbosité),
+  et la moitié « redémarrage » de la FR-14.3 ne sont pas implémentées —
+  voir les sections ⏳ ci-dessus et
   [05-wpf-migration-notes.fr.md §6](05-wpf-migration-notes.fr.md#6-livraison-par-phases-proposée)
   pour le plan.

@@ -2,17 +2,14 @@ namespace MutagenMon.Core.Notifications;
 
 /// <summary>
 /// Ports mutagenmonlib/wx/icon.py: TaskBarIcon.notify() (FR-11) — turns raw
-/// signals (newly-seen conflicts, an auto-resolve event) into queued desktop
-/// notifications, each independently gated by its own <c>NOTIFY_*</c> config
-/// toggle (FR-11's "independently toggleable via configuration").
+/// signals (newly-seen conflicts, an auto-resolve event, a debounced profile
+/// update) into queued desktop notifications, each independently gated by
+/// its own <c>NOTIFY_*</c> config toggle (FR-11's "independently toggleable
+/// via configuration").
 ///
-/// FR-11.3 (stuck-connection-restart notification) and FR-11.4
-/// (profile-update notification) are intentionally not wired here: their
-/// trigger points don't exist in this codebase yet — FR-11.3 depends on
-/// FR-13's per-session restart-on-connecting-threshold logic (moved to
-/// Phase 5), and FR-11.4 depends on FR-12's debounced profile-update signal
-/// (only the raw, undebounced mtime signal exists so far, see
-/// <see cref="ProfileWatch.SessionProfileWatcher"/>). See
+/// FR-11.3 (stuck-connection-restart notification) is intentionally not
+/// wired here: it depends on FR-13's per-session restart-on-connecting-
+/// threshold logic, which doesn't exist yet (moved to Phase 5). See
 /// requirements/05-wpf-migration-notes.md §6.
 /// </summary>
 public sealed class NotificationDispatcher
@@ -20,12 +17,15 @@ public sealed class NotificationDispatcher
     private readonly INotificationQueue _queue;
     private readonly bool _notifyConflicts;
     private readonly bool _notifyAutoresolve;
+    private readonly bool _notifyProfileUpdate;
 
-    public NotificationDispatcher(INotificationQueue queue, bool notifyConflicts, bool notifyAutoresolve)
+    public NotificationDispatcher(
+        INotificationQueue queue, bool notifyConflicts, bool notifyAutoresolve, bool notifyProfileUpdate)
     {
         _queue = queue;
         _notifyConflicts = notifyConflicts;
         _notifyAutoresolve = notifyAutoresolve;
+        _notifyProfileUpdate = notifyProfileUpdate;
     }
 
     /// <summary>FR-11.1: one notification grouping every newly-seen
@@ -42,5 +42,18 @@ public sealed class NotificationDispatcher
     {
         if (!_notifyAutoresolve) return;
         _queue.Enqueue(new NotificationMessage("Conflict auto-resolved", $"{sessionName}:{fileName} — {rule}"));
+    }
+
+    /// <summary>FR-11.4/FR-12.3: one notification per session whose archive
+    /// was just confirmed updated (debounced past MUTAGEN_PROFILE_GRACE, see
+    /// <see cref="ProfileWatch.SessionProfileWatcher"/>). No-op if disabled
+    /// or nothing was confirmed this poll.</summary>
+    public void NotifyProfileUpdated(IReadOnlyList<string> confirmedUpdatedSessions)
+    {
+        if (!_notifyProfileUpdate) return;
+        foreach (var sessionName in confirmedUpdatedSessions)
+        {
+            _queue.Enqueue(new NotificationMessage("Updated", sessionName));
+        }
     }
 }
