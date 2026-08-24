@@ -51,7 +51,9 @@ State is a function of four inputs: aggregated code (FR-3/FR-4), whether
 monitoring is currently **enabled** (user has not paused it), whether the
 sync profile was just **updated** on disk (FR-12), and the **staleness
 tier** of the last successful poll (computed from `now − last_poll_time`
-against the `STATUS_MAX_LAG` thresholds, `Info < Warning < Error`).
+against the `STATUS_MAX_LAG` thresholds, `Info < Warning < Error`, default
+`{"Info": 4, "Warning": 15, "Error": 50, "Restart": 90}` seconds — see
+[06-configuration-reference.md](06-configuration-reference.md)).
 
 Staleness tiers apply uniformly on top of the "ready / conflicts / problems
 / syncing / scanning" rows below — i.e. any of those five states can be

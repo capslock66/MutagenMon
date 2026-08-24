@@ -11,5 +11,3 @@ mutagen sync list
 timeout /t 3
 mutagen sync list -l
 timeout /t 3
-
-

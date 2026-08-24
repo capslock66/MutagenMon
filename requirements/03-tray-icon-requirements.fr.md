@@ -59,7 +59,9 @@ mise en pause), le fait que le profil de synchronisation vienne d'être
 **mis à jour** sur disque (FR-12), et le **palier d'obsolescence** (staleness
 tier) du dernier sondage réussi (calculé à partir de
 `now − last_poll_time` par rapport aux seuils `STATUS_MAX_LAG`,
-`Info < Warning < Error`).
+`Info < Warning < Error`, par défaut
+`{"Info": 4, "Warning": 15, "Error": 50, "Restart": 90}` secondes — voir
+[06-configuration-reference.md](06-configuration-reference.md)).
 
 Les paliers d'obsolescence s'appliquent de manière uniforme par-dessus les
 cinq lignes « prêt / conflits / problèmes / synchronisation / analyse »

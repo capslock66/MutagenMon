@@ -27,7 +27,12 @@ spécification pour une réécriture sous forme d'application de bureau
    — comment héberger ce comportement sur la pile technique WPF
    (correspondance des composants, modèle de threading, plan de livraison
    par phases).
-7. [UserTests.md](UserTests.md) — script de tests d'acceptation manuels,
+7. **[06-configuration-reference.md](06-configuration-reference.md)** —
+   chaque clé de `config_mutagenmon.json`, son type, sa valeur par défaut
+   et son unité. Référencé dans tous les documents ci-dessus afin qu'aucune
+   valeur par défaut n'ait jamais besoin d'être recherchée dans
+   `python/config/config_mutagenmon.json`.
+8. [UserTests.md](UserTests.md) — script de tests d'acceptation manuels,
    clic par clic, pour vérifier chaque exigence sur l'application
    `dotNet/` en cours d'exécution, tenu à jour avec l'avancement de
    l'implémentation.

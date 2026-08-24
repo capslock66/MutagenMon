@@ -272,9 +272,6 @@ UpgradeLog*.htm
 # Microsoft Fakes
 FakesAssemblies/
 
-# GhostDoc plugin setting file
-*.GhostDoc.xml
-
 # Node.js Tools for Visual Studio
 .ntvs_analysis.dat
 
@@ -286,14 +283,6 @@ FakesAssemblies/
 
 # Visual Studio 6 auto-generated workspace file (contains which files were open etc.)
 *.vbw
-
-# Visual Studio LightSwitch build output
-**/*.HTMLClient/GeneratedArtifacts
-**/*.DesktopClient/GeneratedArtifacts
-**/*.DesktopClient/ModelManifest.xml
-**/*.Server/GeneratedArtifacts
-**/*.Server/ModelManifest.xml
-_Pvt_Extensions
 
 # Paket dependency manager
 .paket/paket.exe
@@ -321,31 +310,7 @@ Python/dist/
 #NoGit on any path
 NoGit/
 
-#Doc-o-matic Pro folder on any path
-Doc-o-matic Pro/
-
-#code project Deploiement
-Deploiement 12/
-
-Android/
-Java/Lib/tracetool/
-backupToCloud*.bat
-Viewer source/Jcl/jcl-1.103.0.3110-partnerdvd.zip
-NodeJs/Sample/typings/
 
 *.exe
 *.dll
 *.tlb
-
-
-!Viewer/*
-!viewer/WebSock/*.*
-!viewer/32/*.*
-!viewer/64/*.*
-Viewer/TraceTool.drc
-Viewer/TraceTool.map
-Viewer/TraceTool.rsm
-Viewer32/
-Viewer64/
-Viewer/TraceTool.exe
-Dist/

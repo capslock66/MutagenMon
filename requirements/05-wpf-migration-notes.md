@@ -106,8 +106,10 @@ Directly derived from [04-ui-screens-inventory.md](04-ui-screens-inventory.md):
 Preserve the *shape* of `config_mutagenmon.json` (same keys, same
 defaults) so operators migrating from the legacy app don't have to relearn
 tuning knobs (`STATUS_MAX_LAG`, `MUTAGEN_POLL_PERIOD`,
-`SESSION_MAX_ERRORS`, etc. — see FR-1.3 and the config file itself for the
-full key list). Strongly recommended additions for the rewrite:
+`SESSION_MAX_ERRORS`, etc.) — see
+[06-configuration-reference.md](06-configuration-reference.md) for the
+full key list, types, defaults, and units (self-contained; no need to open
+the legacy config file). Strongly recommended additions for the rewrite:
 
 - Validate config on load (fail fast with a clear message) rather than
   the legacy's implicit trust.

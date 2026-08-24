@@ -119,9 +119,11 @@ Directement dérivés de
 Préserver la *forme* de `config_mutagenmon.json` (mêmes clés, mêmes
 valeurs par défaut) afin que les opérateurs migrant depuis l'application
 historique n'aient pas à réapprendre les paramètres de réglage
-(`STATUS_MAX_LAG`, `MUTAGEN_POLL_PERIOD`, `SESSION_MAX_ERRORS`, etc. —
-voir la FR-1.3 et le fichier de configuration lui-même pour la liste
-complète des clés). Ajouts fortement recommandés pour la réécriture :
+(`STATUS_MAX_LAG`, `MUTAGEN_POLL_PERIOD`, `SESSION_MAX_ERRORS`, etc.) —
+voir [06-configuration-reference.md](06-configuration-reference.md) pour
+la liste complète des clés, leurs types, valeurs par défaut et unités
+(autonome ; pas besoin d'ouvrir le fichier de configuration historique).
+Ajouts fortement recommandés pour la réécriture :
 
 - Valider la configuration au chargement (échec rapide avec un message
   clair) plutôt que la confiance implicite de l'ancienne version.

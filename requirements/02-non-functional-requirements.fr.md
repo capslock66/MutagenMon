@@ -53,7 +53,8 @@
   fichier JSON avec des commentaires en ligne). Des valeurs par défaut
   sensées DOIVENT permettre un démarrage sans configuration pour le cas
   courant (sessions locales uniquement, aucune règle de résolution
-  automatique).
+  automatique) — voir [06-configuration-reference.md](06-configuration-reference.md)
+  pour chaque clé et sa valeur par défaut.
 
 ## NFR-6 — Observabilité
 

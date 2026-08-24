@@ -45,7 +45,9 @@
 - All thresholds, toggles, and external tool paths MUST remain externally
   configurable without recompiling (current: a JSON file with inline
   comments). Sensible defaults MUST allow zero-config startup for the
-  common case (local-only sessions, no auto-resolve rules).
+  common case (local-only sessions, no auto-resolve rules) — see
+  [06-configuration-reference.md](06-configuration-reference.md) for every
+  key and its default.
 
 ## NFR-6 — Observability
 

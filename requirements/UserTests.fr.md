@@ -416,14 +416,27 @@ deux côtés et signale un conflit à son prochain sondage.
 * Le même conflit est présenté à nouveau immédiatement, au lieu de passer
   silencieusement au suivant.
 
-**UT-9.7 — Annuler interrompt tout le lot (FR-9.4)** ✅
+**UT-9.7 — Annuler sur un conflit (FR-9.4)** ✅ *(teste le comportement
+actuel, dont on sait maintenant qu'il diverge du FR-9.4 corrigé — voir
+ci-dessous)*
 
 * Provoquer deux conflits distincts.
 * Clic gauche sur l'icône de la barre d'état système.
 * Cliquer sur « Resolve conflicts ».
 * Sur le premier conflit présenté, cliquer sur « Cancel ».
-* Aucune autre fenêtre de conflit ne s'affiche.
-* Aucun des deux fichiers n'a été modifié.
+* **Comportement .NET actuel** : aucune autre fenêtre de conflit ne
+  s'affiche (tout le lot est interrompu) et aucun des deux fichiers n'a
+  été modifié.
+* **FR-9.4 corrigé (comportement réel de l'ancienne version)** :
+  l'annulation devrait uniquement ignorer le premier conflit et présenter
+  immédiatement le second, sans interrompre le lot. L'implémentation .NET
+  actuelle a été construite d'après la formulation précédente et
+  incorrecte de ce document, et non d'après le comportement réel de
+  l'ancienne application — voir la note de divergence sous FR-9.4 dans
+  [01-functional-requirements.fr.md](01-functional-requirements.fr.md#fr-9--résolution-manuelle-des-conflits).
+  Ce test devrait être réécrit (et le code corrigé, si la parité avec
+  l'ancienne version est souhaitée) plutôt que laissé tel quel à
+  documenter le comportement divergent.
 
 **UT-9.8 — Garde-fou du nombre maximal de conflits (FR-9.5)** ✅
 *(nécessite 100+ conflits — facultatif si vous ne pouvez pas en produire
@@ -434,8 +447,8 @@ autant)*
 * Cliquer sur « Resolve conflicts ».
 * Une fenêtre s'affiche avec le titre « MutagenMon: resolve file
   conflict » et le contenu « Too many conflicts. You can restart
-  resolving or resolve manually. » au lieu de la comparaison A/B
-  habituelle.
+  resolving or resolve manually » (sans point final) au lieu de la
+  comparaison A/B habituelle.
 
 **UT-9.9 — Indicateur « Connecting... » pour les points d'accès distants
 (FR-9.6)** ✅
@@ -577,6 +590,13 @@ Aucune étape de test — déplacée en
 avec la FR-13, dont dépend la logique de redémarrage par session sur
 seuil de connexion, qui n'existe pas encore. La bascule de config
 `NOTIFY_RESTART_CONNECTION` existe mais n'est lue nulle part.
+Lorsque la Phase 5 sera livrée, écrire **trois** tests distincts, pas un
+seul — FR-11.3 (redémarrage sur connexion bloquée, conditionné par
+`NOTIFY_RESTART_CONNECTION`), FR-11.3b (redémarrage sur doublon, toujours
+notifié, sans bascule) et FR-11.3c (redémarrage sur pas de session,
+jamais notifié) — voir
+[01-functional-requirements.fr.md FR-11](01-functional-requirements.fr.md#fr-11--notifications-de-bureau)
+pour les trois comportements distincts.
 
 **UT-11.7 — Notification de mise à jour de profil (FR-11.4)** ✅
 

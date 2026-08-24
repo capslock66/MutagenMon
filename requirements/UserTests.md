@@ -378,14 +378,23 @@ detects this as a two-sided edit and reports a conflict on its next poll.
 * The same conflict is presented again immediately, instead of silently
   moving to the next one.
 
-**UT-9.7 — Cancelling aborts the whole batch (FR-9.4)** ✅
+**UT-9.7 — Cancelling on one conflict (FR-9.4)** ✅ *(tests current
+behavior, which is now known to diverge from corrected FR-9.4 — see below)*
 
 * Produce two separate conflicts.
 * Left-click the tray icon.
 * Click "Resolve conflicts".
 * On the first conflict presented, click "Cancel".
-* No further conflict window is displayed.
-* Neither file was modified.
+* **Current .NET behavior**: no further conflict window is displayed (the
+  whole batch is aborted) and neither file was modified.
+* **Corrected FR-9.4 (true legacy behavior)**: Cancel should only skip the
+  first conflict and immediately present the second one, not abort the
+  batch. The current .NET implementation was built against this
+  document's previous, incorrect wording of FR-9.4, not against the
+  legacy app's actual behavior — see the discrepancy note under FR-9.4 in
+  [01-functional-requirements.md](01-functional-requirements.md#fr-9--manual-conflict-resolution).
+  This test should be rewritten (and the code fixed, if legacy parity is
+  wanted) rather than left as documenting the divergent behavior.
 
 **UT-9.8 — Too-many-conflicts guard (FR-9.5)** ✅ *(needs 100+ conflicts —
 optional if you can't produce that many)*
@@ -395,7 +404,8 @@ optional if you can't produce that many)*
 * Click "Resolve conflicts".
 * A window is displayed with the title "MutagenMon: resolve file
   conflict" and the content "Too many conflicts. You can restart
-  resolving or resolve manually." instead of the usual A/B comparison.
+  resolving or resolve manually" (no trailing period) instead of the usual
+  A/B comparison.
 
 **UT-9.9 — "Connecting..." indicator for remote endpoints (FR-9.6)** ✅
 
@@ -521,6 +531,12 @@ No test steps — moved to
 together with FR-13, whose per-session restart-on-connecting-threshold
 logic this notification depends on and which doesn't exist yet. The
 `NOTIFY_RESTART_CONNECTION` config toggle exists but is not read anywhere.
+When Phase 5 lands, write **three** separate tests, not one — FR-11.3
+(connecting-restart, gated by `NOTIFY_RESTART_CONNECTION`), FR-11.3b
+(duplicate-restart, always notifies, no toggle), and FR-11.3c (no-session
+restart, never notifies) — see
+[01-functional-requirements.md FR-11](01-functional-requirements.md#fr-11--desktop-notifications)
+for the three distinct behaviors.
 
 **UT-11.7 — Profile-update notification (FR-11.4)** ✅
 

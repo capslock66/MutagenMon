@@ -22,7 +22,11 @@ baseline for a rewrite as a **.NET WPF** desktop application.
 6. [05-wpf-migration-notes.md](05-wpf-migration-notes.md)
    — how to host this behavior on the WPF stack (component mapping,
    threading model, phased delivery plan).
-7. [UserTests.md](UserTests.md) — manual, click-by-click acceptance test
+7. **[06-configuration-reference.md](06-configuration-reference.md)** —
+   every `config_mutagenmon.json` key, its type, default value, and unit.
+   Referenced throughout the documents above so no default value ever
+   needs to be looked up in `python/config/config_mutagenmon.json`.
+8. [UserTests.md](UserTests.md) — manual, click-by-click acceptance test
    script for verifying each requirement against the running `dotNet/`
    application, kept in step with implementation progress.
 

@@ -52,7 +52,7 @@ dialogs it opens on demand.
 | `mutagenmonlib/local/file.py` | Config loading (JSON with comments), path helpers, log file writers, config accessor `cfg()`. |
 | `mutagenmonlib/local/lib.py` | Formatting utilities (timestamps, dict/status pretty-printing, matching-parenthesis parser used to parse mutagen's nested conflict output). |
 | `mutagenmonlib/local/run.py` | `subprocess` wrapper with unified error logging/dialog and a `run_merge` helper for the external diff tool. |
-| `config/config_mutagenmon.json` | All runtime configuration: paths to external binaries, polling/lag thresholds, notification toggles, auto-resolve rules. |
+| `config/config_mutagenmon.json` | All runtime configuration: paths to external binaries, polling/lag thresholds, notification toggles, auto-resolve rules. Every key, its type, default value, and unit is documented in [06-configuration-reference.md](06-configuration-reference.md). |
 | `mutagen/mutagen-create.bat` | Defines the sessions to monitor (one `mutagen sync create --name=... ...` line per session). Also the source parsed to build the in-memory session list. |
 | `img/*.png` | Tray icon bitmaps, one per status/state (see [03-tray-icon-requirements.md](03-tray-icon-requirements.md)). |
 | `log/*.log` | `error.log`, `restart.log`, `resolve.log`, `debug.log` (debug log gated by `DEBUG_LEVEL`). |

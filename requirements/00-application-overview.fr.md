@@ -54,7 +54,7 @@ son menu contextuel, et les boîtes de dialogue modales qu'elle ouvre à la dema
 | `mutagenmonlib/local/file.py` | Chargement de la configuration (JSON avec commentaires), utilitaires de chemins, écrivains de fichiers de log, accesseur de configuration `cfg()`. |
 | `mutagenmonlib/local/lib.py` | Utilitaires de formatage (horodatages, affichage soigné de dictionnaires/statuts, analyseur de parenthèses correspondantes utilisé pour analyser la sortie de conflit imbriquée de mutagen). |
 | `mutagenmonlib/local/run.py` | Wrapper `subprocess` avec journalisation/boîte de dialogue d'erreur unifiée et un utilitaire `run_merge` pour l'outil de comparaison externe. |
-| `config/config_mutagenmon.json` | Toute la configuration d'exécution : chemins vers les binaires externes, seuils de scrutation/retard, bascules de notification, règles de résolution automatique. |
+| `config/config_mutagenmon.json` | Toute la configuration d'exécution : chemins vers les binaires externes, seuils de scrutation/retard, bascules de notification, règles de résolution automatique. Chaque clé, son type, sa valeur par défaut et son unité sont documentés dans [06-configuration-reference.md](06-configuration-reference.md). |
 | `mutagen/mutagen-create.bat` | Définit les sessions à surveiller (une ligne `mutagen sync create --name=... ...` par session). Également la source analysée pour construire la liste de sessions en mémoire. |
 | `img/*.png` | Bitmaps de l'icône de la zone de notification, un par statut/état (voir [03-tray-icon-requirements.md](03-tray-icon-requirements.md)). |
 | `log/*.log` | `error.log`, `restart.log`, `resolve.log`, `debug.log` (le journal de débogage est conditionné par `DEBUG_LEVEL`). |
