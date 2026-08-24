@@ -1,0 +1,13 @@
+# Normalize line endings for all text files to LF in the repository,
+# regardless of the OS or editor used to check them out or edit them.
+# This repo's committed history is already all-LF; this just makes that
+# convention explicit and stops local CRLF drift (e.g. from Notepad or
+# PowerShell ISE) from showing up as noisy whole-file diffs.
+* text=auto eol=lf
+
+# Binary assets — never subject to line-ending conversion.
+*.png binary
+*.ico binary
+*.dll binary
+*.exe binary
+*.pdb binary
