@@ -176,10 +176,20 @@ Ajouts fortement recommandés pour la réécriture :
      RestartLogWriter.cs` (journal dédié `restart.log`, FR-13.4), et
      `MutagenMon.Core/Mutagen/MutagenCliClient.cs`
      (`CreateSessionAsync`, FR-13.5).
-   - [ ] FR-14 — finalisation de la journalisation/du diagnostic
-     (journalisation de base déjà **Fait** en Phase 1, voir §7 ci-dessous ;
-     cet élément couvre les points FR-14 restants non encore traités, par
-     ex. le croisement du journal de résolution en FR-14.3).
+   - [x] FR-14 — finalisation de la journalisation/du diagnostic. **Fait**
+     (avec une exception délibérée) :
+     - FR-14.1 (journalisation des exceptions non gérées) — **Fait**,
+       Phase 1, voir §7 ci-dessous.
+     - FR-14.2 (filtre de verbosité `DEBUG_LEVEL`) — **Ignoré,
+       délibérément** : la réécriture utilise un puits de journalisation
+       unique toujours actif à la place ; voir la justification au §7 (un
+       journal de débogage désactivé par défaut a été la cause directe
+       d'un véritable incident de diagnosticabilité en Phase 1).
+     - FR-14.3 (journaux dédiés restart/resolve) — **Fait**, les deux
+       moitiés : la moitié resolve-log livrée en Phase 3
+       (`MutagenMon.Core/Resolution/ResolveLogWriter.cs`), la moitié
+       restart-log livrée en Phase 5 avec FR-13
+       (`MutagenMon.Core/Monitoring/RestartLogWriter.cs`, FR-13.4).
 
 Chaque ligne `[ ]`/`[x]` est une unité de suivi autonome : cocher la case
 et ajouter une courte note de statut (**Fait** — voir `dotNet/README.md`,

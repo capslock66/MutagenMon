@@ -155,9 +155,19 @@ the legacy config file). Strongly recommended additions for the rewrite:
      RestartLogWriter.cs` (dedicated `restart.log`, FR-13.4), and
      `MutagenMon.Core/Mutagen/MutagenCliClient.cs`
      (`CreateSessionAsync`, FR-13.5).
-   - [ ] FR-14 — logging/diagnostics polish (base logging already **Done**
-     in Phase 1, see §7 below; this item covers the remaining FR-14 items
-     not yet mapped, e.g. FR-14.3 resolution-log cross-referencing).
+   - [x] FR-14 — logging/diagnostics polish. **Done** (with one deliberate
+     exception):
+     - FR-14.1 (unhandled exceptions logged) — **Done**, Phase 1, see §7
+       below.
+     - FR-14.2 (`DEBUG_LEVEL` verbosity gate) — **Skipped, deliberately**:
+       the rewrite uses a single always-on log sink instead; see §7's
+       rationale (a default-off debug log was the direct cause of a real
+       Phase 1 diagnosability incident).
+     - FR-14.3 (dedicated restart/resolve logs) — **Done**, both halves:
+       the resolve-log half shipped in Phase 3
+       (`MutagenMon.Core/Resolution/ResolveLogWriter.cs`), the restart-log
+       half shipped in Phase 5 alongside FR-13
+       (`MutagenMon.Core/Monitoring/RestartLogWriter.cs`, FR-13.4).
 
 Each `[ ]`/`[x]` line is a standalone tracking unit: check the box, and
 append a one-line status note (**Done** — see `dotNet/README.md`, or
