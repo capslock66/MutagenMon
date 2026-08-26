@@ -399,6 +399,19 @@ les approximations « ≈ » qui s'y trouvent).
   d'interrogations anormales consécutives de la session DOIT être
   immédiatement réinitialisé à `0`, indépendamment du résultat de la
   prochaine interrogation.
+  - **Raffinement propre à la réécriture** : lorsque la cause du
+    redémarrage est FR-13.1 (aucune session du tout), l'étape de
+    terminaison DOIT être entièrement sautée plutôt que tentée puis
+    tolérée — la session est déjà connue comme absente, donc
+    `mutagen sync terminate` serait un appel voué à l'échec, purement
+    bruyant. Pour les deux autres causes (FR-13.2 doublon, FR-13.3
+    connexion bloquée), la session est connue comme existante, donc la
+    terminaison DOIT toujours être demandée et son échec DOIT toujours
+    être toléré comme décrit ci-dessus. L'application Python historique
+    tente toujours la terminaison sans condition
+    (`mutagenmonlib/remote/mutagen.py: restart_session()`) ; ce
+    raffinement est une amélioration délibérée propre au .NET, pas une
+    exigence de parité avec l'historique.
 - FR-13.6 : Les redémarrages automatiques (cette section) ne s'exécutent
   que tant que la surveillance est actuellement activée (FR-7.2) ; tant
   qu'elle est désactivée, aucune session n'est redémarrée, et toute

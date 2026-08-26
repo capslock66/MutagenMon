@@ -139,17 +139,22 @@ the legacy config file). Strongly recommended additions for the rewrite:
      `dotNet/README.md`.
    - [x] FR-11.1/FR-11.2/FR-11.4 — desktop notifications for new conflicts,
      auto-resolve, and confirmed profile update. **Done** — see
-     `dotNet/README.md`. FR-11.3 (stuck-connection-restart notification)
-     moved to Phase 5 below — it depends on FR-13's per-session restart
-     trigger, which doesn't exist yet.
+     `dotNet/README.md`. FR-11.3 (stuck-connection-restart notification) is
+     now wired too — see the FR-13 line below.
    - [x] FR-12 — session profile change detection (archive mtime watch,
      debounced via `MUTAGEN_PROFILE_GRACE`). **Done** — see
      `dotNet/README.md`.
 5. **Phase 5**: session auto-recovery (FR-13) and logging/diagnostics
    polish (FR-14).
-   - [ ] FR-13 — automatic session recovery (restart on
-     `SESSION_MAX_NOSESSION`), plus the FR-11.3 stuck-connection-restart
-     notification it gates.
+   - [x] FR-13 — automatic session recovery (restart on
+     `SESSION_MAX_NOSESSION`/`SESSION_MAX_DUPLICATE`/`SESSION_MAX_ERRORS`),
+     plus the FR-11.3 stuck-connection-restart notification it gates and the
+     always-on FR-11.3b duplicate-restart notification. **Done** — see
+     `MutagenMon.Core/Monitoring/SessionMonitorService.cs`
+     (`RestartUnhealthySessionsAsync`), `MutagenMon.Core/Monitoring/
+     RestartLogWriter.cs` (dedicated `restart.log`, FR-13.4), and
+     `MutagenMon.Core/Mutagen/MutagenCliClient.cs`
+     (`CreateSessionAsync`, FR-13.5).
    - [ ] FR-14 — logging/diagnostics polish (base logging already **Done**
      in Phase 1, see §7 below; this item covers the remaining FR-14 items
      not yet mapped, e.g. FR-14.3 resolution-log cross-referencing).

@@ -337,6 +337,17 @@ scale and are folded into the "≈" approximations there).
   NOT prevent the recreate attempt). After a restart, the session's
   consecutive-abnormal-poll counter MUST be reset to `0` immediately,
   independent of the next poll's outcome.
+  - **Rewrite-only refinement**: when the restart cause is FR-13.1 (no
+    session at all), the termination step MUST be skipped entirely rather
+    than attempted and tolerated — the session is already known to be
+    absent, so `mutagen sync terminate` would be a guaranteed-to-fail,
+    purely noisy call. For the other two causes (FR-13.2 duplicate,
+    FR-13.3 stuck-connecting), the session is known to exist, so
+    termination MUST still be requested and its failure MUST still be
+    tolerated as described above. The legacy Python app always attempts
+    termination unconditionally (`mutagenmonlib/remote/mutagen.py:
+    restart_session()`); this refinement is a deliberate .NET-only
+    improvement, not a legacy-parity requirement.
 - FR-13.6: Automatic restarts (this section) only run while monitoring is
   currently enabled (FR-7.2); while disabled, no session is restarted, and
   any currently-running session MUST instead be stopped (terminated,

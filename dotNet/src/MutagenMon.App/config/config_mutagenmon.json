@@ -8,6 +8,8 @@
 # Notify when conflicts are autoresolved
 "NOTIFY_AUTORESOLVE": true,
 
+"NOTIFY_RESTART_CONNECTION": false,
+
 # If MutagenMon should start enabled
 # (enabled means that it restarts mutagen sessions if they have errors or are not running)
 "START_ENABLED": true,
@@ -27,13 +29,13 @@
 "MUTAGEN_SESSIONS_BAT_FILE": "mutagen/mutagen-create.bat",
 
 # Number of pollings with "not connected" errors to allow before restarting mutagen session
-"SESSION_MAX_ERRORS": 30000,
+"SESSION_MAX_ERRORS": 10,
 
 # Number of pollings with no session found to allow before restarting mutagen session
-"SESSION_MAX_NOSESSION": 200,
+"SESSION_MAX_NOSESSION": 2,
 
 # Number of pollings with duplicate session found to allow before restarting mutagen sessions
-"SESSION_MAX_DUPLICATE": 10000,
+"SESSION_MAX_DUPLICATE": 2,
 
 # Number of milliseconds to wait between polling "mutagen sync list"
 "MUTAGEN_POLL_PERIOD": 1000,

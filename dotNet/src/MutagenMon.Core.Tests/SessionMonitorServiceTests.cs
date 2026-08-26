@@ -24,7 +24,9 @@ public class SessionMonitorServiceTests
     {
         private readonly Queue<Func<string>> _responses = new();
         public readonly List<string> TerminatedSessions = new();
+        public readonly List<string> CreatedSessions = new();
         public string? FailTerminationFor;
+        public string? FailCreationFor;
 
         public void Enqueue(string response) => _responses.Enqueue(() => response);
         public void EnqueueFailure(string message) => _responses.Enqueue(() => throw new InvalidOperationException(message));
@@ -40,6 +42,18 @@ public class SessionMonitorServiceTests
             }
 
             TerminatedSessions.Add(sessionName);
+            return Task.CompletedTask;
+        }
+
+        public Task CreateSessionAsync(string rawCreateCommand, CancellationToken cancellationToken)
+        {
+            var name = rawCreateCommand;
+            if (name == FailCreationFor)
+            {
+                throw new InvalidOperationException($"cannot create '{rawCreateCommand}'");
+            }
+
+            CreatedSessions.Add(rawCreateCommand);
             return Task.CompletedTask;
         }
     }
@@ -106,17 +120,24 @@ public class SessionMonitorServiceTests
         FakeMutagenCliClient cli, ISessionStateStore store, IReadOnlyList<SessionDefinition> sessions,
         IReadOnlyList<AutoResolveRule>? autoResolveRules = null, IConflictFileClient? conflictFileClient = null,
         INotificationQueue? notificationQueue = null,
-        bool notifyConflicts = true, bool notifyAutoresolve = true)
+        bool notifyConflicts = true, bool notifyAutoresolve = true,
+        bool startEnabled = true, bool notifyRestartConnection = false,
+        int sessionMaxNoSession = 200, int sessionMaxDuplicate = 10000, int sessionMaxErrors = 30000,
+        RestartLogWriter? restartLogWriter = null)
     {
         var options = Options.Create(new MutagenMonOptions
         {
             MutagenPollPeriodMs = 1000,
-            StartEnabled = true,
+            StartEnabled = startEnabled,
             MutagenProfileDirWatchPeriod = 0, // disable profile watching for this test
             AutoResolve = autoResolveRules?.ToList() ?? new List<AutoResolveRule>(),
             AutoResolveHistoryAgeSeconds = 30,
             NotifyConflicts = notifyConflicts,
             NotifyAutoresolve = notifyAutoresolve,
+            NotifyRestartConnection = notifyRestartConnection,
+            SessionMaxNoSession = sessionMaxNoSession,
+            SessionMaxDuplicate = sessionMaxDuplicate,
+            SessionMaxErrors = sessionMaxErrors,
         });
         var resolveLog = new ResolveLogWriter(
             Path.Combine(Path.GetTempPath(), "MutagenMon.Tests", Guid.NewGuid().ToString("N")));
@@ -125,6 +146,8 @@ public class SessionMonitorServiceTests
         return new SessionMonitorService(
             cli, store, options, sessions, new FileTimestampProvider(), conflictResolutionService,
             notificationQueue ?? new NotificationQueue(),
+            restartLogWriter ?? new RestartLogWriter(
+                Path.Combine(Path.GetTempPath(), "MutagenMon.Tests", Guid.NewGuid().ToString("N"))),
             NullLogger<SessionMonitorService>.Instance);
     }
 
@@ -373,5 +396,184 @@ public class SessionMonitorServiceTests
         await service.PollOnceAsync(CancellationToken.None);
 
         Assert.DoesNotContain(queue.DrainAll(), m => m.Title == "Conflict auto-resolved");
+    }
+
+    // FR-13 — automatic session recovery.
+
+    [Fact]
+    public async Task ANoSessionConditionRestartsOnceItExceedsSessionMaxNoSessionAndRaisesNoNotification()
+    {
+        var cli = new FakeMutagenCliClient();
+        cli.Enqueue(""); // alpha-sync never reported at all
+        cli.Enqueue("");
+        var store = new SessionStateStore();
+        var queue = new NotificationQueue();
+        var sessions = new[] { new SessionDefinition("alpha-sync", "mutagen sync create --name=alpha-sync ...") };
+        var service = BuildService(cli, store, sessions, notificationQueue: queue, sessionMaxNoSession: 1);
+
+        await service.PollOnceAsync(CancellationToken.None);
+        Assert.Empty(cli.TerminatedSessions);
+        Assert.Empty(cli.CreatedSessions);
+
+        await service.PollOnceAsync(CancellationToken.None);
+        Assert.Empty(cli.TerminatedSessions); // session already absent -> terminate is skipped
+        Assert.Equal(new[] { "mutagen sync create --name=alpha-sync ..." }, cli.CreatedSessions);
+        Assert.Empty(queue.DrainAll());
+    }
+
+    [Fact]
+    public async Task ADuplicateSessionRestartsOnceItExceedsSessionMaxDuplicateAndAlwaysNotifiesEvenWhenConnectionNotificationIsDisabled()
+    {
+        var cli = new FakeMutagenCliClient();
+        var duplicated = ReadySession("alpha-sync", "id-a") + "\n" + ReadySession("alpha-sync", "id-a2");
+        cli.Enqueue(duplicated);
+        cli.Enqueue(duplicated);
+        cli.Enqueue(duplicated);
+        var store = new SessionStateStore();
+        var queue = new NotificationQueue();
+        var sessions = new[] { new SessionDefinition("alpha-sync", "mutagen sync create --name=alpha-sync ...") };
+        var service = BuildService(
+            cli, store, sessions, notificationQueue: queue, sessionMaxDuplicate: 1, notifyRestartConnection: false);
+
+        // 1st poll: key change from the fresh tracker's default -> counter reset to 0.
+        await service.PollOnceAsync(CancellationToken.None);
+        Assert.Empty(cli.TerminatedSessions);
+        // 2nd poll: same duplicate key -> counter=1, still not enough (threshold=1).
+        await service.PollOnceAsync(CancellationToken.None);
+        Assert.Empty(cli.TerminatedSessions);
+
+        // 3rd poll: same duplicate key -> counter=2, exceeds threshold -> restart.
+        await service.PollOnceAsync(CancellationToken.None);
+        Assert.Equal(new[] { "alpha-sync" }, cli.TerminatedSessions);
+        Assert.Equal(new[] { "mutagen sync create --name=alpha-sync ..." }, cli.CreatedSessions);
+        var message = Assert.Single(queue.DrainAll());
+        Assert.Equal("alpha-sync", message.Title);
+    }
+
+    [Fact]
+    public async Task AStuckConnectingSessionRestartsOnceItExceedsSessionMaxErrorsAndOnlyNotifiesWhenEnabled()
+    {
+        var connecting = """
+            Name: alpha-sync
+            Identifier: id-a
+            Status: Connecting to alpha
+            """;
+        var sessions = new[] { new SessionDefinition("alpha-sync", "mutagen sync create --name=alpha-sync ...") };
+
+        // Disabled: notification stays silent even though the restart still happens.
+        // 3 polls needed: 1st resets the counter (key change from fresh), 2nd brings
+        // it to 1 (not yet > threshold 1), 3rd brings it to 2 (exceeds it).
+        var cliSilent = new FakeMutagenCliClient();
+        cliSilent.Enqueue(connecting);
+        cliSilent.Enqueue(connecting);
+        cliSilent.Enqueue(connecting);
+        var queueSilent = new NotificationQueue();
+        var serviceSilent = BuildService(
+            cliSilent, new SessionStateStore(), sessions, notificationQueue: queueSilent,
+            sessionMaxErrors: 1, notifyRestartConnection: false);
+        await serviceSilent.PollOnceAsync(CancellationToken.None);
+        await serviceSilent.PollOnceAsync(CancellationToken.None);
+        Assert.Empty(cliSilent.TerminatedSessions);
+        await serviceSilent.PollOnceAsync(CancellationToken.None);
+        Assert.Equal(new[] { "alpha-sync" }, cliSilent.TerminatedSessions);
+        Assert.Empty(queueSilent.DrainAll());
+
+        // Enabled: same restart, but now a notification is raised.
+        var cliNotify = new FakeMutagenCliClient();
+        cliNotify.Enqueue(connecting);
+        cliNotify.Enqueue(connecting);
+        cliNotify.Enqueue(connecting);
+        var queueNotify = new NotificationQueue();
+        var serviceNotify = BuildService(
+            cliNotify, new SessionStateStore(), sessions, notificationQueue: queueNotify,
+            sessionMaxErrors: 1, notifyRestartConnection: true);
+        await serviceNotify.PollOnceAsync(CancellationToken.None);
+        await serviceNotify.PollOnceAsync(CancellationToken.None);
+        await serviceNotify.PollOnceAsync(CancellationToken.None);
+        Assert.Equal(new[] { "alpha-sync" }, cliNotify.TerminatedSessions);
+        Assert.Single(queueNotify.DrainAll());
+    }
+
+    [Fact]
+    public async Task ATerminationFailureDuringRestartDoesNotPreventTheRecreateAttempt()
+    {
+        // Uses a "connecting" (session exists) scenario rather than the no-session
+        // cause, since the latter now skips the terminate call entirely (the
+        // session is already known to be absent) and would never exercise this path.
+        var connecting = """
+            Name: alpha-sync
+            Identifier: id-a
+            Status: Connecting to alpha
+            """;
+        var cli = new FakeMutagenCliClient { FailTerminationFor = "alpha-sync" };
+        cli.Enqueue(connecting);
+        cli.Enqueue(connecting);
+        cli.Enqueue(connecting);
+        var sessions = new[] { new SessionDefinition("alpha-sync", "mutagen sync create --name=alpha-sync ...") };
+        var service = BuildService(cli, new SessionStateStore(), sessions, sessionMaxErrors: 1);
+
+        await service.PollOnceAsync(CancellationToken.None);
+        await service.PollOnceAsync(CancellationToken.None);
+        await service.PollOnceAsync(CancellationToken.None);
+
+        Assert.Empty(cli.TerminatedSessions); // termination failed...
+        Assert.Equal(new[] { "mutagen sync create --name=alpha-sync ..." }, cli.CreatedSessions); // ...but recreation still ran
+    }
+
+    [Fact]
+    public async Task ACreationFailureDuringRestartStillResetsTheCounterSoItDoesNotRestartAgainNextPoll()
+    {
+        var cli = new FakeMutagenCliClient { FailCreationFor = "mutagen sync create --name=alpha-sync ..." };
+        cli.Enqueue("");
+        cli.Enqueue("");
+        cli.Enqueue("");
+        var sessions = new[] { new SessionDefinition("alpha-sync", "mutagen sync create --name=alpha-sync ...") };
+        var service = BuildService(cli, new SessionStateStore(), sessions, sessionMaxNoSession: 1);
+
+        await service.PollOnceAsync(CancellationToken.None);
+        await service.PollOnceAsync(CancellationToken.None); // restart attempt: terminate skipped (already absent), create throws (swallowed)
+        Assert.Empty(cli.TerminatedSessions);
+        Assert.Empty(cli.CreatedSessions); // creation failed before being recorded
+
+        await service.PollOnceAsync(CancellationToken.None); // counter was reset after the restart attempt: no immediate re-restart
+
+        Assert.Empty(cli.TerminatedSessions);
+        Assert.Empty(cli.CreatedSessions);
+    }
+
+    [Fact]
+    public async Task DisablingMonitoringPreventsAutomaticRestartsEvenPastTheThreshold()
+    {
+        var cli = new FakeMutagenCliClient();
+        cli.Enqueue("");
+        cli.Enqueue("");
+        var sessions = new[] { new SessionDefinition("alpha-sync", "mutagen sync create --name=alpha-sync ...") };
+        var service = BuildService(cli, new SessionStateStore(), sessions, sessionMaxNoSession: 1, startEnabled: false);
+
+        await service.PollOnceAsync(CancellationToken.None);
+        await service.PollOnceAsync(CancellationToken.None);
+
+        Assert.Empty(cli.CreatedSessions);
+    }
+
+    [Fact]
+    public async Task ARestartIsAppendedToTheDedicatedRestartLog()
+    {
+        var cli = new FakeMutagenCliClient();
+        cli.Enqueue("");
+        cli.Enqueue("");
+        var sessions = new[] { new SessionDefinition("alpha-sync", "mutagen sync create --name=alpha-sync ...") };
+        var logDir = Path.Combine(Path.GetTempPath(), "MutagenMon.Tests", Guid.NewGuid().ToString("N"));
+        var restartLog = new RestartLogWriter(logDir);
+        var service = BuildService(
+            cli, new SessionStateStore(), sessions, sessionMaxNoSession: 1, restartLogWriter: restartLog);
+
+        await service.PollOnceAsync(CancellationToken.None);
+        await service.PollOnceAsync(CancellationToken.None);
+
+        var logPath = Path.Combine(logDir, "restart.log");
+        Assert.True(File.Exists(logPath));
+        var content = File.ReadAllText(logPath);
+        Assert.Contains("Restarting: alpha-sync", content);
     }
 }

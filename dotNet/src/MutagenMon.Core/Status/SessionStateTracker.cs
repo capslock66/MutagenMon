@@ -12,7 +12,10 @@ namespace MutagenMon.Core.Status;
 /// </summary>
 public sealed class SessionStateTracker
 {
-    private static readonly string[] ConnectingPrefixes = { "Connecting to", "Waiting to connect", "Unknown" };
+    /// <summary>Status prefixes considered "connecting" (FR-3/FR-13.3) — also
+    /// consulted by <see cref="Monitoring.SessionMonitorService"/> to classify
+    /// which of FR-13's three restart causes currently applies.</summary>
+    public static readonly IReadOnlyList<string> ConnectingPrefixes = new[] { "Connecting to", "Waiting to connect", "Unknown" };
     private static readonly string[] WorkingPrefixes =
     {
         "Waiting 5 seconds for rescan", "Reconciling changes", "Staging files on", "Applying changes", "Saving archive",
@@ -72,6 +75,25 @@ public sealed class SessionStateTracker
 
         entry.LastStatusKey = statusKey;
         return entry.Code;
+    }
+
+    /// <summary>Ports mutagenmonlib/remote/monitor.py's shared
+    /// <c>session_err[sname]</c> counter (FR-13's "consecutive-abnormal-poll
+    /// counter" is this same counter, not a separate one — see FR-3 note in
+    /// requirements/01-functional-requirements.md). Returns 0 for a session
+    /// never observed yet.</summary>
+    public int GetConsecutiveMisses(string sessionName) =>
+        _entries.TryGetValue(sessionName, out var entry) ? entry.ConsecutiveMisses : 0;
+
+    /// <summary>Ports mutagenmonlib/remote/monitor.py: the
+    /// <c>session_err[sname] = 0</c> reset performed immediately after a
+    /// restart (FR-13.5), independent of the next poll's outcome.</summary>
+    public void ResetConsecutiveMisses(string sessionName)
+    {
+        if (_entries.TryGetValue(sessionName, out var entry))
+        {
+            entry.ConsecutiveMisses = 0;
+        }
     }
 
     private static void TrackConsecutive(Entry entry, string statusKey, Action onSecondMiss)

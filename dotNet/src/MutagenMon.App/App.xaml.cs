@@ -123,6 +123,7 @@ public partial class App : Application
             builder.Services.AddSingleton<ISessionStateStore, SessionStateStore>();
             builder.Services.AddSingleton<IFileTimestampProvider, FileTimestampProvider>();
             builder.Services.AddSingleton<INotificationQueue, NotificationQueue>();
+            builder.Services.AddSingleton(new RestartLogWriter(ResolveLogDirectory(baseDir, options.LogPath)));
             builder.Services.AddSingleton<SessionMonitorService>();
             builder.Services.AddHostedService(sp => sp.GetRequiredService<SessionMonitorService>());
             builder.Services.AddSingleton<IConflictFileClient, ConflictFileClient>();

@@ -96,4 +96,53 @@ public sealed class MutagenCliClient : IMutagenCliClient
                 $"'{_mutagenPath} sync terminate {sessionName}' exited with code {process.ExitCode}: {stdout}{stderr}");
         }
     }
+
+    public async Task CreateSessionAsync(string rawCreateCommand, CancellationToken cancellationToken)
+    {
+        // The stored line (mutagen-create.bat, FR-1.1) is a `mutagen`-prefixed
+        // Windows command line, and may itself contain double-quoted
+        // arguments (e.g. `"C:\sources\appman"`) that are only meaningful
+        // as *command-line syntax* — not as literal argument content.
+        // Naively re-splitting on whitespace and feeding the pieces through
+        // ArgumentList (which passes each entry as literal argument text, no
+        // re-parsing) would hand mutagen a path with embedded quote
+        // characters and silently fail the recreate half of FR-13.5. Instead,
+        // strip the leading "mutagen" token and pass the remainder as a raw
+        // Arguments string, letting the OS/CRT command-line parser split and
+        // unquote it exactly as it would when the .bat file is run directly.
+        var firstSpace = rawCreateCommand.IndexOf(' ');
+        if (firstSpace < 0)
+        {
+            throw new InvalidOperationException($"Malformed session create command: '{rawCreateCommand}'");
+        }
+
+        var arguments = rawCreateCommand[(firstSpace + 1)..].TrimStart();
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = _mutagenPath,
+            Arguments = arguments,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        _logger.LogDebug("Invoking '{MutagenPath} {Args}'", _mutagenPath, arguments);
+
+        using var process = new Process { StartInfo = psi };
+        process.Start();
+
+        var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken);
+        var stdout = await stdoutTask;
+        var stderr = await stderrTask;
+
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException(
+                $"'{_mutagenPath} {arguments}' exited with code {process.ExitCode}: {stdout}{stderr}");
+        }
+    }
 }

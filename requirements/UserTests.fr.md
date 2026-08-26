@@ -185,9 +185,10 @@ FR-7.2)** ✅
 * Cliquer sur « Start Mutagen sessions ».
 * L'icône finit par refléter à nouveau l'état réel de la session
   (remarque : la session arrêtée n'est pas relancée par ce simple bouton
-  bascule — seul « Reload config & restart mutagen », ou un redémarrage
-  manuel de l'application, la ramène ; la récupération automatique est la
-  FR-13, pas encore implémentée).
+  bascule — réactiver seul le monitoring ne la redémarre pas. Soit
+  « Reload config & restart mutagen », soit un redémarrage manuel de
+  l'application, soit le franchissement à nouveau du seuil de sondages
+  anormaux de la FR-13 la ramène — voir UT-13.1).
 
 **UT-T.9 — État « impossible de se connecter » / erreur** ✅
 
@@ -583,22 +584,48 @@ indépendamment (FR-11)** ✅
   bascules sont indépendantes.
 
 **UT-11.6 — Notification de redémarrage suite à connexion bloquée
-(FR-11.3) ⏳ PAS ENCORE IMPLÉMENTÉ**
+(FR-11.3)** ✅
 
-Aucune étape de test — déplacée en
-[05-wpf-migration-notes.fr.md §6, Phase 5](05-wpf-migration-notes.fr.md#6-livraison-par-phases-proposée)
-avec la FR-13, dont dépend la logique de redémarrage par session sur
-seuil de connexion, qui n'existe pas encore. La bascule de config
-`NOTIFY_RESTART_CONNECTION` existe mais n'est lue nulle part.
-Lorsque la Phase 5 sera livrée, écrire **trois** tests distincts, pas un
-seul — FR-11.3 (redémarrage sur connexion bloquée, conditionné par
-`NOTIFY_RESTART_CONNECTION`), FR-11.3b (redémarrage sur doublon, toujours
-notifié, sans bascule) et FR-11.3c (redémarrage sur pas de session,
-jamais notifié) — voir
-[01-functional-requirements.fr.md FR-11](01-functional-requirements.fr.md#fr-11--notifications-de-bureau)
-pour les trois comportements distincts.
+* S'assurer que `"NOTIFY_RESTART_CONNECTION": true` et une petite valeur
+  de `SESSION_MAX_ERRORS` (par ex. `2`) dans
+  `config/config_mutagenmon.json`.
+* Forcer une session à rester dans un statut « Connecting to... »/
+  « Waiting to connect... »/« Unknown » pendant plus de
+  `SESSION_MAX_ERRORS` sondages consécutifs (par ex. bloquer le point
+  d'accès distant).
+* La session est redémarrée (terminate + recreate — voir UT-13.3) et un
+  toast intitulé avec le nom de la session apparaît, contenu
+  `"Restarting connection: <status>"`.
+* Mettre `"NOTIFY_RESTART_CONNECTION": false`, répéter — la session est
+  toujours redémarrée, mais aucun toast n'apparaît.
 
-**UT-11.7 — Notification de mise à jour de profil (FR-11.4)** ✅
+**UT-11.7 — Notification de redémarrage sur doublon, toujours active
+(FR-11.3b)** ✅
+
+* Mettre `"NOTIFY_RESTART_CONNECTION": false` (délibérément, pour prouver
+  que cette notification n'est pas conditionnée par elle) et une petite
+  valeur de `SESSION_MAX_DUPLICATE` (par ex. `2`) dans
+  `config/config_mutagenmon.json`.
+* Produire un nom de session en doublon pendant plus de
+  `SESSION_MAX_DUPLICATE` sondages consécutifs (voir UT-13.2 pour la
+  vérification du redémarrage lui-même).
+* Un toast intitulé avec le nom de la session apparaît, contenu
+  `"Restarting duplicate: <status>"`, même si `NOTIFY_RESTART_CONNECTION`
+  est désactivé — cette notification n'a pas de bascule qui lui est propre
+  et se déclenche toujours.
+
+**UT-11.8 — Le redémarrage sur pas de session ne notifie jamais
+(FR-11.3c)** ✅
+
+* Avec `"NOTIFY_RESTART_CONNECTION": true` et une petite valeur de
+  `SESSION_MAX_NOSESSION` (par ex. `2`), faire disparaître complètement
+  une session de `mutagen sync list` pendant plus de
+  `SESSION_MAX_NOSESSION` sondages consécutifs (voir UT-13.1).
+* La session est redémarrée, mais aucun toast n'apparaît pour elle — c'est
+  la seule cause de redémarrage silencieuse par conception,
+  inconditionnellement.
+
+**UT-11.9 — Notification de mise à jour de profil (FR-11.4)** ✅
 
 * S'assurer que `"NOTIFY_MUTAGEN_PROFILE_UPDATE": true` dans
   `config/config_mutagenmon.json`.
@@ -633,13 +660,79 @@ aujourd'hui.
 * Exactement un toast « Updated » apparaît pour cette session, pas un par
   écriture.
 
-## FR-13 — Récupération automatique de session ⏳ PAS ENCORE IMPLÉMENTÉ
+## FR-13 — Récupération automatique de session
 
-Aucune étape de test — voir
-[05-wpf-migration-notes.fr.md §6, Phase 5](05-wpf-migration-notes.fr.md#6-livraison-par-phases-proposée).
-Comme déjà observé aux UT-T.8/UT-7.2 : aujourd'hui, une session arrêtée
-ou manquante n'est relancée que par « Reload config & restart mutagen »
-ou un redémarrage manuel de l'application — jamais automatiquement.
+**UT-13.1 — Redémarrage sur pas de résultat (FR-13.1)** ✅
+
+* Mettre une petite valeur de `SESSION_MAX_NOSESSION` (par ex. `2`) dans
+  `config/config_mutagenmon.json` et redémarrer MutagenMon.
+* Faire disparaître complètement une session surveillée de
+  `mutagen sync list` (par ex. `mutagen sync terminate <name>` depuis un
+  autre shell, sans passer par MutagenMon) pendant plus de
+  `SESSION_MAX_NOSESSION` sondages consécutifs.
+* MutagenMon recrée la session de lui-même (`mutagen sync list` la montre
+  à nouveau peu après) — aucune action utilisateur nécessaire.
+* Aucun toast n'apparaît pour cette session (voir UT-11.8).
+* `log/restart.log` reçoit une nouvelle entrée avec l'instantané brut de
+  statut et `Restarting: <name>`.
+
+**UT-13.2 — Redémarrage sur nom en doublon (FR-13.2)** ✅
+
+* Mettre une petite valeur de `SESSION_MAX_DUPLICATE` (par ex. `2`).
+* Produire un nom de session en doublon (par ex. deux sessions partageant
+  le même `--name` dans `mutagen/mutagen-create.bat`, ou créer
+  manuellement via `mutagen sync create` une session dont le nom est déjà
+  géré par MutagenMon) pendant plus de `SESSION_MAX_DUPLICATE` sondages
+  consécutifs.
+* La session est redémarrée et un toast apparaît (voir UT-11.7).
+* `log/restart.log` reçoit une entrée avec `Restarting duplicate: <name>`.
+
+**UT-13.3 — Redémarrage sur connexion bloquée (FR-13.3)** ✅
+
+* Mettre une petite valeur de `SESSION_MAX_ERRORS` (par ex. `2`).
+* Forcer le statut d'une session à rester « Connecting to... »/« Waiting
+  to connect... »/« Unknown » pendant plus de `SESSION_MAX_ERRORS`
+  sondages consécutifs (par ex. rendre le point d'accès distant
+  inaccessible).
+* La session est redémarrée ; l'apparition d'un toast dépend de
+  `NOTIFY_RESTART_CONNECTION` (voir UT-11.6).
+* `log/restart.log` reçoit une entrée avec `Restarting connection: <name>`.
+
+**UT-13.4 — Le redémarrage est terminate-puis-recreate, chaque étape
+indépendante (FR-13.5)** ✅
+
+* Déclencher UT-13.2 (doublon) ou UT-13.3 (connexion bloquée) alors que la
+  session a déjà disparu de la propre liste de sessions de `mutagen` (pour
+  que l'étape de terminaison elle-même échoue — la session est connue
+  comme existante d'après son statut, donc la terminaison est quand même
+  tentée).
+* MutagenMon tente quand même de recréer la session ensuite — vérifier que
+  `mutagen sync list` la montre à nouveau, et que `log/mutagenMon.log`
+  contient un avertissement pour la terminaison échouée mais que la
+  session tourne quand même.
+
+**UT-13.4b — Le redémarrage « aucune session » saute l'étape de
+terminaison (FR-13.5)** ✅
+
+* Déclencher UT-13.1 (redémarrage sans résultat).
+* `log/mutagenMon.log` ne contient **aucun** avertissement « Failed to
+  terminate session » pour cette session — l'étape de terminaison a été
+  entièrement sautée, puisque la session était déjà connue comme absente
+  (contrairement à UT-13.4, où la terminaison est tentée et son échec
+  toléré).
+* MutagenMon recrée quand même la session — `mutagen sync list` la montre
+  à nouveau.
+
+**UT-13.5 — Le monitoring désactivé ne redémarre jamais automatiquement
+(FR-13.6)** ✅
+
+* Depuis le menu de la barre d'état système, choisir « Stop Mutagen
+  sessions » (FR-7.2).
+* Laisser une session dans un état anormal (ou la laisser disparaître)
+  bien au-delà de son seuil configuré.
+* Aucun redémarrage automatique ne se produit — la session reste arrêtée,
+  conformément au comportement « arrêter, ne pas redémarrer tant que
+  désactivé » de l'UT-7.2, jusqu'à ce que le monitoring soit réactivé.
 
 ## FR-14 — Journalisation & diagnostics
 
@@ -678,12 +771,15 @@ Couvert ci-dessus par les UT-9.3/UT-9.4/UT-10.1 — `resolve.log` est
 indépendant de `mutagenMon.log`.
 
 **UT-14.4 — Journal de redémarrage dédié (FR-14.3, moitié
-redémarrage)** ⏳ PAS ENCORE IMPLÉMENTÉ
+redémarrage)** ✅
 
-Aucun `restart.log` dédié n'existe encore. L'unique mécanisme
-d'auto-redémarrage implémenté aujourd'hui (chien de garde de péremption,
-FR-6 — voir UT-T.11) journalise dans le même `mutagenMon.log` unique que
-tout le reste.
+Couvert ci-dessus par les UT-13.1/UT-13.2/UT-13.3 — chaque redémarrage
+automatique FR-13 s'ajoute à `log/restart.log`, indépendant de
+`mutagenMon.log` et de `resolve.log`. Remarque : le mécanisme
+d'auto-redémarrage *de toute l'application* (chien de garde de péremption,
+FR-6 — voir UT-T.11) est un mécanisme distinct et sans rapport, et
+journalise toujours uniquement dans `mutagenMon.log` — ce journal dédié
+concerne spécifiquement les redémarrages par session de la FR-13.
 
 **UT-14.5 — Filtre de verbosité (FR-14.2)** ⏳ PAS IMPLÉMENTÉ
 *(délibérément — voir [05-wpf-migration-notes.fr.md §7](05-wpf-migration-notes.fr.md#7-journalisation))*
@@ -718,13 +814,12 @@ pas des défauts :
 * Les noms de session en double (UT-1.2) sont uniquement journalisés, pas
   affichés dans une fenêtre contextuelle — une déviation délibérée et
   actuellement acceptée par rapport à l'ancienne application.
-* La FR-11.1/FR-11.2/FR-11.4 (notifications de nouveaux conflits,
-  d'auto-résolution et de mise à jour de profil) et la FR-12 (détection de
-  changement de profil de session, y compris le debounce de la FR-12.2)
-  sont implémentées. La FR-11.3 (notification de redémarrage suite à
-  connexion bloquée, déplacée en Phase 5 avec la FR-13), la FR-13
-  (récupération automatique de session), la FR-14.2 (filtre de verbosité),
-  et la moitié « redémarrage » de la FR-14.3 ne sont pas implémentées —
-  voir les sections ⏳ ci-dessus et
+* La FR-11.1/FR-11.2/FR-11.3/FR-11.4 (notifications de nouveaux conflits,
+  d'auto-résolution, de redémarrage automatique et de mise à jour de
+  profil), la FR-12 (détection de changement de profil de session, y
+  compris le debounce de la FR-12.2), et la FR-13 (récupération
+  automatique de session, y compris son `restart.log` dédié, FR-14.3)
+  sont toutes implémentées. Seule la FR-14.2 (filtre de verbosité) reste
+  délibérément non implémentée — voir la section ⏳ ci-dessus et
   [05-wpf-migration-notes.fr.md §6](05-wpf-migration-notes.fr.md#6-livraison-par-phases-proposée)
   pour le plan.

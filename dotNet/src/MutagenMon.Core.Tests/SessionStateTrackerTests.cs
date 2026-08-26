@@ -126,4 +126,39 @@ public class SessionStateTrackerTests
         var code = tracker.Update("s", Status("Something mutagen never actually prints"));
         Assert.Equal(SessionStatusCode.Ready, code);
     }
+
+    // FR-13 — the counter FR-13's restart thresholds compare against is this
+    // same tracker's counter, exposed publicly.
+
+    [Fact]
+    public void GetConsecutiveMissesReturnsZeroForASessionNeverObserved()
+    {
+        var tracker = new SessionStateTracker();
+        Assert.Equal(0, tracker.GetConsecutiveMisses("never-seen"));
+    }
+
+    [Fact]
+    public void GetConsecutiveMissesTracksTheSameCounterUsedForStatusDowngrades()
+    {
+        var tracker = new SessionStateTracker();
+        tracker.Update("s", Status("Connecting to beta"));
+        Assert.Equal(0, tracker.GetConsecutiveMisses("s"));
+        tracker.Update("s", Status("Connecting to beta"));
+        Assert.Equal(1, tracker.GetConsecutiveMisses("s"));
+        tracker.Update("s", Status("Connecting to beta"));
+        Assert.Equal(2, tracker.GetConsecutiveMisses("s"));
+    }
+
+    [Fact]
+    public void ResetConsecutiveMissesZeroesTheCounterImmediately()
+    {
+        var tracker = new SessionStateTracker();
+        tracker.Update("s", Status("Connecting to beta"));
+        tracker.Update("s", Status("Connecting to beta"));
+        Assert.Equal(1, tracker.GetConsecutiveMisses("s"));
+
+        tracker.ResetConsecutiveMisses("s");
+
+        Assert.Equal(0, tracker.GetConsecutiveMisses("s"));
+    }
 }

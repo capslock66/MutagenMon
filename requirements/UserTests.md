@@ -169,8 +169,10 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
 * Click "Start Mutagen sessions".
 * The icon eventually reflects the session's real state again (note: the
   underlying stopped session is not itself relaunched by this toggle —
-  only "Reload config & restart mutagen", or a manual app restart, brings
-  it back; automatic recovery is FR-13, not implemented yet).
+  re-enabling monitoring alone does not restart it. Either "Reload config &
+  restart mutagen", a manual app restart, or the session's own FR-13
+  abnormal-poll threshold being crossed again brings it back — see
+  UT-13.1).
 
 **UT-T.9 — Cannot connect / error state** ✅
 
@@ -523,22 +525,41 @@ toast (FR-10.2/FR-11.1)** ✅
 * The "Conflict auto-resolved" toast still appears — the two toggles are
   independent.
 
-**UT-11.6 — Stuck-connection-restart notification (FR-11.3) ⏳ NOT
-IMPLEMENTED YET**
+**UT-11.6 — Stuck-connection-restart notification (FR-11.3)** ✅
 
-No test steps — moved to
-[05-wpf-migration-notes.md §6, Phase 5](05-wpf-migration-notes.md#6-suggested-phased-delivery)
-together with FR-13, whose per-session restart-on-connecting-threshold
-logic this notification depends on and which doesn't exist yet. The
-`NOTIFY_RESTART_CONNECTION` config toggle exists but is not read anywhere.
-When Phase 5 lands, write **three** separate tests, not one — FR-11.3
-(connecting-restart, gated by `NOTIFY_RESTART_CONNECTION`), FR-11.3b
-(duplicate-restart, always notifies, no toggle), and FR-11.3c (no-session
-restart, never notifies) — see
-[01-functional-requirements.md FR-11](01-functional-requirements.md#fr-11--desktop-notifications)
-for the three distinct behaviors.
+* Ensure `"NOTIFY_RESTART_CONNECTION": true` and a small
+  `SESSION_MAX_ERRORS` (e.g. `2`) in `config/config_mutagenmon.json`.
+* Force a session to stay in a "Connecting to..."/"Waiting to
+  connect..."/"Unknown" status for more than `SESSION_MAX_ERRORS`
+  consecutive polls (e.g. block the remote endpoint).
+* The session is restarted (terminate + recreate — see UT-13.3) and a
+  toast titled with the session name appears, body
+  `"Restarting connection: <status>"`.
+* Set `"NOTIFY_RESTART_CONNECTION": false`, repeat — the session still
+  restarts, but no toast appears.
 
-**UT-11.7 — Profile-update notification (FR-11.4)** ✅
+**UT-11.7 — Duplicate-restart notification, always on (FR-11.3b)** ✅
+
+* Set `"NOTIFY_RESTART_CONNECTION": false` (deliberately, to prove this
+  notification is not gated by it) and a small `SESSION_MAX_DUPLICATE`
+  (e.g. `2`) in `config/config_mutagenmon.json`.
+* Produce a duplicate session name for more than `SESSION_MAX_DUPLICATE`
+  consecutive polls (see UT-13.2 for how the restart itself is verified).
+* A toast titled with the session name appears, body
+  `"Restarting duplicate: <status>"`, even though
+  `NOTIFY_RESTART_CONNECTION` is disabled — this notification has no
+  toggle of its own and always fires.
+
+**UT-11.8 — No-session restart never notifies (FR-11.3c)** ✅
+
+* With `"NOTIFY_RESTART_CONNECTION": true` and a small
+  `SESSION_MAX_NOSESSION` (e.g. `2`), make a session disappear from
+  `mutagen sync list` entirely for more than `SESSION_MAX_NOSESSION`
+  consecutive polls (see UT-13.1).
+* The session is restarted, but no toast appears for it at all — this is
+  the one restart cause that is silent by design, unconditionally.
+
+**UT-11.9 — Profile-update notification (FR-11.4)** ✅
 
 * Ensure `"NOTIFY_MUTAGEN_PROFILE_UPDATE": true` in
   `config/config_mutagenmon.json`.
@@ -568,13 +589,72 @@ FR-11.4)** ✅
 * Stop writing and wait past the grace period.
 * Exactly one "Updated" toast appears for that session, not one per write.
 
-## FR-13 — Automatic session recovery ⏳ NOT IMPLEMENTED YET
+## FR-13 — Automatic session recovery
 
-No test steps — see
-[05-wpf-migration-notes.md §6, Phase 5](05-wpf-migration-notes.md#6-suggested-phased-delivery).
-As already observed in UT-T.8/UT-7.2: today, a stopped or missing session
-is only revived by "Reload config & restart mutagen" or a manual app
-restart — never automatically.
+**UT-13.1 — No-result restart (FR-13.1)** ✅
+
+* Set a small `SESSION_MAX_NOSESSION` (e.g. `2`) in
+  `config/config_mutagenmon.json` and restart MutagenMon.
+* Make a monitored session disappear from `mutagen sync list` entirely
+  (e.g. `mutagen sync terminate <name>` from a separate shell, without
+  going through MutagenMon) for more than `SESSION_MAX_NOSESSION`
+  consecutive polls.
+* MutagenMon recreates the session on its own (`mutagen sync list` shows
+  it again shortly after) — no user action needed.
+* No "New conflicts"/restart toast appears for this session (see UT-11.8).
+* `log/restart.log` gets a new entry with the raw status snapshot and
+  `Restarting: <name>`.
+
+**UT-13.2 — Duplicate-name restart (FR-13.2)** ✅
+
+* Set a small `SESSION_MAX_DUPLICATE` (e.g. `2`).
+* Produce a duplicate session name (e.g. two sessions sharing the same
+  `--name` in `mutagen/mutagen-create.bat`, or manually
+  `mutagen sync create` a session with a name MutagenMon already manages)
+  for more than `SESSION_MAX_DUPLICATE` consecutive polls.
+* The session is restarted and a toast appears (see UT-11.7).
+* `log/restart.log` gets an entry with `Restarting duplicate: <name>`.
+
+**UT-13.3 — Stuck-connecting restart (FR-13.3)** ✅
+
+* Set a small `SESSION_MAX_ERRORS` (e.g. `2`).
+* Force a session's status to stay "Connecting to..."/"Waiting to
+  connect..."/"Unknown" for more than `SESSION_MAX_ERRORS` consecutive
+  polls (e.g. make the remote endpoint unreachable).
+* The session is restarted; whether a toast appears depends on
+  `NOTIFY_RESTART_CONNECTION` (see UT-11.6).
+* `log/restart.log` gets an entry with `Restarting connection: <name>`.
+
+**UT-13.4 — Restart is terminate-then-recreate, each step independent
+(FR-13.5)** ✅
+
+* Trigger UT-13.2 (duplicate) or UT-13.3 (stuck-connecting) while the
+  session is already gone from `mutagen`'s own session list (so the
+  termination step itself fails — the session is known to exist per its
+  status, so termination is still attempted).
+* MutagenMon still attempts to recreate the session afterwards — check
+  `mutagen sync list` shows it again, and `log/mutagenMon.log` has a
+  warning for the failed termination but the session is still running.
+
+**UT-13.4b — No-session restart skips the termination step
+(FR-13.5)** ✅
+
+* Trigger UT-13.1 (no-result restart).
+* `log/mutagenMon.log` has **no** "Failed to terminate session" warning
+  for this session — the termination step was skipped entirely, since the
+  session was already known to be absent (as opposed to UT-13.4, where
+  termination is attempted and its failure tolerated).
+* MutagenMon still recreates the session — `mutagen sync list` shows it
+  again.
+
+**UT-13.5 — Disabled monitoring never auto-restarts (FR-13.6)** ✅
+
+* From the tray menu, choose "Stop Mutagen sessions" (FR-7.2).
+* Leave a session in an abnormal state (or let it disappear) well past its
+  configured threshold.
+* No automatic restart happens — the session stays terminated, matching
+  UT-7.2's "stop, don't restart while disabled" behavior, until monitoring
+  is re-enabled.
 
 ## FR-14 — Logging & diagnostics
 
@@ -609,12 +689,14 @@ restart — never automatically.
 Covered above by UT-9.3/UT-9.4/UT-10.1 — `resolve.log` is independent of
 `mutagenMon.log`.
 
-**UT-14.4 — Dedicated restart log (FR-14.3, restart half)** ⏳ NOT
-IMPLEMENTED YET
+**UT-14.4 — Dedicated restart log (FR-14.3, restart half)** ✅
 
-No dedicated `restart.log` exists yet. The one self-restart mechanism
-that is implemented today (staleness watchdog, FR-6 — see UT-T.11) logs
-to the same single `mutagenMon.log` as everything else.
+Covered above by UT-13.1/UT-13.2/UT-13.3 — every FR-13 automatic restart
+appends to `log/restart.log`, independent of `mutagenMon.log` and of
+`resolve.log`. Note: the *whole-app* self-restart mechanism (staleness
+watchdog, FR-6 — see UT-T.11) is a separate, unrelated mechanism and still
+logs to `mutagenMon.log` only — this dedicated log is specifically for
+FR-13's per-session restarts.
 
 **UT-14.5 — Verbosity gate (FR-14.2)** ⏳ NOT IMPLEMENTED *(deliberate — see
 [05-wpf-migration-notes.md §7](05-wpf-migration-notes.md#7-logging))*
@@ -647,12 +729,11 @@ defects:
   [03-tray-icon-requirements.md §3.1/§7.1](03-tray-icon-requirements.md).
 * Duplicate session names (UT-1.2) are only logged, not shown in a popup
   — a deliberate, currently-accepted deviation from the legacy app.
-* FR-11.1/FR-11.2/FR-11.4 (new-conflict, auto-resolve, and profile-update
-  notifications) and FR-12 (session profile change detection, including
-  the FR-12.2 debounce) are implemented. FR-11.3
-  (stuck-connection-restart notification, moved to Phase 5 with FR-13),
-  FR-13 (automatic session recovery), FR-14.2 (verbosity gate), and the
-  restart half of FR-14.3 are not implemented — see the ⏳ sections above
-  and
+* FR-11.1/FR-11.2/FR-11.3/FR-11.4 (new-conflict, auto-resolve,
+  automatic-restart, and profile-update notifications), FR-12 (session
+  profile change detection, including the FR-12.2 debounce), and FR-13
+  (automatic session recovery, including its dedicated `restart.log`,
+  FR-14.3) are all implemented. Only FR-14.2 (verbosity gate) remains
+  deliberately unimplemented — see the ⏳ section above and
   [05-wpf-migration-notes.md §6](05-wpf-migration-notes.md#6-suggested-phased-delivery)
   for the plan.

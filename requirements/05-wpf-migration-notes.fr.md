@@ -159,17 +159,23 @@ Ajouts fortement recommandés pour la réécriture :
    - [x] FR-11.1/FR-11.2/FR-11.4 — notifications de bureau pour les nouveaux
      conflits, la résolution automatique et la mise à jour de profil
      confirmée. **Fait** — voir `dotNet/README.md`. FR-11.3 (notification de
-     redémarrage suite à connexion bloquée) déplacée en Phase 5
-     ci-dessous — elle dépend du déclencheur de redémarrage par session de
-     FR-13, qui n'existe pas encore.
+     redémarrage suite à connexion bloquée) est maintenant câblée aussi —
+     voir la ligne FR-13 ci-dessous.
    - [x] FR-12 — détection de changement de profil de session (surveillance
      de la date de modification de l'archive, avec debounce via
      `MUTAGEN_PROFILE_GRACE`). **Fait** — voir `dotNet/README.md`.
 5. **Phase 5** : récupération automatique de session (FR-13) et
    finalisation de la journalisation/du diagnostic (FR-14).
-   - [ ] FR-13 — récupération automatique de session (redémarrage sur
-     `SESSION_MAX_NOSESSION`), ainsi que la notification de redémarrage
-     suite à connexion bloquée (FR-11.3) qu'elle conditionne.
+   - [x] FR-13 — récupération automatique de session (redémarrage sur
+     `SESSION_MAX_NOSESSION`/`SESSION_MAX_DUPLICATE`/`SESSION_MAX_ERRORS`),
+     ainsi que la notification de redémarrage suite à connexion bloquée
+     (FR-11.3) qu'elle conditionne et la notification de redémarrage pour
+     doublon toujours active (FR-11.3b). **Fait** — voir
+     `MutagenMon.Core/Monitoring/SessionMonitorService.cs`
+     (`RestartUnhealthySessionsAsync`), `MutagenMon.Core/Monitoring/
+     RestartLogWriter.cs` (journal dédié `restart.log`, FR-13.4), et
+     `MutagenMon.Core/Mutagen/MutagenCliClient.cs`
+     (`CreateSessionAsync`, FR-13.5).
    - [ ] FR-14 — finalisation de la journalisation/du diagnostic
      (journalisation de base déjà **Fait** en Phase 1, voir §7 ci-dessous ;
      cet élément couvre les points FR-14 restants non encore traités, par

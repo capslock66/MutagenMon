@@ -7,10 +7,11 @@ namespace MutagenMon.Core.Notifications;
 /// its own <c>NOTIFY_*</c> config toggle (FR-11's "independently toggleable
 /// via configuration").
 ///
-/// FR-11.3 (stuck-connection-restart notification) is intentionally not
-/// wired here: it depends on FR-13's per-session restart-on-connecting-
-/// threshold logic, which doesn't exist yet (moved to Phase 5). See
-/// requirements/05-wpf-migration-notes.md §6.
+/// FR-11.3's stuck-connection-restart notification and the always-on
+/// duplicate-restart notification are wired via
+/// <see cref="NotifyRestartedForConnecting"/>/<see cref="NotifyRestartedForDuplicate"/>,
+/// called from FR-13's per-session restart logic in
+/// <see cref="Monitoring.SessionMonitorService"/>.
 /// </summary>
 public sealed class NotificationDispatcher
 {
@@ -18,14 +19,17 @@ public sealed class NotificationDispatcher
     private readonly bool _notifyConflicts;
     private readonly bool _notifyAutoresolve;
     private readonly bool _notifyProfileUpdate;
+    private readonly bool _notifyRestartConnection;
 
     public NotificationDispatcher(
-        INotificationQueue queue, bool notifyConflicts, bool notifyAutoresolve, bool notifyProfileUpdate)
+        INotificationQueue queue, bool notifyConflicts, bool notifyAutoresolve, bool notifyProfileUpdate,
+        bool notifyRestartConnection = false)
     {
         _queue = queue;
         _notifyConflicts = notifyConflicts;
         _notifyAutoresolve = notifyAutoresolve;
         _notifyProfileUpdate = notifyProfileUpdate;
+        _notifyRestartConnection = notifyRestartConnection;
     }
 
     /// <summary>FR-11.1: one notification grouping every newly-seen
@@ -55,5 +59,22 @@ public sealed class NotificationDispatcher
         {
             _queue.Enqueue(new NotificationMessage("Updated", sessionName));
         }
+    }
+
+    /// <summary>FR-13.2/FR-11.3b: a session restarted because it was detected
+    /// as a duplicate name. Always raised, unconditionally — no config
+    /// toggle gates this one.</summary>
+    public void NotifyRestartedForDuplicate(string sessionName, string status)
+    {
+        _queue.Enqueue(new NotificationMessage(sessionName, $"Restarting duplicate: {status}"));
+    }
+
+    /// <summary>FR-13.3/FR-11.3: a session restarted because it stayed stuck
+    /// "connecting" past <c>SESSION_MAX_ERRORS</c>. Gated by
+    /// <c>NOTIFY_RESTART_CONNECTION</c> (default disabled).</summary>
+    public void NotifyRestartedForConnecting(string sessionName, string status)
+    {
+        if (!_notifyRestartConnection) return;
+        _queue.Enqueue(new NotificationMessage(sessionName, $"Restarting connection: {status}"));
     }
 }
