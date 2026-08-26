@@ -47,6 +47,7 @@ public sealed class SessionMonitorService : BackgroundService
     private readonly TimeSpan _pollPeriod;
     private volatile bool _enabled;
     private readonly ILogger<SessionMonitorService> _logger;
+    private (SessionStatusCode Worst, bool Enabled, bool ProfileUpdated)? _lastLoggedPollState;
 
     /// <summary>Current monitoring-enabled state (FR-7.2). Read each poll to
     /// decide whether to actively terminate sessions.</summary>
@@ -120,10 +121,10 @@ public sealed class SessionMonitorService : BackgroundService
         try
         {
             var raw = await _cliClient.GetSyncListRawAsync(cancellationToken);
-            
-            // log the mutagen sync list output
-            _logger.LogInformation(raw);
-            
+
+            // log the mutagen sync list output. Uncomment if needed for debugging.
+            // _logger.LogInformation(raw);
+
             // RawLog,SessionStatuses dic,Conflicts dic
             MutagenSyncListResult parsed = MutagenSyncListParser.Parse(raw, _sessionNames);
 
@@ -139,7 +140,8 @@ public sealed class SessionMonitorService : BackgroundService
             {
                 parsed.SessionStatuses.TryGetValue(name, out var status);
 
-                _logger.LogInformation($"Session '{name}' status: {status}");
+                // log the mutagen session status output. Uncomment if needed for debugging. 
+                // _logger.LogInformation($"Session '{name}' status: {status}");
 
                 var code = _tracker.Update(name, status);
                 if (code < worst) 
@@ -155,9 +157,14 @@ public sealed class SessionMonitorService : BackgroundService
             var newConflictKeys = _conflictNotificationTracker.DetectNew(conflicts, worst);
             _notificationDispatcher.NotifyNewConflicts(newConflictKeys);
 
-            _logger.LogInformation(
-                "Poll succeeded: worst={Worst}, enabled={Enabled}, profileUpdated={ProfileUpdated}",
-                worst, _enabled, profileUpdated);
+            var pollState = (worst, _enabled, profileUpdated);
+            if (_lastLoggedPollState != pollState)
+            {
+                _logger.LogInformation(
+                    "Poll succeeded: worst={Worst}, enabled={Enabled}, profileUpdated={ProfileUpdated}",
+                    worst, _enabled, profileUpdated);
+                _lastLoggedPollState = pollState;
+            }
 
             _stateStore.Publish(new MonitorSnapshot(
                 worst,
