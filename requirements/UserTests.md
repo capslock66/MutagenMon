@@ -418,6 +418,24 @@ optional if you can't produce that many)*
 * The window disappears on its own once the comparison window (UT-9.1)
   appears — it is never dismissed by the user.
 
+**UT-9.10 — Directory-level conflict (FR-9.2, not covered by the original
+FR-9 wording)** ✅
+
+* Produce a conflict where mutagen reports a whole directory rather than a
+  single file (e.g. delete a synced subdirectory on one side while new
+  untracked content appears under it on the other — `mutagen sync list -l`
+  shows a line like `(alpha) some/dir (Directory -> <non-existent>)`).
+* Left-click the tray icon, click "Resolve conflicts".
+* The dialog shows `(directory)` (not a byte size) for whichever side is a
+  directory, and `(does not exist)` for a side that has none of the entry.
+* The "Visual merge" option is disabled/greyed out (a directory can't be
+  diffed with the merge tool).
+* Choosing "A wins"/"B wins" and clicking "OK" replaces the destination
+  side's contents at that path with an exact copy of the winning side's
+  subtree (recursively), or deletes the destination entirely when the
+  winning side no longer has the entry.
+* `log/resolve.log` gets a new entry as usual.
+
 ## FR-10 — Automatic conflict resolution
 
 **UT-10.1 — A matching rule auto-resolves without any prompt (FR-10.1/

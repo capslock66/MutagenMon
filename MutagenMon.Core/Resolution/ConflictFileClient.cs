@@ -35,21 +35,62 @@ public sealed class ConflictFileClient : IConflictFileClient
     {
         if (endpoint.Transport == TransportKind.Local)
         {
-            var fileInfo = new FileInfo(JoinPath(endpoint.Url, relativePath));
+            var path = JoinPath(endpoint.Url, relativePath);
+            if (Directory.Exists(path))
+            {
+                return new FileStat(0, new DateTimeOffset(Directory.GetLastWriteTimeUtc(path), TimeSpan.Zero), IsDirectory: true);
+            }
+            if (!File.Exists(path))
+            {
+                return new FileStat(0, DateTimeOffset.MinValue, Exists: false);
+            }
+            var fileInfo = new FileInfo(path);
             return new FileStat(fileInfo.Length, new DateTimeOffset(fileInfo.LastWriteTimeUtc, TimeSpan.Zero));
         }
 
+        // Single round trip: reports directory/file/missing together with
+        // the stat info, rather than probing the kind first and stat-ing
+        // separately (twice the SSH latency for the common file case).
         var remotePath = JoinPath(endpoint.RemoteDirectory!, relativePath);
-        var output = await RunSshAsync(endpoint.Server!, $"stat -c '%Y %s' '{remotePath}'", cancellationToken);
-        var parts = output.Trim().Split(' ', 2);
-        var modifiedUnixSeconds = long.Parse(parts[0]);
-        var sizeBytes = long.Parse(parts[1]);
-        return new FileStat(sizeBytes, DateTimeOffset.FromUnixTimeSeconds(modifiedUnixSeconds));
+        var output = (await RunSshAsync(
+            endpoint.Server!,
+            $"if [ -d '{remotePath}' ]; then echo DIR $(stat -c '%Y' '{remotePath}'); " +
+            $"elif [ -e '{remotePath}' ]; then echo FILE $(stat -c '%Y %s' '{remotePath}'); " +
+            $"else echo MISSING; fi",
+            cancellationToken)).Trim();
+
+        var tokens = output.Split(' ');
+        return tokens[0] switch
+        {
+            "DIR" => new FileStat(0, DateTimeOffset.FromUnixTimeSeconds(long.Parse(tokens[1])), IsDirectory: true),
+            "FILE" => new FileStat(long.Parse(tokens[2]), DateTimeOffset.FromUnixTimeSeconds(long.Parse(tokens[1]))),
+            _ => new FileStat(0, DateTimeOffset.MinValue, Exists: false),
+        };
     }
 
     public async Task CopyBetweenEndpointsAsync(
         SessionEndpoint source, SessionEndpoint destination, string relativePath, CancellationToken cancellationToken)
     {
+        var sourceKind = await GetKindAsync(source, relativePath, cancellationToken);
+
+        if (sourceKind == PathKind.Missing)
+        {
+            // The source side no longer has this entry (e.g. it was
+            // deleted) — mirroring that absence onto the destination IS
+            // the resolution.
+            await DeleteAsync(destination, relativePath, cancellationToken);
+            return;
+        }
+
+        if (sourceKind == PathKind.Directory)
+        {
+            // Directory-level conflict: replace whatever is currently on
+            // the destination with an exact copy of the source subtree.
+            await DeleteAsync(destination, relativePath, cancellationToken);
+            await CopyDirectoryBetweenEndpointsAsync(source, destination, relativePath, cancellationToken);
+            return;
+        }
+
         if (source.Transport == TransportKind.Local && destination.Transport == TransportKind.Local)
         {
             File.Copy(JoinPath(source.Url, relativePath), JoinPath(destination.Url, relativePath), overwrite: true);
@@ -67,6 +108,89 @@ public sealed class ConflictFileClient : IConflictFileClient
         var sourceArg = source.Transport == TransportKind.Ssh ? RemoteArg(source, relativePath) : JoinPath(source.Url, relativePath);
         var destinationArg = destination.Transport == TransportKind.Ssh ? RemoteArg(destination, relativePath) : JoinPath(destination.Url, relativePath);
         await RunScpAsync(sourceArg, destinationArg, cancellationToken);
+    }
+
+    private async Task CopyDirectoryBetweenEndpointsAsync(
+        SessionEndpoint source, SessionEndpoint destination, string relativePath, CancellationToken cancellationToken)
+    {
+        if (source.Transport == TransportKind.Local && destination.Transport == TransportKind.Local)
+        {
+            CopyLocalDirectoryRecursive(JoinPath(source.Url, relativePath), JoinPath(destination.Url, relativePath));
+            return;
+        }
+
+        if (source.Transport == TransportKind.Ssh && destination.Transport == TransportKind.Ssh)
+        {
+            var tempDir = Path.Combine(_tempDir, "temp");
+            DeleteLocalPathIfExists(tempDir);
+            await RunScpAsync(RemoteArg(source, relativePath), tempDir, cancellationToken, recursive: true);
+            await RunScpAsync(tempDir, RemoteArg(destination, relativePath), cancellationToken, recursive: true);
+            return;
+        }
+
+        var sourceArg = source.Transport == TransportKind.Ssh ? RemoteArg(source, relativePath) : JoinPath(source.Url, relativePath);
+        var destinationArg = destination.Transport == TransportKind.Ssh ? RemoteArg(destination, relativePath) : JoinPath(destination.Url, relativePath);
+        await RunScpAsync(sourceArg, destinationArg, cancellationToken, recursive: true);
+    }
+
+    private enum PathKind { Missing, File, Directory }
+
+    private async Task<PathKind> GetKindAsync(SessionEndpoint endpoint, string relativePath, CancellationToken cancellationToken)
+    {
+        if (endpoint.Transport == TransportKind.Local)
+        {
+            var path = JoinPath(endpoint.Url, relativePath);
+            if (Directory.Exists(path)) return PathKind.Directory;
+            return File.Exists(path) ? PathKind.File : PathKind.Missing;
+        }
+
+        var remotePath = JoinPath(endpoint.RemoteDirectory!, relativePath);
+        var output = (await RunSshAsync(
+            endpoint.Server!,
+            $"if [ -d '{remotePath}' ]; then echo DIR; elif [ -e '{remotePath}' ]; then echo FILE; else echo MISSING; fi",
+            cancellationToken)).Trim();
+        return output switch
+        {
+            "DIR" => PathKind.Directory,
+            "FILE" => PathKind.File,
+            _ => PathKind.Missing,
+        };
+    }
+
+    private async Task DeleteAsync(SessionEndpoint endpoint, string relativePath, CancellationToken cancellationToken)
+    {
+        if (endpoint.Transport == TransportKind.Local)
+        {
+            DeleteLocalPathIfExists(JoinPath(endpoint.Url, relativePath));
+            return;
+        }
+
+        await RunSshAsync(endpoint.Server!, $"rm -rf '{JoinPath(endpoint.RemoteDirectory!, relativePath)}'", cancellationToken);
+    }
+
+    private static void CopyLocalDirectoryRecursive(string sourceDir, string destinationDir)
+    {
+        Directory.CreateDirectory(destinationDir);
+        foreach (var filePath in Directory.GetFiles(sourceDir))
+        {
+            File.Copy(filePath, Path.Combine(destinationDir, Path.GetFileName(filePath)), overwrite: true);
+        }
+        foreach (var subDir in Directory.GetDirectories(sourceDir))
+        {
+            CopyLocalDirectoryRecursive(subDir, Path.Combine(destinationDir, Path.GetFileName(subDir)));
+        }
+    }
+
+    private static void DeleteLocalPathIfExists(string path)
+    {
+        if (Directory.Exists(path))
+        {
+            Directory.Delete(path, recursive: true);
+        }
+        else if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
     }
 
     public async Task<string> FetchLocalCopyAsync(SessionEndpoint endpoint, string relativePath, int side, CancellationToken cancellationToken)
@@ -149,7 +273,7 @@ public sealed class ConflictFileClient : IConflictFileClient
         return stdout;
     }
 
-    private async Task RunScpAsync(string source, string destination, CancellationToken cancellationToken)
+    private async Task RunScpAsync(string source, string destination, CancellationToken cancellationToken, bool recursive = false)
     {
         var psi = new ProcessStartInfo
         {
@@ -159,6 +283,10 @@ public sealed class ConflictFileClient : IConflictFileClient
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+        if (recursive)
+        {
+            psi.ArgumentList.Add("-r");
+        }
         psi.ArgumentList.Add(source);
         psi.ArgumentList.Add(destination);
 

@@ -36,6 +36,11 @@ public partial class ConflictResolutionWindow : Window
         dialog.AlphaInfoText.Text = FormatSide("A", alphaUrl, alphaStat);
         dialog.BetaInfoText.Text = FormatSide("B", betaUrl, betaStat);
 
+        // Visual merge needs two actual files to diff — not applicable to a
+        // directory-level conflict, or when one side no longer exists.
+        var allowVisualMerge = !alphaStat.IsDirectory && !betaStat.IsDirectory && alphaStat.Exists && betaStat.Exists;
+        dialog.VisualMergeOption.IsEnabled = allowVisualMerge;
+
         if (defaultChoice == ConflictResolutionChoice.AWins)
         {
             dialog.AWinsOption.IsChecked = true;
@@ -48,8 +53,18 @@ public partial class ConflictResolutionWindow : Window
         return dialog.ShowDialog() == true ? dialog._result : null;
     }
 
-    private static string FormatSide(string label, string url, FileStat stat) =>
-        $"{label}: {url}\n{stat.SizeBytes} bytes, {stat.ModifiedUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}";
+    private static string FormatSide(string label, string url, FileStat stat)
+    {
+        if (!stat.Exists)
+        {
+            return $"{label}: {url}\n(does not exist)";
+        }
+        if (stat.IsDirectory)
+        {
+            return $"{label}: {url}\n(directory) last modified {stat.ModifiedUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}";
+        }
+        return $"{label}: {url}\n{stat.SizeBytes} bytes, {stat.ModifiedUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}";
+    }
 
     private void OnOkClick(object sender, RoutedEventArgs e)
     {

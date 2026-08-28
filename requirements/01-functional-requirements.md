@@ -181,6 +181,16 @@ The full specification lives in
   is shown: title `"MutagenMon: resolved file conflict"`, body
   `"Merged file copied to both sides:\n\n<filename>"`), **A wins** (copy
   A's version over B), or **B wins** (copy B's version over A).
+  > **Directory-level conflicts**: mutagen can also report a conflict where
+  > one or both sides are a whole directory rather than a single file (e.g.
+  > `(alpha) some/dir (Directory -> <non-existent>)`), typically from
+  > deleting a synced subdirectory on one side while new untracked content
+  > appears under it on the other. The dialog handles this by showing
+  > `(directory)`/`(does not exist)` instead of a byte size where
+  > applicable, and disabling **Visual merge** (not meaningful for a
+  > directory). **A wins**/**B wins** mirrors the winning side's subtree
+  > onto the other side recursively, or deletes the destination entirely
+  > when the winning side has nothing at that path.
 - FR-9.3: The dialog MUST pre-select "A wins" or "B wins" automatically
   based on which side has the more recent modification timestamp, as a
   suggested default the user can override.
