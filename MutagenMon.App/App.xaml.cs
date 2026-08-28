@@ -275,12 +275,11 @@ public partial class App : Application
     {
         _logger?.LogCritical(e.Exception, "Unhandled exception on the UI thread");
         MessageBox.Show(
-            $"MutagenMon hit an unexpected error and will close:\n\n{e.Exception}",
+            $"MutagenMon hit an unexpected error:\n\n{e.Exception}",
             "MutagenMon — error",
             MessageBoxButton.OK,
             MessageBoxImage.Error);
         e.Handled = true;
-        Shutdown(-1);
     }
 
     private void OnAppDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
