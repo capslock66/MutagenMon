@@ -37,9 +37,7 @@ public class SessionMonitorServiceTests
         public Task TerminateSessionAsync(string sessionName, CancellationToken cancellationToken)
         {
             if (sessionName == FailTerminationFor)
-            {
                 throw new InvalidOperationException($"cannot terminate '{sessionName}'");
-            }
 
             TerminatedSessions.Add(sessionName);
             return Task.CompletedTask;
@@ -49,9 +47,7 @@ public class SessionMonitorServiceTests
         {
             var name = rawCreateCommand;
             if (name == FailCreationFor)
-            {
                 throw new InvalidOperationException($"cannot create '{rawCreateCommand}'");
-            }
 
             CreatedSessions.Add(rawCreateCommand);
             return Task.CompletedTask;

@@ -82,18 +82,14 @@ public sealed class ConflictResolutionService
         var alphaChanged = File.GetLastWriteTimeUtc(preparation.LocalPath1) != preparation.OldMtimeUtc1;
         var betaChanged = File.GetLastWriteTimeUtc(preparation.LocalPath2) != preparation.OldMtimeUtc2;
         if (!alphaChanged && !betaChanged)
-        {
             return false;
-        }
 
         var (winningPath, winningEndpoint, otherEndpoint) = alphaChanged
             ? (preparation.LocalPath1, conflict.Alpha, conflict.Beta)
             : (preparation.LocalPath2, conflict.Beta, conflict.Alpha);
 
         if (winningEndpoint.Transport == TransportKind.Ssh)
-        {
             await _fileClient.PushLocalFileAsync(winningPath, winningEndpoint, conflict.FileName, cancellationToken);
-        }
         await _fileClient.PushLocalFileAsync(winningPath, otherEndpoint, conflict.FileName, cancellationToken);
 
         _resolveLog.Append(

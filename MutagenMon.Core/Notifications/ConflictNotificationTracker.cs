@@ -23,20 +23,17 @@ public sealed class ConflictNotificationTracker
     {
         var current = new HashSet<string>();
         foreach (var (sessionName, conflicts) in conflictsBySession)
-        {
             foreach (var conflict in conflicts)
             {
-                if (conflict.AutoResolved) continue;
+                if (conflict.AutoResolved)
+                    continue;
                 current.Add($"{sessionName}:{conflict.AlphaName}");
             }
-        }
 
         var newKeys = current.Where(key => !_seen.Contains(key)).OrderBy(key => key, StringComparer.Ordinal).ToArray();
 
         if (current.Count > 0 || worstCode == SessionStatusCode.Ready)
-        {
             _seen = current;
-        }
 
         return newKeys;
     }

@@ -46,9 +46,7 @@ public sealed class SessionStateTracker
             || ConnectingPrefixes.Any(p => status.StartsWith(p, StringComparison.Ordinal));
 
         if (isConnectingLike)
-        {
             TrackConsecutive(entry, statusKey, onSecondMiss: () => entry.Code = SessionStatusCode.ConnectionError);
-        }
         else if (status.StartsWith(ReadyPrefix, StringComparison.Ordinal))
         {
             entry.ConsecutiveMisses = 0;
@@ -68,8 +66,10 @@ public sealed class SessionStateTracker
         // untouched, exactly like the legacy if/elif chain falling all the way
         // through with no matching branch.
 
-        if (parsed.HasProblems) entry.Code = Min(entry.Code, SessionStatusCode.Problems);
-        if (parsed.HasConflicts) entry.Code = Min(entry.Code, SessionStatusCode.Conflicts);
+        if (parsed.HasProblems)
+            entry.Code = Min(entry.Code, SessionStatusCode.Problems);
+        if (parsed.HasConflicts)
+            entry.Code = Min(entry.Code, SessionStatusCode.Conflicts);
 
         entry.LastStatusKey = statusKey;
         return entry.Code;
@@ -88,9 +88,7 @@ public sealed class SessionStateTracker
     public void ResetConsecutiveMisses(string sessionName)
     {
         if (_entries.TryGetValue(sessionName, out var entry))
-        {
             entry.ConsecutiveMisses = 0;
-        }
     }
 
     private static void TrackConsecutive(Entry entry, string statusKey, Action onSecondMiss)
@@ -98,12 +96,11 @@ public sealed class SessionStateTracker
         if (entry.LastStatusKey == statusKey)
         {
             entry.ConsecutiveMisses++;
-            if (entry.ConsecutiveMisses > 1) onSecondMiss();
+            if (entry.ConsecutiveMisses > 1)
+                onSecondMiss();
         }
         else
-        {
             entry.ConsecutiveMisses = 0;
-        }
     }
 
     private static SessionStatusCode Min(SessionStatusCode a, SessionStatusCode b) => (SessionStatusCode)Math.Min((int)a, (int)b);

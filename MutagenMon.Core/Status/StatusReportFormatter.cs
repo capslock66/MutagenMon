@@ -19,7 +19,8 @@ public static class StatusReportFormatter
         var sb = new StringBuilder();
         foreach (var name in sessionNames)
         {
-            if (sb.Length > 0) sb.Append('\n').Append('\n');
+            if (sb.Length > 0)
+                sb.Append('\n').Append('\n');
 
             statuses.TryGetValue(name, out var status);
             sb.Append("Name: ").Append(name).Append('\n');
@@ -39,16 +40,19 @@ public static class StatusReportFormatter
         var sb = new StringBuilder();
         foreach (var name in sessionNames)
         {
-            if (!conflicts.TryGetValue(name, out var list)) continue;
+            if (!conflicts.TryGetValue(name, out var list))
+                continue;
             foreach (var conflict in list)
             {
                 sb.Append(name).Append(": ").Append(conflict.AlphaName);
-                if (conflict.AutoResolved) sb.Append(" [autoresolving]");
+                if (conflict.AutoResolved)
+                    sb.Append(" [autoresolving]");
                 sb.Append('\n');
             }
         }
 
-        if (sb.Length == 0) return "";
+        if (sb.Length == 0)
+            return "";
         return "==================== CONFLICTS ====================\n" + sb;
     }
 

@@ -50,16 +50,12 @@ public sealed class FileLoggerProvider : ILoggerProvider
         {
             var wroteToPrimary = TryAppend(_primaryLogPath, line);
             if (level == LogLevel.Critical)
-            {
                 TryAppend(_fatalLogPath, line);
-            }
             else if (!wroteToPrimary)
-            {
                 // The primary sink just failed for a non-Critical entry —
                 // still worth a durable trace of that fact.
                 TryAppend(_fatalLogPath, FormatLine("FileLoggerProvider", LogLevel.Warning,
                     $"Failed to write to primary log '{_primaryLogPath}'; see Debug output.", null));
-            }
         }
     }
 
@@ -92,9 +88,7 @@ public sealed class FileLoggerProvider : ILoggerProvider
         };
         var line = $"{timestamp} [{levelTag}] {categoryName}: {message}{Environment.NewLine}";
         if (exception is not null)
-        {
             line += exception + Environment.NewLine;
-        }
         return line;
     }
 
@@ -110,7 +104,8 @@ public sealed class FileLoggerProvider : ILoggerProvider
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
-            if (!IsEnabled(logLevel)) return;
+            if (!IsEnabled(logLevel))
+                return;
             provider.Write(categoryName, logLevel, formatter(state, exception), exception);
         }
     }

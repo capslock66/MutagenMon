@@ -57,10 +57,8 @@ public sealed class MutagenCliClient : IMutagenCliClient
         _logger.LogDebug("'{MutagenPath} sync list' exited with code {ExitCode}", _mutagenPath, process.ExitCode);
 
         if (process.ExitCode != 0)
-        {
             throw new InvalidOperationException(
                 $"'{_mutagenPath} sync list' exited with code {process.ExitCode}: {stdout}{stderr}");
-        }
 
         return stdout + stderr;
     }
@@ -91,10 +89,8 @@ public sealed class MutagenCliClient : IMutagenCliClient
         var stderr = await stderrTask;
 
         if (process.ExitCode != 0)
-        {
             throw new InvalidOperationException(
                 $"'{_mutagenPath} sync terminate {sessionName}' exited with code {process.ExitCode}: {stdout}{stderr}");
-        }
     }
 
     public async Task CreateSessionAsync(string rawCreateCommand, CancellationToken cancellationToken)
@@ -112,9 +108,7 @@ public sealed class MutagenCliClient : IMutagenCliClient
         // unquote it exactly as it would when the .bat file is run directly.
         var firstSpace = rawCreateCommand.IndexOf(' ');
         if (firstSpace < 0)
-        {
             throw new InvalidOperationException($"Malformed session create command: '{rawCreateCommand}'");
-        }
 
         var arguments = rawCreateCommand[(firstSpace + 1)..].TrimStart();
 
@@ -140,9 +134,7 @@ public sealed class MutagenCliClient : IMutagenCliClient
         var stderr = await stderrTask;
 
         if (process.ExitCode != 0)
-        {
             throw new InvalidOperationException(
                 $"'{_mutagenPath} {arguments}' exited with code {process.ExitCode}: {stdout}{stderr}");
-        }
     }
 }

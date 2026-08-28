@@ -118,9 +118,7 @@ public sealed class TrayIconController
     private void OnPreviewTrayContextMenuOpen(object sender, RoutedEventArgs e)
     {
         if (_isReopeningContextMenu)
-        {
             return;
-        }
 
         e.Handled = true;
         var cursorPosition = GetCursorScreenPosition();
@@ -157,9 +155,7 @@ public sealed class TrayIconController
     private void Tick()
     {
         foreach (var message in _notificationQueue.DrainAll())
-        {
             _taskbarIcon.ShowNotification(message.Title, message.Body);
-        }
 
         var snapshot = _stateStore.Get();
         var now = DateTimeOffset.UtcNow;
@@ -187,9 +183,7 @@ public sealed class TrayIconController
         var state = TrayIconStateResolver.Resolve(input, _appName);
 
         if (_lastState is { } last && last.IconKey == state.IconKey && last.Tooltip == state.Tooltip)
-        {
             return;
-        }
 
         _logger.LogDebug("Tray icon state changed: {IconKey} — \"{Tooltip}\"", state.IconKey, state.Tooltip);
 

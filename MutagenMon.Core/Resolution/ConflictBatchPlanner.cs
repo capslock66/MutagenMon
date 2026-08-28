@@ -33,13 +33,16 @@ public static class ConflictBatchPlanner
         var result = new List<PendingConflict>();
         foreach (var sessionName in sessionNames)
         {
-            if (!conflictsBySession.TryGetValue(sessionName, out var conflicts)) continue;
+            if (!conflictsBySession.TryGetValue(sessionName, out var conflicts))
+                continue;
             sessionStatuses.TryGetValue(sessionName, out var status);
-            if (status?.Alpha is null || status.Beta is null) continue;
+            if (status?.Alpha is null || status.Beta is null)
+                continue;
 
             foreach (var conflict in conflicts)
             {
-                if (conflict.AutoResolved) continue;
+                if (conflict.AutoResolved)
+                    continue;
                 result.Add(new PendingConflict(sessionName, conflict.AlphaName, status.Alpha, status.Beta));
             }
         }

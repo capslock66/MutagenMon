@@ -53,11 +53,9 @@ public static class TrayIconStateResolver
         // From here on: Ready / Conflicts / Problems / Syncing / Scanning.
 
         if (input.WorstCode == SessionStatusCode.Ready && !input.Enabled)
-        {
             // Disabled/stopping takes priority over both staleness and "updated" —
             // matches the legacy's unconditional green-stop for this combination.
             return new TrayIconState("green-stop", prefix + "mutagen is stopping");
-        }
 
         var baseDescription = BaseDescription(input.WorstCode);
 
@@ -72,9 +70,7 @@ public static class TrayIconStateResolver
         }
 
         if (input.ProfileJustUpdated && IsUpdateFlashEligible(input.WorstCode))
-        {
             return new TrayIconState("green-success", prefix + baseDescription + " (updated)");
-        }
 
         return new TrayIconState(BaseIconKey(input.WorstCode), prefix + baseDescription);
     }

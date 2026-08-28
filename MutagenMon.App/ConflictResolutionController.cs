@@ -42,9 +42,7 @@ public sealed class ConflictResolutionController
         var pending = ConflictBatchPlanner.Flatten(_sessionNames, snapshot.Conflicts, snapshot.SessionStatuses);
 
         if (pending.Count == 0)
-        {
             return;
-        }
 
         if (ConflictBatchPlanner.ExceedsBatchLimit(pending.Count))
         {
@@ -92,9 +90,7 @@ public sealed class ConflictResolutionController
                 _owner, count, total, conflict.FileName, conflict.Alpha.Url, alphaStat, conflict.Beta.Url, betaStat, defaultChoice);
 
             if (choice is null)
-            {
                 return true;
-            }
 
             if (choice == ConflictResolutionChoice.VisualMerge)
             {
@@ -107,9 +103,7 @@ public sealed class ConflictResolutionController
                     _owner, () => _resolutionService.CompleteVisualMergeAsync(conflict, preparation, DateTimeOffset.UtcNow, cancellationToken));
 
                 if (!merged)
-                {
                     continue;
-                }
 
                 GenericMessageDialog.ShowInfo(
                     _owner, "MutagenMon: resolved file conflict",

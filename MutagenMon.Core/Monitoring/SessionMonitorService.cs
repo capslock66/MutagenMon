@@ -58,7 +58,8 @@ public sealed class SessionMonitorService : BackgroundService
     /// requires its own abnormal-poll threshold to be crossed again (FR-13).</summary>
     public void SetEnabled(bool enabled)
     {
-        if (_enabled == enabled) return;
+        if (_enabled == enabled)
+            return;
         _logger.LogInformation("Monitoring {State}", enabled ? "enabled" : "disabled");
         _enabled = enabled;
     }
@@ -141,7 +142,7 @@ public sealed class SessionMonitorService : BackgroundService
                 // _logger.LogInformation($"Session '{name}' status: {status}");
 
                 var code = _tracker.Update(name, status);
-                if (code < worst) 
+                if (code < worst)
                     worst = code;
             }
 
@@ -173,13 +174,9 @@ public sealed class SessionMonitorService : BackgroundService
                 conflicts));
 
             if (_enabled)
-            {
                 await RestartUnhealthySessionsAsync(parsed.SessionStatuses, parsed.RawLog, nowUtc, cancellationToken);
-            }
             else
-            {
                 await TerminateRunningSessionsAsync(parsed.SessionStatuses, cancellationToken);
-            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -207,25 +204,26 @@ public sealed class SessionMonitorService : BackgroundService
 
             if (status is null)
             {
-                if (misses <= _sessionMaxNoSession) continue;
+                if (misses <= _sessionMaxNoSession)
+                    continue;
                 cause = "Restarting";
             }
             else if (status.IsDuplicate)
             {
-                if (misses <= _sessionMaxDuplicate) continue;
+                if (misses <= _sessionMaxDuplicate)
+                    continue;
                 cause = "Restarting duplicate";
                 notifyAlways = true;
             }
             else if (SessionStateTracker.ConnectingPrefixes.Any(p => status.Status.StartsWith(p, StringComparison.Ordinal)))
             {
-                if (misses <= _sessionMaxErrors) continue;
+                if (misses <= _sessionMaxErrors)
+                    continue;
                 cause = "Restarting connection";
                 notifyIfConnectingEnabled = true;
             }
             else
-            {
                 continue;
-            }
 
             _logger.LogWarning("{Cause}: {SessionName} (stuck for {Misses} consecutive poll(s))", cause, name, misses);
             _restartLogWriter.Append(name, rawLog, cause, nowUtc);
@@ -234,13 +232,9 @@ public sealed class SessionMonitorService : BackgroundService
             _tracker.ResetConsecutiveMisses(name);
 
             if (notifyAlways)
-            {
                 _notificationDispatcher.NotifyRestartedForDuplicate(name, status!.Status);
-            }
             else if (notifyIfConnectingEnabled)
-            {
                 _notificationDispatcher.NotifyRestartedForConnecting(name, status!.Status);
-            }
         }
     }
 
@@ -252,7 +246,6 @@ public sealed class SessionMonitorService : BackgroundService
     private async Task RestartSessionAsync(string sessionName, bool sessionExists, CancellationToken cancellationToken)
     {
         if (sessionExists)
-        {
             try
             {
                 await _cliClient.TerminateSessionAsync(sessionName, cancellationToken);
@@ -261,7 +254,6 @@ public sealed class SessionMonitorService : BackgroundService
             {
                 _logger.LogWarning(ex, "Failed to terminate session '{SessionName}' during automatic restart", sessionName);
             }
-        }
 
         try
         {
@@ -283,9 +275,7 @@ public sealed class SessionMonitorService : BackgroundService
         foreach (var name in _sessionNames)
         {
             if (!statuses.TryGetValue(name, out var status) || status is null || string.IsNullOrEmpty(status.Status))
-            {
                 continue;
-            }
 
             try
             {

@@ -43,9 +43,11 @@ public sealed class SessionProfileWatcher
     public bool Tick(IReadOnlyDictionary<string, ParsedSessionStatus?> statuses)
     {
         _confirmedUpdates = new List<string>();
-        if (_watchPeriodTicks <= 0) return false;
+        if (_watchPeriodTicks <= 0)
+            return false;
         _tick++;
-        if (_tick % _watchPeriodTicks != 0) return false;
+        if (_tick % _watchPeriodTicks != 0)
+            return false;
 
         var anyUpdating = false;
         foreach (var (name, status) in statuses)
@@ -68,15 +70,11 @@ public sealed class SessionProfileWatcher
             }
 
             if (_lastSeenMtime.TryGetValue(name, out var previous) && previous is { } prevValue && prevValue < mtime.Value)
-            {
                 anyUpdating = true;
-            }
             _lastSeenMtime[name] = mtime;
 
             if (!_lastGraceMtime.TryGetValue(name, out var graceWatermark) || graceWatermark is null)
-            {
                 _lastGraceMtime[name] = mtime;
-            }
             else if (graceWatermark.Value + _grace < mtime.Value)
             {
                 _lastGraceMtime[name] = mtime;

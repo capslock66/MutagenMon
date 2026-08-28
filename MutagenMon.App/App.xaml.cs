@@ -109,9 +109,7 @@ public partial class App : Application
             _logger.LogInformation("Loaded {SessionCount} session definition(s): {SessionNames}",
                 sessionResult.Sessions.Count, string.Join(", ", sessionResult.Sessions.Select(s => s.Name)));
             foreach (var duplicate in sessionResult.DuplicateNames)
-            {
                 _logger.LogWarning("Duplicate session name in {File}: {Name}", sessionsPath, duplicate);
-            }
 
             _logger.LogInformation("Building application host");
             var builder = Host.CreateApplicationBuilder();
@@ -191,9 +189,7 @@ public partial class App : Application
     private async void OnResolveConflictsRequested(object? sender, EventArgs e)
     {
         if (_stateStore is null || _conflictResolutionService is null || _conflictResolutionControllerLogger is null || _statusWindow is null)
-        {
             return;
-        }
 
         _logger?.LogInformation("Resolve conflicts requested");
         var controller = new ConflictResolutionController(
@@ -214,7 +210,8 @@ public partial class App : Application
     /// <summary>Handles the enable/disable monitoring toggle (FR-7.2).</summary>
     private void OnToggleMonitoringClick(object sender, RoutedEventArgs e)
     {
-        if (_monitorService is null) return;
+        if (_monitorService is null)
+            return;
         var newEnabled = !_monitorService.IsEnabled;
         _logger?.LogInformation("Toggling monitoring to {Enabled}", newEnabled);
         _monitorService.SetEnabled(newEnabled);
@@ -229,7 +226,8 @@ public partial class App : Application
     /// connected to a code-behind field the way it would be for a Window.</summary>
     private void OnTrayContextMenuOpened(object sender, RoutedEventArgs e)
     {
-        if (sender is not ContextMenu menu) return;
+        if (sender is not ContextMenu menu)
+            return;
 
         var reloadItem = (MenuItem)menu.Items[0];
         var toggleItem = (MenuItem)menu.Items[1];
@@ -248,9 +246,7 @@ public partial class App : Application
         restartingItem.Visibility = restarting ? Visibility.Visible : Visibility.Collapsed;
 
         if (!restarting && _monitorService is not null)
-        {
             toggleItem.Header = _monitorService.IsEnabled ? "Stop Mutagen sessions" : "Start Mutagen sessions";
-        }
     }
 
     private async void OnExitClick(object sender, RoutedEventArgs e)
@@ -285,13 +281,9 @@ public partial class App : Application
     private void OnAppDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
     {
         if (e.ExceptionObject is Exception ex)
-        {
             _logger?.LogCritical(ex, "Unhandled exception on a background thread");
-        }
         else
-        {
             _logger?.LogCritical("Unhandled exception on a background thread: {ExceptionObject}", e.ExceptionObject);
-        }
     }
 
     private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)

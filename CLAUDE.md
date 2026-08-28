@@ -28,6 +28,46 @@ mutagenMon/
   since been removed from this repository; it now stands on its own as
   the specification against which the application is built and verified.
 
+## C# code style
+
+The two rules below apply identically to `if`/`else`, `for`, and `foreach`.
+
+- A single-statement `if` body MUST NOT be wrapped in `{ }`:
+  ```csharp
+  if (Directory.Exists(path))
+      return new FileStat(0, new DateTimeOffset(Directory.GetLastWriteTimeUtc(path), TimeSpan.Zero), IsDirectory: true);
+  ```
+  not
+  ```csharp
+  if (Directory.Exists(path))
+  {
+      return new FileStat(0, new DateTimeOffset(Directory.GetLastWriteTimeUtc(path), TimeSpan.Zero), IsDirectory: true);
+  }
+  ```
+  An `else` branch with multiple statements MAY keep its `{ }` even when the
+  matching `if` branch is a single unbraced statement.
+- Never put the condition and its single-statement body of an `if` on the
+  same line. Always break after the condition, even when the body is a
+  single short statement:
+  ```csharp
+  if (line.Length == 0)
+      continue;
+  ```
+  not
+  ```csharp
+  if (line.Length == 0) continue;
+  ```
+- The same applies to `for` and `foreach`: no braces for a single-statement
+  body, and the body always starts on its own line:
+  ```csharp
+  foreach (var name in knownSessionNames)
+      conflicts[name] = new List<ConflictRecord>();
+  ```
+  not
+  ```csharp
+  foreach (var name in knownSessionNames) conflicts[name] = new List<ConflictRecord>();
+  ```
+
 ## Where to look first
 
 Always start with [requirements/README.md](requirements/README.md) — it

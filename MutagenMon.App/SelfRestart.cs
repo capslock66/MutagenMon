@@ -11,9 +11,7 @@ public static class SelfRestart
     {
         var exePath = Environment.ProcessPath;
         if (!string.IsNullOrEmpty(exePath))
-        {
             Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true });
-        }
         Application.Current.Shutdown();
     }
 }

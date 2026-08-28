@@ -39,13 +39,9 @@ public class ConflictResolutionServiceTests
         public Task RunMergeToolAsync(string localPath1, string localPath2, CancellationToken cancellationToken)
         {
             if (TouchLocalPath1DuringMerge)
-            {
                 File.SetLastWriteTimeUtc(localPath1, DateTime.UtcNow.AddSeconds(5));
-            }
             if (TouchLocalPath2DuringMerge)
-            {
                 File.SetLastWriteTimeUtc(localPath2, DateTime.UtcNow.AddSeconds(5));
-            }
             return Task.CompletedTask;
         }
     }

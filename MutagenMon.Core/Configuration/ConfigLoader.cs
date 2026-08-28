@@ -36,7 +36,8 @@ public static class ConfigLoader
         var sb = new StringBuilder(text.Length);
         foreach (var line in text.Replace("\r\n", "\n").Split('\n'))
         {
-            if (line.TrimStart().StartsWith('#')) continue;
+            if (line.TrimStart().StartsWith('#'))
+                continue;
             sb.Append(line).Append('\n');
         }
         return sb.ToString();

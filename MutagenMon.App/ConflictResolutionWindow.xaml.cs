@@ -42,13 +42,9 @@ public partial class ConflictResolutionWindow : Window
         dialog.VisualMergeOption.IsEnabled = allowVisualMerge;
 
         if (defaultChoice == ConflictResolutionChoice.AWins)
-        {
             dialog.AWinsOption.IsChecked = true;
-        }
         else
-        {
             dialog.BWinsOption.IsChecked = true;
-        }
 
         return dialog.ShowDialog() == true ? dialog._result : null;
     }
@@ -56,13 +52,9 @@ public partial class ConflictResolutionWindow : Window
     private static string FormatSide(string label, string url, FileStat stat)
     {
         if (!stat.Exists)
-        {
             return $"{label}: {url}\n(does not exist)";
-        }
         if (stat.IsDirectory)
-        {
             return $"{label}: {url}\n(directory) last modified {stat.ModifiedUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}";
-        }
         return $"{label}: {url}\n{stat.SizeBytes} bytes, {stat.ModifiedUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}";
     }
 

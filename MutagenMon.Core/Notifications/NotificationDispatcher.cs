@@ -36,7 +36,8 @@ public sealed class NotificationDispatcher
     /// session:file conflict key. No-op if disabled or nothing is new.</summary>
     public void NotifyNewConflicts(IReadOnlyList<string> newConflictKeys)
     {
-        if (!_notifyConflicts || newConflictKeys.Count == 0) return;
+        if (!_notifyConflicts || newConflictKeys.Count == 0)
+            return;
         _queue.Enqueue(new NotificationMessage("New conflicts", string.Join("\n", newConflictKeys)));
     }
 
@@ -44,7 +45,8 @@ public sealed class NotificationDispatcher
     /// naming the rule applied and the file.</summary>
     public void NotifyAutoResolved(string sessionName, string fileName, string rule)
     {
-        if (!_notifyAutoresolve) return;
+        if (!_notifyAutoresolve)
+            return;
         _queue.Enqueue(new NotificationMessage("Conflict auto-resolved", $"{sessionName}:{fileName} — {rule}"));
     }
 
@@ -54,11 +56,10 @@ public sealed class NotificationDispatcher
     /// or nothing was confirmed this poll.</summary>
     public void NotifyProfileUpdated(IReadOnlyList<string> confirmedUpdatedSessions)
     {
-        if (!_notifyProfileUpdate) return;
+        if (!_notifyProfileUpdate)
+            return;
         foreach (var sessionName in confirmedUpdatedSessions)
-        {
             _queue.Enqueue(new NotificationMessage("Updated", sessionName));
-        }
     }
 
     /// <summary>FR-13.2/FR-11.3b: a session restarted because it was detected
@@ -74,7 +75,8 @@ public sealed class NotificationDispatcher
     /// <c>NOTIFY_RESTART_CONNECTION</c> (default disabled).</summary>
     public void NotifyRestartedForConnecting(string sessionName, string status)
     {
-        if (!_notifyRestartConnection) return;
+        if (!_notifyRestartConnection)
+            return;
         _queue.Enqueue(new NotificationMessage(sessionName, $"Restarting connection: {status}"));
     }
 }

@@ -37,13 +37,9 @@ public sealed class ConflictFileClient : IConflictFileClient
         {
             var path = JoinPath(endpoint.Url, relativePath);
             if (Directory.Exists(path))
-            {
                 return new FileStat(0, new DateTimeOffset(Directory.GetLastWriteTimeUtc(path), TimeSpan.Zero), IsDirectory: true);
-            }
             if (!File.Exists(path))
-            {
                 return new FileStat(0, DateTimeOffset.MinValue, Exists: false);
-            }
             var fileInfo = new FileInfo(path);
             return new FileStat(fileInfo.Length, new DateTimeOffset(fileInfo.LastWriteTimeUtc, TimeSpan.Zero));
         }
@@ -140,7 +136,8 @@ public sealed class ConflictFileClient : IConflictFileClient
         if (endpoint.Transport == TransportKind.Local)
         {
             var path = JoinPath(endpoint.Url, relativePath);
-            if (Directory.Exists(path)) return PathKind.Directory;
+            if (Directory.Exists(path))
+                return PathKind.Directory;
             return File.Exists(path) ? PathKind.File : PathKind.Missing;
         }
 
@@ -172,33 +169,23 @@ public sealed class ConflictFileClient : IConflictFileClient
     {
         Directory.CreateDirectory(destinationDir);
         foreach (var filePath in Directory.GetFiles(sourceDir))
-        {
             File.Copy(filePath, Path.Combine(destinationDir, Path.GetFileName(filePath)), overwrite: true);
-        }
         foreach (var subDir in Directory.GetDirectories(sourceDir))
-        {
             CopyLocalDirectoryRecursive(subDir, Path.Combine(destinationDir, Path.GetFileName(subDir)));
-        }
     }
 
     private static void DeleteLocalPathIfExists(string path)
     {
         if (Directory.Exists(path))
-        {
             Directory.Delete(path, recursive: true);
-        }
         else if (File.Exists(path))
-        {
             File.Delete(path);
-        }
     }
 
     public async Task<string> FetchLocalCopyAsync(SessionEndpoint endpoint, string relativePath, int side, CancellationToken cancellationToken)
     {
         if (endpoint.Transport == TransportKind.Local)
-        {
             return JoinPath(endpoint.Url, relativePath);
-        }
 
         var localPath = Path.Combine(_tempDir, $"remote{side}");
         _logger.LogInformation("Downloading '{RelativePath}' from {Endpoint} to local working copy {LocalPath}", relativePath, endpoint.Url, localPath);
@@ -266,9 +253,7 @@ public sealed class ConflictFileClient : IConflictFileClient
         var stderr = await stderrTask;
 
         if (process.ExitCode != 0)
-        {
             throw new InvalidOperationException($"'{_sshPath} {server} {remoteCommand}' exited with code {process.ExitCode}: {stdout}{stderr}");
-        }
 
         return stdout;
     }
@@ -284,9 +269,7 @@ public sealed class ConflictFileClient : IConflictFileClient
             CreateNoWindow = true,
         };
         if (recursive)
-        {
             psi.ArgumentList.Add("-r");
-        }
         psi.ArgumentList.Add(source);
         psi.ArgumentList.Add(destination);
 
@@ -301,9 +284,7 @@ public sealed class ConflictFileClient : IConflictFileClient
         var stderr = await stderrTask;
 
         if (process.ExitCode != 0)
-        {
             throw new InvalidOperationException($"'{_scpPath} {source} {destination}' exited with code {process.ExitCode}: {stdout}{stderr}");
-        }
     }
 
     private static string RemoteArg(SessionEndpoint endpoint, string relativePath) =>

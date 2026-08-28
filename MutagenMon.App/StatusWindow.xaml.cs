@@ -35,9 +35,7 @@ public partial class StatusWindow : Window
         var body = StatusReportFormatter.BuildSessionsSection(sessionNames, snapshot.SessionStatuses);
         var conflictsSection = StatusReportFormatter.BuildConflictsSection(sessionNames, snapshot.Conflicts);
         if (conflictsSection.Length > 0)
-        {
             body += "\n\n" + conflictsSection;
-        }
         BodyText.Text = body;
 
         var hasUnresolvedConflicts = StatusReportFormatter.HasUnresolvedConflicts(snapshot.Conflicts);

@@ -48,9 +48,7 @@ public sealed class AutoResolveEngine
         CleanHistory(nowUtc);
 
         if (conflictsBySession.Count == 0)
-        {
             return conflictsBySession;
-        }
 
         var result = new Dictionary<string, IReadOnlyList<ConflictRecord>>();
         foreach (var (sessionName, conflicts) in conflictsBySession)
@@ -58,9 +56,7 @@ public sealed class AutoResolveEngine
             sessionStatuses.TryGetValue(sessionName, out var status);
             var updated = new List<ConflictRecord>(conflicts.Count);
             foreach (var conflict in conflicts)
-            {
                 updated.Add(await ApplyToOneAsync(sessionName, conflict, status, nowUtc, cancellationToken));
-            }
             result[sessionName] = updated;
         }
         return result;
@@ -69,12 +65,11 @@ public sealed class AutoResolveEngine
     /// <summary>Evicts history entries older than <c>AUTORESOLVE_HISTORY_AGE</c>.</summary>
     private void CleanHistory(DateTimeOffset nowUtc)
     {
-        if (_history.Count == 0) return;
+        if (_history.Count == 0)
+            return;
 
         foreach (var key in _history.Where(kvp => kvp.Value.When < nowUtc - _historyAge).Select(kvp => kvp.Key).ToList())
-        {
             _history.Remove(key);
-        }
     }
 
     private async Task<ConflictRecord> ApplyToOneAsync(
@@ -82,9 +77,7 @@ public sealed class AutoResolveEngine
     {
         var key = $"{sessionName}:{conflict.AlphaName}";
         if (_history.TryGetValue(key, out var cached))
-        {
             return conflict with { AutoResolved = cached.Resolved };
-        }
 
         var resolved = await TryAutoResolveAsync(sessionName, conflict, status, nowUtc, cancellationToken);
         _history[key] = (nowUtc, resolved);
@@ -98,16 +91,12 @@ public sealed class AutoResolveEngine
         string sessionName, ConflictRecord conflict, ParsedSessionStatus? status, DateTimeOffset nowUtc, CancellationToken cancellationToken)
     {
         if (status?.Alpha is null || status.Beta is null)
-        {
             return false;
-        }
 
         foreach (var rule in _rules)
         {
             if (string.IsNullOrEmpty(rule.FilePath) || !Regex.IsMatch(conflict.AlphaName, rule.FilePath))
-            {
                 continue;
-            }
 
             var choice = rule.Resolve.StartsWith("B wins", StringComparison.OrdinalIgnoreCase)
                 ? ConflictResolutionChoice.BWins

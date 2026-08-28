@@ -15,7 +15,8 @@ public sealed class FileTimestampProvider : IFileTimestampProvider
         // File.GetLastWriteTimeUtc does not throw for a missing file (it returns
         // a 1601 sentinel) — check existence explicitly to get the "file not found"
         // signal the legacy code relies on catching.
-        if (!File.Exists(path)) return null;
+        if (!File.Exists(path))
+            return null;
         try
         {
             return new DateTimeOffset(File.GetLastWriteTimeUtc(path), TimeSpan.Zero);

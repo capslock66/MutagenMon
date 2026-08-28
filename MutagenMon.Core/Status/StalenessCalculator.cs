@@ -22,9 +22,12 @@ public static class StalenessCalculator
     public static StalenessTier GetTier(DateTimeOffset lastSuccessfulPollUtc, DateTimeOffset nowUtc, LagThresholds thresholds)
     {
         var age = nowUtc - lastSuccessfulPollUtc;
-        if (age > thresholds.Error) return StalenessTier.Error;
-        if (age > thresholds.Warning) return StalenessTier.Warning;
-        if (age > thresholds.Info) return StalenessTier.Info;
+        if (age > thresholds.Error)
+            return StalenessTier.Error;
+        if (age > thresholds.Warning)
+            return StalenessTier.Warning;
+        if (age > thresholds.Info)
+            return StalenessTier.Info;
         return StalenessTier.None;
     }
 

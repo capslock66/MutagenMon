@@ -23,15 +23,19 @@ public static partial class SessionDefinitionLoader
         foreach (var rawLine in lines)
         {
             var line = rawLine.Trim();
-            if (line.StartsWith("rem ", StringComparison.Ordinal)) continue;
+            if (line.StartsWith("rem ", StringComparison.Ordinal))
+                continue;
 
             var match = NameRegex().Match(line);
-            if (!match.Success) continue;
+            if (!match.Success)
+                continue;
 
             var name = match.Groups[1].Value;
-            if (name.Length == 0) continue;
+            if (name.Length == 0)
+                continue;
 
-            if (sessions.ContainsKey(name)) duplicates.Add(name);
+            if (sessions.ContainsKey(name))
+                duplicates.Add(name);
             sessions[name] = new SessionDefinition(name, line);
         }
 

@@ -25,7 +25,8 @@ public sealed class NotificationQueue : INotificationQueue
 
     public IReadOnlyList<NotificationMessage> DrainAll()
     {
-        if (_queue.IsEmpty) return Array.Empty<NotificationMessage>();
+        if (_queue.IsEmpty)
+            return Array.Empty<NotificationMessage>();
 
         var drained = new List<NotificationMessage>();
         while (_queue.TryDequeue(out var message))

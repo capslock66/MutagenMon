@@ -14,12 +14,8 @@ public static class RestartReadiness
         IReadOnlyDictionary<string, ParsedSessionStatus?> statuses, IReadOnlyCollection<string> sessionNames)
     {
         foreach (var name in sessionNames)
-        {
             if (statuses.TryGetValue(name, out var status) && status is not null && !string.IsNullOrEmpty(status.Status))
-            {
                 return false;
-            }
-        }
 
         return true;
     }
