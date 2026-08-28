@@ -10,7 +10,10 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock x:Name="TitleText" Text="MutagenMon" FontSize="18" FontWeight="Bold" Margin="0,0,0,8" />
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+            <Image x:Name="StatusIcon" Width="16" Height="16" Margin="0,0,6,0" VerticalAlignment="Center" />
+            <TextBlock x:Name="TitleText" Text="MutagenMon" FontWeight="Bold" VerticalAlignment="Center" />
+        </StackPanel>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <TextBlock x:Name="BodyText" TextWrapping="Wrap" FontFamily="Consolas" />
@@ -20,7 +23,6 @@
             <Button x:Name="OkButton" Content="OK" Width="90" Click="OnOkClick" />
             <Button x:Name="CancelButton" Content="Cancel" Width="90" Margin="8,0,0,0" Click="OnCancelClick" />
             <Button x:Name="ResolveConflictsButton" Content="Resolve conflicts" Width="130" Margin="8,0,0,0" Click="OnResolveConflictsClick" />
-            <Button x:Name="BoomButton" Content="Boum" Width="70" Margin="8,0,0,0" Click="OnBoomClick" />
         </StackPanel>
     </Grid>
 </Window>

@@ -25,6 +25,21 @@ namespace MutagenMon.App;
 /// </summary>
 public sealed class TrayIconController
 {
+    /// <summary>Raised on every 1s tick with the latest snapshot and the
+    /// freshly-resolved icon/tooltip state — lets the App layer keep an
+    /// already-open <c>StatusWindow</c> live (FR-8.4) without this class
+    /// knowing that window exists. Fired unconditionally, independent of
+    /// the icon/tooltip de-duplication below: a session's raw status text or
+    /// its conflict list can change without moving the aggregated icon
+    /// state or tooltip wording at all.</summary>
+    public event Action<MonitorSnapshot, TrayIconState>? Polled;
+
+    /// <summary>The icon/tooltip state as of the last tick — lets a caller
+    /// (e.g. opening the status view on demand) show the same icon the tray
+    /// currently displays without duplicating <see cref="TrayIconStateResolver"/>
+    /// resolution. Null only before the very first tick.</summary>
+    public TrayIconState? CurrentState => _lastState;
+
     private readonly TaskbarIcon _taskbarIcon;
     private readonly ISessionStateStore _stateStore;
     private readonly IconImageCache _iconCache;
@@ -181,6 +196,8 @@ public sealed class TrayIconController
         var staleness = StalenessCalculator.GetTier(snapshot.LastSuccessfulPollUtc, now, _lagThresholds);
         var input = new TrayIconInput(snapshot.WorstCode, snapshot.Enabled, snapshot.ProfileJustUpdated, staleness);
         var state = TrayIconStateResolver.Resolve(input, _appName);
+
+        Polled?.Invoke(snapshot, state);
 
         if (_lastState is { } last && last.IconKey == state.IconKey && last.Tooltip == state.Tooltip)
             return;

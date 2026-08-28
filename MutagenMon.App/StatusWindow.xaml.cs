@@ -1,6 +1,4 @@
 using System.ComponentModel;
-using System.IO;
-using System.Threading.Tasks;
 using System.Windows;
 using MutagenMon.Core.Monitoring;
 using MutagenMon.Core.Status;
@@ -29,8 +27,8 @@ public partial class StatusWindow : Window
 
     public void UpdateContent(string title, MonitorSnapshot snapshot, IReadOnlyList<string> sessionNames)
     {
-        Title = title;
-        TitleText.Text = title;
+        Title = "MutagenMon";
+        TitleText.Text = StripAppNamePrefix(title);
 
         var body = StatusReportFormatter.BuildSessionsSection(sessionNames, snapshot.SessionStatuses);
         var conflictsSection = StatusReportFormatter.BuildConflictsSection(sessionNames, snapshot.Conflicts);
@@ -44,6 +42,17 @@ public partial class StatusWindow : Window
         ResolveConflictsButton.Visibility = hasUnresolvedConflicts ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    /// <summary>The incoming title is the tray tooltip, formatted as
+    /// "&lt;TRAY_TOOLTIP&gt;: &lt;status&gt;" (<see cref="TrayIconStateResolver"/>)
+    /// — redundant here since the window's own title bar already says
+    /// "MutagenMon". Strips generically on the first ": " rather than a
+    /// hardcoded "MutagenMon:", since TRAY_TOOLTIP is configurable.</summary>
+    private static string StripAppNamePrefix(string title)
+    {
+        var separatorIndex = title.IndexOf(": ", StringComparison.Ordinal);
+        return separatorIndex >= 0 ? title[(separatorIndex + 2)..] : title;
+    }
+
     private void OnOkClick(object sender, RoutedEventArgs e) => Hide();
 
     private void OnCancelClick(object sender, RoutedEventArgs e) => Hide();
@@ -52,21 +61,6 @@ public partial class StatusWindow : Window
     {
         Hide();
         ResolveConflictsRequested?.Invoke(this, EventArgs.Empty);
-    }
-
-    /// <summary>Deliberate test button — throws the exact exception
-    /// type/message hit in production by the FR-9 SSH-endpoint
-    /// misclassification bug (an embedded ':' in a path segment is invalid
-    /// NTFS syntax: IOException "The filename, directory name, or volume
-    /// label syntax is incorrect."), on a background thread awaited from an
-    /// async void handler — the same propagation path the real bug went
-    /// through. Lets the unhandled-exception logging
-    /// (App.xaml.cs: OnDispatcherUnhandledException /
-    /// OnDispatcherUnhandledExceptionFilter) be re-verified on demand
-    /// without needing a real mutagen conflict.</summary>
-    private async void OnBoomClick(object sender, RoutedEventArgs e)
-    {
-        await Task.Run(() => _ = new FileInfo(@"C:\boom:test.txt").Length);
     }
 
     protected override void OnClosing(CancelEventArgs e)

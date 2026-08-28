@@ -288,8 +288,11 @@ Covered above by UT-7.1.
 **UT-8.1 — Status view with no conflicts (FR-8.1/FR-8.3)** ✅
 
 * With every session healthy and no conflicts, left-click the tray icon.
-* A window is displayed, titled with the current tray tooltip (e.g.
-  "MutagenMon: mutagen is watching for changes").
+* A window is displayed. Its title bar reads plain "MutagenMon" (not the
+  full tray tooltip); the first line of its content shows the tray
+  tooltip's status part only, with the redundant "MutagenMon: " prefix
+  stripped (e.g. "mutagen is watching for changes"), in bold, same font
+  size as the rest of the content.
 * The window's content shows one "Name: / Status: / Alpha: / Beta:" block
   per configured session.
 * Only an "OK" button is displayed — no "Cancel", no "Resolve conflicts".
@@ -309,6 +312,17 @@ Covered above by UT-7.1.
   no plain "OK".
 * Click "Cancel".
 * The window closes without starting conflict resolution.
+
+**UT-8.3 — Status view stays live while open (FR-8.4)** ✅
+
+* With every session healthy and no conflicts, left-click the tray icon to
+  open the status view, and leave it open (don't click OK/Cancel).
+* Without closing the window, produce a conflict (see the FR-9 setup
+  below: stop sessions, edit the same file differently on both sides,
+  restart sessions) or otherwise change a session's status.
+* Within about a second, the already-open window updates on its own: the
+  "CONFLICTS" section (and Cancel/"Resolve conflicts" buttons) appear
+  without the window being closed and reopened.
 
 ## FR-9 — Manual conflict resolution
 
@@ -675,16 +689,18 @@ FR-11.4)** ✅
 ## FR-14 — Logging & diagnostics
 
 **UT-14.1 — An unhandled exception is logged and shown to the user
-(FR-14.1)** ✅
+(FR-14.1)** ✅ *(the deliberate "Boum" test button that used to make this
+repro trivial has been removed from the status view — this now needs a
+real unhandled exception, e.g. any of the FR-9 conflict-resolution crashes
+covered elsewhere in this document)*
 
-* Left-click the tray icon to open the status view.
-* Click the "Boum" button (a deliberate test button included specifically
-  to re-verify this path without needing a real crash).
-* A blocking window is displayed, titled "MutagenMon — error", with the
-  content "MutagenMon hit an unexpected error and will close:" followed
-  by exception details.
+* Trigger an unhandled exception on the UI thread.
+* A window is displayed, titled "MutagenMon — error", with the content
+  "MutagenMon hit an unexpected error:" followed by exception details.
 * Click "OK".
-* The application closes.
+* The application stays open (deliberate: a UI-thread exception is logged
+  and shown, but no longer treated as fatal — only a background-thread/
+  process-wide failure restarts or exits the app, per FR-13/FR-6).
 * `log/mutagenMon.log` contains a Critical-level entry with the same
   exception.
 

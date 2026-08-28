@@ -156,6 +156,13 @@ The full specification lives in
   dismissing the view.
 - FR-8.3: If there are no unresolved conflicts, the view MUST be purely
   informational (single dismiss action).
+- FR-8.4: While the status view is open, it MUST stay live: whenever the
+  background poller (FR-2/FR-3) produces a new snapshot, the already-open
+  view MUST re-render with it, without requiring the user to close and
+  reopen it. (Before this was implemented, the view only ever reflected
+  the snapshot at the moment it was opened — a background status change,
+  e.g. a new conflict appearing, was silently invisible until the next
+  open.)
 
 ## FR-9 — Manual conflict resolution
 

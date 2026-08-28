@@ -1,5 +1,8 @@
 using System.Drawing;
 using System.IO;
+using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace MutagenMon.App;
 
@@ -25,6 +28,7 @@ public sealed class IconImageCache
 {
     private readonly string _iconsDirectory;
     private readonly Dictionary<string, Icon> _cache = new();
+    private readonly Dictionary<string, ImageSource> _imageSourceCache = new();
 
     public IconImageCache(string iconsDirectory)
     {
@@ -41,5 +45,24 @@ public sealed class IconImageCache
         }
 
         return (Icon)master.Clone();
+    }
+
+    /// <summary>WPF-side counterpart of <see cref="Get"/>, for controls
+    /// (e.g. an <c>Image</c>) that need an <see cref="ImageSource"/> rather
+    /// than a GDI <see cref="Icon"/>. Unlike <see cref="Get"/>, the returned
+    /// value IS the cached, frozen instance, shared across every caller —
+    /// safe because a frozen ImageSource is immutable, unlike an
+    /// H.NotifyIcon-owned Icon which the caller must not share (see class
+    /// remarks).</summary>
+    public ImageSource GetImageSource(string iconKey)
+    {
+        if (_imageSourceCache.TryGetValue(iconKey, out var cached))
+            return cached;
+
+        using var icon = Get(iconKey);
+        var imageSource = Imaging.CreateBitmapSourceFromHIcon(icon.Handle, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+        imageSource.Freeze();
+        _imageSourceCache[iconKey] = imageSource;
+        return imageSource;
     }
 }

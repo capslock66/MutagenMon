@@ -42,6 +42,7 @@ public partial class App : Application
     private ILogger<App>? _logger;
     private IHost? _host;
     private TrayIconController? _trayIconController;
+    private IconImageCache? _iconCache;
     private StatusWindow? _statusWindow;
     private SessionMonitorService? _monitorService;
     private ISessionStateStore? _stateStore;
@@ -84,6 +85,7 @@ public partial class App : Application
             // it already means "no poll result yet", which is true at this
             // point by construction.
             var iconCache = new IconImageCache(Path.Combine(baseDir, "Assets", "Icons"));
+            _iconCache = iconCache;
             var trayIcon = (TaskbarIcon)Resources["TrayIcon"];
             // With no main window, TaskbarIcon's native icon is never created
             // implicitly (it normally happens on Loaded, when a control enters
@@ -145,6 +147,7 @@ public partial class App : Application
             _trayIconController = new TrayIconController(
                 trayIcon, stateStore, iconCache, options.TrayTooltip, options.StatusMaxLag.ToLagThresholds(),
                 _sessionNames, notificationQueue, OnSelfRestartNeeded, trayIconLogger);
+            _trayIconController.Polled += OnPolled;
             _trayIconController.Start();
             _logger.LogInformation("MutagenMon startup complete — tray icon is live");
         }
@@ -181,6 +184,17 @@ public partial class App : Application
         }
         _statusWindow.Show();
         _statusWindow.Activate();
+    }
+
+    /// <summary>Keeps an already-open status view live (FR-8.4): every 1s
+    /// tray-icon tick (<see cref="TrayIconController.Polled"/>) re-renders it
+    /// with the latest snapshot. Re-assigning identical WPF property values
+    /// (Text/Visibility) is a no-op internally, so this doesn't flicker or
+    /// disturb the view when nothing actually changed.</summary>
+    private void OnPolled(MonitorSnapshot snapshot, string tooltip)
+    {
+        if (_statusWindow is { IsVisible: true })
+            _statusWindow.UpdateContent(tooltip, snapshot, _sessionNames);
     }
 
     /// <summary>Handles the status view's "Resolve conflicts" action (FR-8.2 ->
