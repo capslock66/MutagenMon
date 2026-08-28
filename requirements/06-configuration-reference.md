@@ -2,9 +2,9 @@
 
 This document is the single source of truth for every runtime configuration
 key read from `config_mutagenmon.json`. It exists so that a developer
-implementing the WPF rewrite from `requirements/` alone — **without access
-to the `python/` source** — never needs to guess a default value, a unit, or
-which requirement a key drives.
+working from `requirements/` alone never needs to guess a default value, a
+unit, or which requirement a key drives — the legacy source it was
+originally derived from has since been removed from this repository.
 
 The legacy file format tolerates `#`-prefixed comment lines (FR-1.3), which
 are not valid JSON; they MUST be stripped before parsing. All numeric
@@ -46,17 +46,16 @@ stated otherwise, and all "period"/"age" values are in the unit given.
   previous poll's, even if the new state is still abnormal (e.g. flipping
   from "connecting" to "no session" resets the counter rather than adding
   the two counts together). Only a *run* of identical abnormal readings
-  counts toward the threshold. See FR-13 and
-  [monitor.py `update()`](../python/mutagenmonlib/remote/monitor.py) for
-  the reference algorithm.
+  counts toward the threshold. See FR-13 for the reference algorithm
+  (originally in the removed legacy app's polling loop).
 - **Restart notification is inconsistent by design in the legacy app, not
   a bug to silently "fix" without a decision**: of the three FR-13 restart
   causes, only the "connecting" case (FR-13.3) is gated by
   `NOTIFY_RESTART_CONNECTION`; the "duplicate" case (FR-13.2) *always*
   raises a notification regardless of any config flag, and the "no
   session" case (FR-13.1) *never* raises one. See FR-11.3.
-- `AUTORESOLVE`'s regular expressions are matched with Python's `re.search`
-  semantics (unanchored substring search, not a full-path anchor) — a
+- `AUTORESOLVE`'s regular expressions are matched with unanchored
+  substring-search semantics, not a full-path anchor — a
   pattern such as `nohup\.out$` matches anywhere in the path as long as it
   ends with `nohup.out`.
 - No key in this file is ever expected to hold a secret (NFR-9); paths and

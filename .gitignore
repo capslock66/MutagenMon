@@ -298,12 +298,6 @@ paket-files/
 # CodeRush
 .cr/
 
-# Python 
-__pycache__/
-*.pyc
-*.egg-info/ 
-Python/dist/
-
 #tracetool
 #--------------------------------------------
 

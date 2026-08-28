@@ -61,9 +61,7 @@
   gate — a single log file always captures every level, so a launch
   failure or crash is never undiagnosable just because nobody had
   remembered to raise the verbosity beforehand (see
-  [01-functional-requirements.md FR-14](01-functional-requirements.md#fr-14--logging--diagnostics)
-  and
-  [05-wpf-migration-notes.md §7](05-wpf-migration-notes.md#7-logging)).
+  [01-functional-requirements.md FR-14](01-functional-requirements.md#fr-14--logging--diagnostics)).
 
 ## NFR-7 — Usability / minimal intrusiveness
 

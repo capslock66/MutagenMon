@@ -1,9 +1,9 @@
 # Functional Requirements
 
-Each requirement is derived directly from the current wxPython implementation
-behavior, so it can serve as an executable specification for the WPF
-rewrite. Requirement IDs are stable identifiers to be referenced from
-code, tests, and PRs.
+Each requirement is derived directly from the legacy implementation's
+behavior (its source has since been removed from this repository), so it
+can serve as an executable specification for the WPF rewrite. Requirement
+IDs are stable identifiers to be referenced from code, tests, and PRs.
 
 ## FR-1 — Session configuration loading
 
@@ -344,9 +344,8 @@ scale and are folded into the "≈" approximations there).
     purely noisy call. For the other two causes (FR-13.2 duplicate,
     FR-13.3 stuck-connecting), the session is known to exist, so
     termination MUST still be requested and its failure MUST still be
-    tolerated as described above. The legacy Python app always attempts
-    termination unconditionally (`mutagenmonlib/remote/mutagen.py:
-    restart_session()`); this refinement is a deliberate .NET-only
+    tolerated as described above. The legacy app always attempted
+    termination unconditionally; this refinement is a deliberate .NET-only
     improvement, not a legacy-parity requirement.
 - FR-13.6: Automatic restarts (this section) only run while monitoring is
   currently enabled (FR-7.2); while disabled, no session is restarted, and
@@ -355,7 +354,7 @@ scale and are folded into the "≈" approximations there).
 
 ## FR-14 — Logging & diagnostics
 
-> **FR-14.1–14.3 below describe the legacy (Python) behavior only.** The
+> **FR-14.1–14.3 below describe the legacy behavior only.** The
 > .NET rewrite deliberately does **not** reproduce the separate-file
 > layout — see the "Rewrite implementation note" at the end of this
 > section, in particular the FR-14.1 bullet, for what the .NET app
@@ -383,9 +382,7 @@ scale and are folded into the "≈" approximations there).
 FR-14.1–14.3 above describe the legacy behavior (4 separate files:
 `error.log`, `debug.log` gated by `DEBUG_LEVEL`, `restart.log`,
 `resolve.log`). The .NET rewrite deliberately simplifies this rather than
-reproducing it verbatim — see
-[05-wpf-migration-notes.md §7](05-wpf-migration-notes.md#7-logging)
-for the rationale:
+reproducing it verbatim:
 
 - **FR-14.1 (implemented, Phase 1)**: satisfied, but **not** via a
   dedicated `error.log` — there is no such file in the .NET app.

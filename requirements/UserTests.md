@@ -17,9 +17,8 @@ compare what you see against the expected-result lines.
   [03-tray-icon-requirements.md](03-tray-icon-requirements.md).
 - ✅ = implemented today, run this test. ⏳ = **not implemented yet** — do
   not run it, do not report it as a bug; it is listed here only so this
-  document stays the complete, single reference as later phases land (see
-  [05-wpf-migration-notes.md §6](05-wpf-migration-notes.md#6-suggested-phased-delivery)
-  for what's planned next).
+  document stays the complete, single reference against the full feature
+  set.
 
 ## 0. Test environment setup
 
@@ -65,7 +64,7 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
 * Right-click the tray icon.
 * Click "Show status".
 * `<name>` appears exactly once in the status view, not twice.
-* Note: the legacy Python app shows a modal warning dialog at startup for
+* Note: the legacy app shows a modal warning dialog at startup for
   this case; the current .NET rewrite only logs the warning — no popup is
   expected here yet.
 
@@ -476,9 +475,8 @@ FR-10.2)** ✅
 ## FR-11 — Desktop notifications
 
 FR-11.3 and FR-11.4 are called out separately below — their trigger points
-don't exist yet in this codebase (see
-[05-wpf-migration-notes.md §6](05-wpf-migration-notes.md#6-suggested-phased-delivery)).
-FR-11.1 and FR-11.2 are fully implemented.
+don't exist yet in this codebase. FR-11.1 and FR-11.2 are fully
+implemented.
 
 **UT-11.1 — New conflict raises a toast notification (FR-11.1)** ✅
 
@@ -698,8 +696,8 @@ watchdog, FR-6 — see UT-T.11) is a separate, unrelated mechanism and still
 logs to `mutagenMon.log` only — this dedicated log is specifically for
 FR-13's per-session restarts.
 
-**UT-14.5 — Verbosity gate (FR-14.2)** ⏳ NOT IMPLEMENTED *(deliberate — see
-[05-wpf-migration-notes.md §7](05-wpf-migration-notes.md#7-logging))*
+**UT-14.5 — Verbosity gate (FR-14.2)** ⏳ NOT IMPLEMENTED *(deliberate
+simplification)*
 
 No test steps — `DEBUG_LEVEL` has no effect in the rewrite by design;
 every log level is always written.
@@ -734,6 +732,4 @@ defects:
   profile change detection, including the FR-12.2 debounce), and FR-13
   (automatic session recovery, including its dedicated `restart.log`,
   FR-14.3) are all implemented. Only FR-14.2 (verbosity gate) remains
-  deliberately unimplemented — see the ⏳ section above and
-  [05-wpf-migration-notes.md §6](05-wpf-migration-notes.md#6-suggested-phased-delivery)
-  for the plan.
+  deliberately unimplemented — see the ⏳ section above.

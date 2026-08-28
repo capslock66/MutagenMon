@@ -8,17 +8,13 @@
 > reproducing this component faithfully — visuals, timing, click
 > behavior, and self-healing — is the top priority.
 
-See wireframe: [wireframes/tray-icon-states.svg](wireframes/tray-icon-states.svg),
-[wireframes/tray-context-menu.svg](wireframes/tray-context-menu.svg).
-
 Actual icon bitmaps are provided in [icons/](icons) (self-contained in this
-`requirements/` folder — see §3.1 below), in two formats: `.png` (source
-image, kept for documentation/preview purposes since it renders inline in
-Markdown viewers) and `.ico` (the format the .NET implementation MUST
-actually load at runtime — see §3.1 for why). The .NET implementation MUST
-NOT need to read anything from `python/img/`; every asset referenced by
-this document is already copied (or, for the three that never existed,
-placed as a labelled placeholder) under `requirements/icons/`.
+`requirements/` folder — see §3.1 below) as `.ico` files, the format the
+.NET implementation MUST actually load at runtime — see §3.1 for why.
+Every asset referenced by this document is already copied (or, for the
+three that never existed, placed as a labelled placeholder) under
+`requirements/icons/` — the legacy app's icon folder this was sourced
+from has since been removed from this repository.
 
 ## 1. Update loop
 
@@ -62,35 +58,33 @@ Error-stale if the underlying data hasn't refreshed recently. Past the
 `Restart` threshold the app self-restarts instead of showing an icon at all
 (TIC-9).
 
-| Code | State | Enabled | Updated | Stale tier | Tooltip suffix | Icon asset — preview / runtime ([icons/](icons)) |
+| Code | State | Enabled | Updated | Stale tier | Tooltip suffix | Icon asset ([icons/](icons)) |
 |---|---|---|---|---|---|---|
-| `0` | Waiting for first status | — | — | — | "waiting for status..." | [`lightgray-init.png`](icons/lightgray-init.png) / [`.ico`](icons/lightgray-init.ico) |
-| `100` | Ready / watching for changes | yes | no | none | "mutagen is watching for changes" | [`green.png`](icons/green.png) / [`.ico`](icons/green.ico) |
-| `100` | Ready, freshly updated | yes | **yes** | none | "mutagen is watching for changes (updated)" | [`green-success.png`](icons/green-success.png) / [`.ico`](icons/green-success.ico) *(see quirk §6.2 — currently unreachable)* |
-| `100` | Ready, but monitoring being turned off | **no** | — | any | "mutagen is stopping" | [`green-stop.png`](icons/green-stop.png) / [`.ico`](icons/green-stop.ico) |
-| `60` | Conflicts detected | yes | — | none | "conflicts" | [`green-conflict.png`](icons/green-conflict.png) / [`.ico`](icons/green-conflict.ico) |
-| `50` | Problems detected | yes | — | none | "problems" | [`green-error.png`](icons/green-error.png) / [`.ico`](icons/green-error.ico) |
-| `40` | Syncing | yes | no | none | "mutagen is syncing" | [`green-sync.png`](icons/green-sync.png) / [`.ico`](icons/green-sync.ico) |
-| `40` | Syncing, freshly updated | yes | **yes** | none | "mutagen is syncing (updated)" | [`green-success.png`](icons/green-success.png) / [`.ico`](icons/green-success.ico) |
-| `30` | Scanning | yes | no | none | "mutagen is scanning" | [`green-scan.png`](icons/green-scan.png) / [`.ico`](icons/green-scan.ico) *(⚠ placeholder — asset never existed, §6.1)* |
-| `30` | Scanning, freshly updated | yes | **yes** | none | "mutagen is scanning (updated)" | [`green-success.png`](icons/green-success.png) / [`.ico`](icons/green-success.ico) |
-| `100/60/50/40/30` | Any of the above, stale (Info tier) | yes | — | **Info** | "mutagen is watching for changes (stale)" | [`green-timeout-white.png`](icons/green-timeout-white.png) / [`.ico`](icons/green-timeout-white.ico) *(⚠ placeholder — asset never existed, §6.1)* |
-| `100/60/50/40/30` | Any of the above, stale (Warning tier) | yes | — | **Warning** | "mutagen is watching for changes (stale)" | [`green-timeout.png`](icons/green-timeout.png) / [`.ico`](icons/green-timeout.ico) |
-| `100/60/50/40/30` | Any of the above, stale (Error tier) | yes | — | **Error** | "mutagen is watching for changes (stale)" | [`green-timeout-red.png`](icons/green-timeout-red.png) / [`.ico`](icons/green-timeout-red.ico) *(⚠ placeholder — asset never existed, §6.1)* |
-| `-1` | No session found, recovering | **yes** | — | — | "mutagen is not running (starting)" | [`darkgray-restart.png`](icons/darkgray-restart.png) / [`.ico`](icons/darkgray-restart.ico) |
-| `-1` | No session found, paused by user | **no** | — | — | "mutagen is not running (disabled)" | [`darkgray.png`](icons/darkgray.png) / [`.ico`](icons/darkgray.ico) |
-| `-2` | Cannot connect, recovering | **yes** | — | — | "error (starting)" | [`orange-restart.png`](icons/orange-restart.png) / [`.ico`](icons/orange-restart.ico) |
-| `-2` | Cannot connect, paused by user | **no** | — | — | "error (disabled)" | [`orange.png`](icons/orange.png) / [`.ico`](icons/orange.ico) |
+| `0` | Waiting for first status | — | — | — | "waiting for status..." | [`lightgray-init.ico`](icons/lightgray-init.ico) |
+| `100` | Ready / watching for changes | yes | no | none | "mutagen is watching for changes" | [`green.ico`](icons/green.ico) |
+| `100` | Ready, freshly updated | yes | **yes** | none | "mutagen is watching for changes (updated)" | [`green-success.ico`](icons/green-success.ico) *(see quirk §6.2 — currently unreachable)* |
+| `100` | Ready, but monitoring being turned off | **no** | — | any | "mutagen is stopping" | [`green-stop.ico`](icons/green-stop.ico) |
+| `60` | Conflicts detected | yes | — | none | "conflicts" | [`green-conflict.ico`](icons/green-conflict.ico) |
+| `50` | Problems detected | yes | — | none | "problems" | [`green-error.ico`](icons/green-error.ico) |
+| `40` | Syncing | yes | no | none | "mutagen is syncing" | [`green-sync.ico`](icons/green-sync.ico) |
+| `40` | Syncing, freshly updated | yes | **yes** | none | "mutagen is syncing (updated)" | [`green-success.ico`](icons/green-success.ico) |
+| `30` | Scanning | yes | no | none | "mutagen is scanning" | [`green-scan.ico`](icons/green-scan.ico) *(⚠ placeholder — asset never existed, §6.1)* |
+| `30` | Scanning, freshly updated | yes | **yes** | none | "mutagen is scanning (updated)" | [`green-success.ico`](icons/green-success.ico) |
+| `100/60/50/40/30` | Any of the above, stale (Info tier) | yes | — | **Info** | "mutagen is watching for changes (stale)" | [`green-timeout-white.ico`](icons/green-timeout-white.ico) *(⚠ placeholder — asset never existed, §6.1)* |
+| `100/60/50/40/30` | Any of the above, stale (Warning tier) | yes | — | **Warning** | "mutagen is watching for changes (stale)" | [`green-timeout.ico`](icons/green-timeout.ico) |
+| `100/60/50/40/30` | Any of the above, stale (Error tier) | yes | — | **Error** | "mutagen is watching for changes (stale)" | [`green-timeout-red.ico`](icons/green-timeout-red.ico) *(⚠ placeholder — asset never existed, §6.1)* |
+| `-1` | No session found, recovering | **yes** | — | — | "mutagen is not running (starting)" | [`darkgray-restart.ico`](icons/darkgray-restart.ico) |
+| `-1` | No session found, paused by user | **no** | — | — | "mutagen is not running (disabled)" | [`darkgray.ico`](icons/darkgray.ico) |
+| `-2` | Cannot connect, recovering | **yes** | — | — | "error (starting)" | [`orange-restart.ico`](icons/orange-restart.ico) |
+| `-2` | Cannot connect, paused by user | **no** | — | — | "error (disabled)" | [`orange.ico`](icons/orange.ico) |
 
 ### 3.1 Icon asset inventory
 
-All 15 bitmaps referenced above are provided in two formats in
+All 15 bitmaps referenced above are provided as `.ico` files in
 [`requirements/icons/`](icons), so the .NET implementation has everything
-it needs without reading `python/img/`:
+it needs — the legacy app's icon folder is not required (and no longer
+exists in this repository):
 
-- **`.png`** — the source image, kept only so the table above and GitHub
-  previews render inline (most Markdown viewers do not render `.ico`).
-  **Not** the format loaded by the .NET app.
 - **`.ico`** — square-padded (transparent padding to the larger of
   width/height, since the source PNGs are not square — e.g. 512×390), then
   rendered into a multi-resolution icon (16/32/48/256 px) with `magick
@@ -107,7 +101,7 @@ it needs without reading `python/img/`:
   manual verification). Loading a real `.ico` directly via the `Icon`
   property sidesteps that conversion entirely.
 - **11 real, verified source images** copied unchanged from the legacy
-  `python/img/` folder: `green`, `green-success`,
+  app's icon folder: `green`, `green-success`,
   `green-stop`, `green-conflict`, `green-error`,
   `green-sync`, `green-timeout`, `darkgray`,
   `darkgray-restart`, `orange`, `orange-restart`.
@@ -121,22 +115,23 @@ it needs without reading `python/img/`:
   a stalled/broken tray icon. Renamed from the legacy's plain `lightgray`
   because that name no longer described what the icon shows. This is a
   deliberate rewrite-only improvement, not a legacy behavior to preserve —
-  `python/` keeps using its own unmodified `lightgray.png`.
-- **3 generated placeholders** for assets that are referenced by
-  `icon.py` but were **never present** in `python/img/` even in the
-  legacy app (a real, pre-existing bug — §6.1): `green-scan`,
+  the legacy app used its own unmodified `lightgray.png`.
+- **3 generated placeholders** for assets that were referenced by the
+  legacy app's icon logic but were **never present** in its icon folder
+  even there (a real, pre-existing bug — §6.1): `green-scan`,
   `green-timeout-white`, `green-timeout-red`. These are simple
   colored-circle stand-ins (green with a scan-sweep stripe; pale
   green/white; red) good enough to unblock building the full state
   machine, but they are **not final design assets** — replace them with
   properly designed icons (ideally vector/SVG source scaled per-DPI, per
   §8) before shipping. Regenerate their `.ico` alongside any redesign.
-- Unused legacy files in `python/img/` (`blue.png`, `cyan.png`,
-  `folder.png`, `gray.png`, `remote-connection.png`, `resolve.png`,
-  `status.png`, `yellow.png`, and the numbered animation-frame variants
-  `green-stop2..5.png`, `green-sync2.png`, `green-timeout2/3/5.png`) are
-  **not referenced anywhere in the source code** and were intentionally
-  **not** copied — they are legacy cruft, not part of this requirement.
+- The legacy app's icon folder also held unused files
+  (`blue.png`, `cyan.png`, `folder.png`, `gray.png`,
+  `remote-connection.png`, `resolve.png`, `status.png`, `yellow.png`, and
+  the numbered animation-frame variants `green-stop2..5.png`,
+  `green-sync2.png`, `green-timeout2/3/5.png`) that were **not referenced
+  anywhere in the source code** and were intentionally **not** copied —
+  legacy cruft, not part of this requirement.
 
 Every tooltip is prefixed with the configured application name
 (`TRAY_TOOLTIP`, default "MutagenMon") followed by `: `, e.g.
@@ -194,11 +189,11 @@ during a transition period).
 
 1. **Missing icon assets referenced in code**: `green-scan.png`,
    `green-timeout-white.png`, and `green-timeout-red.png` are referenced
-   by the status logic but do not exist in `python/img/`. The scanning and
-   two of the three staleness tiers currently have no real bitmap.
-   [`requirements/icons/`](icons) ships generated placeholders for these
-   three (§3.1) purely so the rewrite is unblocked without touching
-   `python/` — they are **not** approved design assets. The rewrite MUST
+   by the status logic but never existed in the legacy app's icon
+   folder. The scanning and two of the three staleness tiers currently
+   have no real bitmap. [`requirements/icons/`](icons) ships generated
+   placeholders for these three (§3.1) purely to unblock the rewrite —
+   they are **not** approved design assets. The rewrite MUST
    ship a complete, properly designed asset for every row of the table in
    §3 (e.g. as SVG/vector icons scaled per-DPI in .NET, rather than
    fixed-size PNGs) before release.
@@ -220,7 +215,7 @@ during a transition period).
    SHOULD only touch the underlying OS tray API when the visual state
    actually changes, to minimize flicker and OS-level overhead.
 
-## 8. WPF implication (see also 05-wpf-migration-notes.md)
+## 8. WPF implication
 
 - **.NET's WPF has no built-in tray icon API** — the equivalent of
   `wx.adv.TaskBarIcon` must come from a platform integration such as
