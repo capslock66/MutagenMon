@@ -12,7 +12,7 @@ public enum StalenessTier
     Error,
 }
 
-/// <summary>Mirrors config_mutagenmon.json's STATUS_MAX_LAG.</summary>
+/// <summary>Mirrors config_mutagenmon.json's StatusMaxLag.</summary>
 public sealed record LagThresholds(TimeSpan Info, TimeSpan Warning, TimeSpan Error, TimeSpan Restart);
 
 /// <summary>Implements the staleness checks (FR-6.1/6.2/6.3) as

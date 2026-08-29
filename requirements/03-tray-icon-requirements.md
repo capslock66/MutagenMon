@@ -47,7 +47,7 @@ State is a function of four inputs: aggregated code (FR-3/FR-4), whether
 monitoring is currently **enabled** (user has not paused it), whether the
 sync profile was just **updated** on disk (FR-12), and the **staleness
 tier** of the last successful poll (computed from `now − last_poll_time`
-against the `STATUS_MAX_LAG` thresholds, `Info < Warning < Error`, default
+against the `StatusMaxLag` thresholds, `Info < Warning < Error`, default
 `{"Info": 4, "Warning": 15, "Error": 50, "Restart": 90}` seconds — see
 [06-configuration-reference.md](06-configuration-reference.md)).
 
@@ -134,7 +134,7 @@ exists in this repository):
   legacy cruft, not part of this requirement.
 
 Every tooltip is prefixed with the configured application name
-(`TRAY_TOOLTIP`, default "MutagenMon") followed by `: `, e.g.
+(`TrayTooltip`, default "MutagenMon") followed by `: `, e.g.
 `"MutagenMon: mutagen is watching for changes"`.
 
 Note the deliberate priority ordering when several conditions could apply

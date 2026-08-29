@@ -1,7 +1,7 @@
 # MutagenMon — .NET WPF rewrite
 
-This is the .NET rewrite of the original legacy application (its source
-has since been removed from this repository).
+This is a WPF rewrite of [rualark/MutagenMon](https://github.com/rualark/MutagenMon)
+(the original source has since been removed from this repository).
 Current scope: **Phase 0 (scaffolding) + Phase 1 (real-time tray icon
 core) + Phase 2 (context menu & status view) + Phase 3 (manual conflict
 resolution) + Phase 4 FR-10/FR-11.1/FR-11.2 (automatic conflict resolution
@@ -66,7 +66,7 @@ tray icon need an actual Windows desktop session. On a Windows machine:
 
 1. Install a [mutagen.io](https://github.com/mutagen-io/mutagen) release
    and place the binary at `src/MutagenMon.App/mutagen/mutagen.exe`
-   (or edit `MUTAGEN_PATH` in `src/MutagenMon.App/config/config_mutagenmon.json`).
+   (or edit `MutagenPath` in `src/MutagenMon.App/config/config_mutagenmon.json`).
 2. Edit `src/MutagenMon.App/mutagen/mutagen-create.bat` to point at two
    real local folders (the shipped sample uses
    `C:\MutagenMonTest\alpha`/`beta` — create them, or change the paths).
@@ -94,10 +94,10 @@ tray icon need an actual Windows desktop session. On a Windows machine:
      wins choice pre-selected by whichever side was modified more
      recently. Cancelling aborts the whole batch. Every resolution is
      appended to `log/resolve.log`.
-   - **Notifications (FR-11.1/FR-11.2):** with `NOTIFY_CONFLICTS`/
-     `NOTIFY_AUTORESOLVE` at their default `true`, a new (non-auto-resolved)
+   - **Notifications (FR-11.1/FR-11.2):** with `NotifyConflicts`/
+     `NotifyAutoresolve` at their default `true`, a new (non-auto-resolved)
      conflict raises a "New conflicts" toast naming the `session:file` key
-     within one poll cycle, and a conflict matching an `AUTORESOLVE` rule
+     within one poll cycle, and a conflict matching an `AutoResolve` rule
      raises a "Conflict auto-resolved" toast naming the rule and file
      instead — see UT-11.1..UT-11.5 in
      [requirements/UserTests.md](../requirements/UserTests.md).
@@ -125,7 +125,7 @@ tray icon need an actual Windows desktop session. On a Windows machine:
    - **Staleness check:** temporarily rename/move `mutagen.exe` so polling
      starts failing, and watch the icon degrade
      Info (pale) → Warning → Error (red-tinted "stale" icons) on the
-     schedule in `STATUS_MAX_LAG`. Past the `Restart` threshold (90s by
+     schedule in `StatusMaxLag`. Past the `Restart` threshold (90s by
      default) the app should self-restart (spawn a new process, tray icon
      reappears) — check `log/mutagenMon.log` for the restart entry.
 
@@ -135,39 +135,42 @@ Logging is a small hand-rolled `ILoggerProvider` (`FileLoggerProvider.cs`)
 — no third-party logging library — configured in `App.xaml.cs`. Every log
 call opens, appends, and closes its target file (no persistent handle, so
 nothing to flush/dispose). The primary log is written under the directory
-named by `LOG_PATH` in `config_mutagenmon.json` (default `"log"`, resolved
-relative to `MutagenMon.exe`'s folder) — or, if `LOG_PATH` is an absolute
+named by `LogPath` in `config_mutagenmon.json` (default `"log"`, resolved
+relative to `MutagenMon.exe`'s folder) — or, if `LogPath` is an absolute
 path (e.g. `"c:\\logs\\mutagenmon"`), that exact directory is used as-is
 instead:
 
-- **`log/mutagenMon.log`** — a single file capturing **every level**
-  (Debug and above), always — no separate debug file, no `DEBUG_LEVEL`
-  gating (`DEBUG_LEVEL` in `config_mutagenmon.json` is currently unused).
-  This is also where startup failures land: every step of `OnStartup`
-  (config load, session parsing, host build/start, tray icon creation) is
-  wrapped in a single try/catch that logs any exception here at Critical
-  level *and* pops a `MessageBox` with the full exception — added
+- **`log/mutagenMon.log`** — a single file capturing every level at or
+  above `MinLogLevel` (`config_mutagenmon.json`, default `"Trace"` — i.e.
+  everything; `DebugLevel` is the legacy 0-100 dial and has no effect,
+  `MinLogLevel` is what actually gates verbosity). This file only exists
+  once config has actually been loaded — `LogPath` isn't known before
+  that, and there is deliberately no default/fallback path under the
+  app's own directory, so no stray log folder ever gets created for a
+  path the user never configured.
+- **Windows Application Event Log** (source `"MutagenMon"`) — every
+  Critical-level entry goes here too, unconditionally (`MinLogLevel`
+  doesn't gate it). This is what covers the window before config is
+  loaded: every step of `OnStartup` (config load, session parsing, host
+  build/start, tray icon creation) is wrapped in a single try/catch that
+  logs any exception at Critical level (reaching the Event Log even when
+  `log/mutagenMon.log` was never created because config loading itself is
+  what failed) *and* pops a `MessageBox` with the full exception — added
   specifically so a failed launch (e.g. a missing `config_mutagenmon.json`
   or `mutagen-create.bat`) is never silent. Unhandled exceptions anywhere
   else in the app (UI thread, background threads, unobserved task
-  exceptions) are also caught globally and logged here.
-- **`mutagenMon.fatal.log`** (next to `MutagenMon.exe`, i.e. *not* under
-  `LOG_PATH`) — a redundant copy of Critical-level entries only. Exists
-  because `LOG_PATH` can point inside a folder mutagen itself syncs (a
-  reasonable thing to do, but it means the log file can occasionally be
-  briefly locked/touched by the sync engine or a remote reader exactly when
-  a write happens); this fallback sink is always at a fixed location, so a
-  crash is never lost to a transient write failure on the primary sink. Any
-  write failure on the primary sink (whatever the level) is also reported
-  to the Visual Studio Output window (`System.Diagnostics.Debug`) and, on a
-  best-effort basis, to this same fallback file.
+  exceptions) are also caught globally and logged the same way. There is
+  deliberately no fallback log file next to the executable either — the
+  Event Log is the one durable, path-independent sink for this.
 
 If nothing appears in the tray and the app seems to do nothing: check
 `log/mutagenMon.log` first — a startup exception there (most commonly a
 missing/misconfigured `config/config_mutagenmon.json`,
-`mutagen/mutagen-create.bat`, or an invalid `MUTAGEN_PATH`) is now
+`mutagen/mutagen-create.bat`, or an invalid `MutagenPath`) is now
 guaranteed to be logged and shown in a message box instead of silently
-killing the process. If even that's empty, check `mutagenMon.fatal.log`.
+killing the process. If that file doesn't even exist (config loading
+itself failed before `LogPath` was known), check Windows Event Viewer →
+Windows Logs → Application, source "MutagenMon".
 
 ## Phase 4 / Phase 5 checklist
 
@@ -177,19 +180,19 @@ or is consciously deferred — don't wait for the whole phase.
 
 - **Phase 4**
   - [x] FR-10 — automatic conflict resolution. **Done** — ordered regex
-    rules (`AUTORESOLVE`) matched against each newly-seen conflict's file
+    rules (`AutoResolve`) matched against each newly-seen conflict's file
     name, first match applied immediately via the same copy mechanics as
-    FR-9's manual "A wins"/"B wins", with an `AUTORESOLVE_HISTORY_AGE`
+    FR-9's manual "A wins"/"B wins", with an `AutoResolveHistoryAgeSeconds`
     grace period so a conflict mutagen keeps re-reporting isn't reprocessed
     every poll. See `MutagenMon.Core/Resolution/AutoResolveEngine.cs`,
     wired into `SessionMonitorService.PollOnceAsync` before the snapshot is
-    published. `NOTIFY_AUTORESOLVE`-gated notification (FR-10.4) is left as
+    published. `NotifyAutoresolve`-gated notification (FR-10.4) is left as
     an event hook (`AutoResolveEngine.ConflictAutoResolved`) for FR-11 to
     subscribe to later — no actual notification is raised yet.
   - [x] FR-11.1/FR-11.2 — desktop notifications for new conflicts and
-    auto-resolve. **Done** — `NOTIFY_CONFLICTS`-gated toast grouping every
+    auto-resolve. **Done** — `NotifyConflicts`-gated toast grouping every
     newly-seen `session:file` conflict key (excluding auto-resolved ones,
-    per FR-10.2), and a `NOTIFY_AUTORESOLVE`-gated toast per auto-resolved
+    per FR-10.2), and a `NotifyAutoresolve`-gated toast per auto-resolved
     conflict naming the rule and file. See
     `MutagenMon.Core/Notifications/` (`ConflictNotificationTracker`,
     `NotificationDispatcher`, `NotificationQueue`), wired into

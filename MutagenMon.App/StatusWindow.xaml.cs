@@ -45,10 +45,10 @@ public partial class StatusWindow : Window
     }
 
     /// <summary>The incoming title is the tray tooltip, formatted as
-    /// "&lt;TRAY_TOOLTIP&gt;: &lt;status&gt;" (<see cref="TrayIconStateResolver"/>)
+    /// "&lt;TrayTooltip&gt;: &lt;status&gt;" (<see cref="TrayIconStateResolver"/>)
     /// — redundant here since the window's own title bar already says
     /// "MutagenMon". Strips generically on the first ": " rather than a
-    /// hardcoded "MutagenMon:", since TRAY_TOOLTIP is configurable.</summary>
+    /// hardcoded "MutagenMon:", since TrayTooltip is configurable.</summary>
     private static string StripAppNamePrefix(string title)
     {
         var separatorIndex = title.IndexOf(": ", StringComparison.Ordinal);

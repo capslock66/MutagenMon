@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using Microsoft.Extensions.Logging;
 
@@ -6,38 +7,62 @@ namespace MutagenMon.App;
 /// <summary>Minimal <see cref="ILoggerProvider"/> writing plain-text lines
 /// to a file — no third-party logging library. Two sinks:
 /// <list type="bullet">
-/// <item>the primary log, every level, whose path is mutable via
-/// <see cref="SetPrimaryLogPath"/> so it can be reconfigured once
-/// <c>config_mutagenmon.json</c>'s <c>LOG_PATH</c> is known (the app starts
-/// logging before that file is read — see <see cref="App"/>);</item>
-/// <item>a fixed-location, Critical-only fallback file next to the
-/// executable — deliberately not under the (possibly mutagen-synced, and
-/// therefore occasionally locked) primary path, so a crash is never lost
-/// to a transient write failure on the primary sink.</item>
+/// <item>the primary log, at no path at all until <see cref="SetPrimaryLogPath"/>
+/// is called once <c>config_mutagenmon.json</c>'s <c>LogPath</c> is known
+/// (the app starts logging before that file is read — see
+/// <see cref="App"/>). Deliberately no default/fallback path under the
+/// app's own directory: nothing gets written to the primary sink at all
+/// during that window, rather than creating a stray log file the user
+/// never configured and doesn't want — same reasoning as never writing
+/// next to the executable either (see below).</item>
+/// <item>the Windows Application Event Log (source <c>"MutagenMon"</c>),
+/// for every Critical entry, and for a non-Critical entry that failed to
+/// reach the primary file. Deliberately not another file next to the
+/// executable: a durable, always-present sink that doesn't depend on any
+/// path this app resolves or on the app's own directory being writable —
+/// exactly what's needed for a fatal failure, including one that happens
+/// before the primary log's path is even known.</item>
 /// </list>
+/// Every level is written until <see cref="SetMinLevel"/> is called (once
+/// <c>MinLogLevel</c> is known — same two-stage pattern as
+/// <see cref="SetPrimaryLogPath"/>, and for the same reason: the fragile
+/// early-startup window, before config is even read, must never silently
+/// drop a line just because the eventually-configured level would have
+/// excluded it).
 /// Each write opens, appends, and closes the file — no persistent handle is
 /// held between log calls, so there is nothing to flush or dispose when
 /// reconfiguring or shutting down. Write failures are caught and reported
-/// to <see cref="System.Diagnostics.Debug"/> (and, best-effort, to the
-/// fallback file) rather than propagated: a broken logger must never crash
-/// the app.</summary>
+/// to <see cref="Debug"/> rather than propagated: a broken logger must
+/// never crash the app.</summary>
 public sealed class FileLoggerProvider : ILoggerProvider
 {
-    private readonly string _fatalLogPath;
-    private readonly object _writeLock = new();
-    private string _primaryLogPath;
+    private const string EventLogSource = "MutagenMon";
 
-    public FileLoggerProvider(string initialPrimaryLogPath, string fatalLogPath)
-    {
-        _primaryLogPath = initialPrimaryLogPath;
-        _fatalLogPath = fatalLogPath;
-    }
+    private readonly object _writeLock = new();
+    private string? _primaryLogPath;
+    private LogLevel _minLevel = LogLevel.Trace;
 
     public void SetPrimaryLogPath(string path)
     {
         lock (_writeLock)
         {
             _primaryLogPath = path;
+        }
+    }
+
+    public void SetMinLevel(LogLevel level)
+    {
+        lock (_writeLock)
+        {
+            _minLevel = level;
+        }
+    }
+
+    internal bool IsLevelEnabled(LogLevel level)
+    {
+        lock (_writeLock)
+        {
+            return level != LogLevel.None && level >= _minLevel;
         }
     }
 
@@ -48,14 +73,35 @@ public sealed class FileLoggerProvider : ILoggerProvider
         var line = FormatLine(categoryName, level, message, exception);
         lock (_writeLock)
         {
-            var wroteToPrimary = TryAppend(_primaryLogPath, line);
+            // Primary path is null before config is loaded (SetPrimaryLogPath
+            // not yet called) — that's not a write "failure" worth an event
+            // log entry, just nothing to write to yet.
+            var wroteToPrimary = _primaryLogPath is not null && TryAppend(_primaryLogPath, line);
             if (level == LogLevel.Critical)
-                TryAppend(_fatalLogPath, line);
-            else if (!wroteToPrimary)
+                WriteToWindowsEventLog(line, EventLogEntryType.Error);
+            else if (_primaryLogPath is not null && !wroteToPrimary)
                 // The primary sink just failed for a non-Critical entry —
                 // still worth a durable trace of that fact.
-                TryAppend(_fatalLogPath, FormatLine("FileLoggerProvider", LogLevel.Warning,
-                    $"Failed to write to primary log '{_primaryLogPath}'; see Debug output.", null));
+                WriteToWindowsEventLog($"Failed to write to primary log '{_primaryLogPath}'; see Debug output.", EventLogEntryType.Warning);
+        }
+    }
+
+    /// <summary>Best-effort trace to the Windows Application event log —
+    /// registering the event source requires local admin on first run only
+    /// (subsequent writes don't); if that fails (e.g. a non-elevated
+    /// install), this silently gives up rather than let the logger itself
+    /// crash the app.</summary>
+    internal static void WriteToWindowsEventLog(string message, EventLogEntryType entryType)
+    {
+        try
+        {
+            if (!EventLog.SourceExists(EventLogSource))
+                EventLog.CreateEventSource(EventLogSource, "Application");
+            EventLog.WriteEntry(EventLogSource, message, entryType);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"FileLoggerProvider: failed writing to the Windows Event Log: {ex}");
         }
     }
 
@@ -68,7 +114,7 @@ public sealed class FileLoggerProvider : ILoggerProvider
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"FileLoggerProvider: failed writing to '{path}': {ex}");
+            Debug.WriteLine($"FileLoggerProvider: failed writing to '{path}': {ex}");
             return false;
         }
     }
@@ -100,7 +146,7 @@ public sealed class FileLoggerProvider : ILoggerProvider
     {
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 
-        public bool IsEnabled(LogLevel logLevel) => logLevel != LogLevel.None;
+        public bool IsEnabled(LogLevel logLevel) => provider.IsLevelEnabled(logLevel);
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {

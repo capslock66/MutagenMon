@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using MutagenMon.Core.Configuration;
 using Xunit;
 
@@ -8,28 +9,28 @@ public class ConfigLoaderTests
     private const string SampleConfig = """
         {
         # Set to 0 to disable logging to log/debug.log
-        "DEBUG_LEVEL": 0,
+        "DebugLevel": 0,
 
-        "NOTIFY_CONFLICTS": true,
-        "START_ENABLED": true,
-        "MUTAGEN_PATH": "mutagen\\mutagen",
-        "TRAY_TOOLTIP": "MutagenMon",
-        "MUTAGEN_SESSIONS_BAT_FILE": "mutagen/mutagen-create.bat",
-        "SESSION_MAX_ERRORS": 30000,
-        "MUTAGEN_POLL_PERIOD": 1000,
-        "STATUS_MAX_LAG": {"Info": 4, "Warning": 15, "Error": 50, "Restart": 90},
-        "MUTAGEN_PROFILE_DIR": "C:\\Users\\me\\.mutagen",
-        "MUTAGEN_PROFILE_DIR_WATCH_PERIOD": 1,
-        "MUTAGEN_PROFILE_GRACE": 4,
+        "NotifyConflicts": true,
+        "StartEnabled": true,
+        "MutagenPath": "mutagen\\mutagen",
+        "TrayTooltip": "MutagenMon",
+        "MutagenSessionsBatFile": "mutagen/mutagen-create.bat",
+        "SessionMaxErrors": 30000,
+        "MutagenPollPeriodMs": 1000,
+        "StatusMaxLag": {"Info": 4, "Warning": 15, "Error": 50, "Restart": 90},
+        "MutagenProfileDir": "C:\\Users\\me\\.mutagen",
+        "MutagenProfileDirWatchPeriod": 1,
+        "MutagenProfileGraceSeconds": 4,
 
         # Add records matching filenames:
-        "AUTORESOLVE": [
+        "AutoResolve": [
             {
                 "filepath": "/\\.idea/",
                 "resolve": "A wins"
             }
         ],
-        "AUTORESOLVE_HISTORY_AGE": 30
+        "AutoResolveHistoryAgeSeconds": 30
         }
         """;
 
@@ -70,13 +71,35 @@ public class ConfigLoaderTests
     }
 
     [Fact]
+    public void DefaultsMinLogLevelToTraceWhenAbsent()
+    {
+        var options = ConfigLoader.ParseText(SampleConfig);
+
+        Assert.Equal(LogLevel.Trace, options.MinLogLevel);
+    }
+
+    [Fact]
+    public void ParsesMinLogLevelFromItsStringName()
+    {
+        const string withMinLogLevel = """
+            {
+            "MinLogLevel": "Warning"
+            }
+            """;
+
+        var options = ConfigLoader.ParseText(withMinLogLevel);
+
+        Assert.Equal(LogLevel.Warning, options.MinLogLevel);
+    }
+
+    [Fact]
     public void CommentLinesDoNotBreakParsing()
     {
         const string withHeavyComments = """
             {
             # comment 1
             # comment 2
-            "DEBUG_LEVEL": 5
+            "DebugLevel": 5
             # trailing comment
             }
             """;

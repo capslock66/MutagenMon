@@ -51,7 +51,7 @@ public sealed class NotificationDispatcher
     }
 
     /// <summary>FR-11.4/FR-12.3: one notification per session whose archive
-    /// was just confirmed updated (debounced past MUTAGEN_PROFILE_GRACE, see
+    /// was just confirmed updated (debounced past MutagenProfileGraceSeconds, see
     /// <see cref="ProfileWatch.SessionProfileWatcher"/>). No-op if disabled
     /// or nothing was confirmed this poll.</summary>
     public void NotifyProfileUpdated(IReadOnlyList<string> confirmedUpdatedSessions)
@@ -71,8 +71,8 @@ public sealed class NotificationDispatcher
     }
 
     /// <summary>FR-13.3/FR-11.3: a session restarted because it stayed stuck
-    /// "connecting" past <c>SESSION_MAX_ERRORS</c>. Gated by
-    /// <c>NOTIFY_RESTART_CONNECTION</c> (default disabled).</summary>
+    /// "connecting" past <c>SessionMaxErrors</c>. Gated by
+    /// <c>NotifyRestartConnection</c> (default disabled).</summary>
     public void NotifyRestartedForConnecting(string sessionName, string status)
     {
         if (!_notifyRestartConnection)

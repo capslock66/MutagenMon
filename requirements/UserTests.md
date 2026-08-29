@@ -24,7 +24,7 @@ compare what you see against the expected-result lines.
 
 * Install a [mutagen.io](https://github.com/mutagen-io/mutagen) release
   and place the binary at `src/MutagenMon.App/mutagen/mutagen.exe` (or
-  point `MUTAGEN_PATH` in `config/config_mutagenmon.json` at it).
+  point `MutagenPath` in `config/config_mutagenmon.json` at it).
 * Create two local folders for the sample session, e.g.
   `C:\MutagenMonTest\alpha` and `C:\MutagenMonTest\beta`, and edit
   `src/MutagenMon.App/mutagen/mutagen-create.bat` to reference them (the
@@ -32,7 +32,7 @@ compare what you see against the expected-result lines.
 * Open `src/MutagenMon.App/config/config_mutagenmon.json` in a text
   editor — several tests below ask you to change a specific key there,
   then restart the app.
-* Keep `log/mutagenMon.log` (or the folder named by `LOG_PATH`) open in a
+* Keep `log/mutagenMon.log` (or the folder named by `LogPath`) open in a
   viewer that auto-refreshes (e.g. PowerShell's
   `Get-Content mutagenMon.log -Wait -Tail 20`) so you can check log
   entries without stopping the app.
@@ -83,7 +83,7 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
 * Start MutagenMon with at least one configured session.
 * Open `log/mutagenMon.log` and watch it update.
 * A new raw `mutagen sync list` output block is appended roughly once per
-  second (`MUTAGEN_POLL_PERIOD`, default 1000 ms).
+  second (`MutagenPollPeriodMs`, default 1000 ms).
 
 **UT-2.2 — The aggregated status is the worst of all sessions (FR-4.1)** ✅
 
@@ -192,11 +192,11 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
 
 **UT-T.10 — Staleness degrades the icon (FR-6.2)** ✅
 
-* Rename `mutagen.exe` (or whatever `MUTAGEN_PATH` points at) so polling
+* Rename `mutagen.exe` (or whatever `MutagenPath` points at) so polling
   starts failing.
 * Watch the tray icon for the next couple of minutes without touching
   anything else.
-* For the first ~4 seconds (`STATUS_MAX_LAG.Info`), the icon does not
+* For the first ~4 seconds (`StatusMaxLag.Info`), the icon does not
   change yet.
 * Between ~4s and ~15s, the icon shows `green-timeout-white` (a generated
   placeholder — see §3.1) with a "(stale)" tooltip suffix.
@@ -210,12 +210,12 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
 
 * Continue directly from UT-T.10, without restoring `mutagen.exe`.
 * Wait until the staleness age passes 90 seconds
-  (`STATUS_MAX_LAG.Restart`).
+  (`StatusMaxLag.Restart`).
 * The MutagenMon process restarts itself: the tray icon disappears and
   reappears, starting again from the "waiting for status" state
   (UT-T.1).
 * `log/mutagenMon.log` contains a restart log entry.
-* Restore `mutagen.exe`/`MUTAGEN_PATH` afterwards.
+* Restore `mutagen.exe`/`MutagenPath` afterwards.
 
 **UT-T.12 — Left-click opens the status view (TIC-7)** ✅
 
@@ -310,7 +310,7 @@ Covered above by UT-7.1.
 * The window's content also shows a
   "==================== CONFLICTS ====================" section listing
   "`<session>: <file>`" for the conflicting file (with an
-  "`[autoresolving]`" suffix instead if an `AUTORESOLVE` rule matches it
+  "`[autoresolving]`" suffix instead if an `AutoResolve` rule matches it
   — see FR-10 below).
 * Both a "Cancel" button and a "Resolve conflicts" button are displayed —
   no plain "OK".
@@ -376,7 +376,7 @@ detects this as a two-sided edit and reports a conflict on its next poll.
 
 **UT-9.5 — Visual merge resolution (FR-9.2)** ✅
 
-* Set `MERGE_PATH` in `config_mutagenmon.json` to a real merge tool (e.g.
+* Set `MergePath` in `config_mutagenmon.json` to a real merge tool (e.g.
   WinMerge) and restart MutagenMon.
 * Produce a conflict and open the resolution dialog.
 * Click the "Visual merge" radio button.
@@ -461,7 +461,7 @@ FR-10.2)** ✅
 
 * Stop MutagenMon.
 * Edit `config/config_mutagenmon.json` and set:
-  `"AUTORESOLVE": [{"filepath": "auto-resolve-test", "resolve": "A wins"}]`
+  `"AutoResolve": [{"filepath": "auto-resolve-test", "resolve": "A wins"}]`
 * Start MutagenMon.
 * Produce a conflict (see the FR-9 setup) on a file whose name contains
   `auto-resolve-test`.
@@ -475,7 +475,7 @@ FR-10.2)** ✅
 
 * Stop MutagenMon.
 * Edit `config/config_mutagenmon.json` and set:
-  `"AUTORESOLVE": [{"filepath": "auto-resolve-test", "resolve": "A wins"}, {"filepath": "auto-resolve-test", "resolve": "B wins"}]`
+  `"AutoResolve": [{"filepath": "auto-resolve-test", "resolve": "A wins"}, {"filepath": "auto-resolve-test", "resolve": "B wins"}]`
 * Start MutagenMon and produce the same conflict as UT-10.1.
 * B's copy is overwritten with A's content (the first rule wins), even
   though the second rule also matches the file name.
@@ -496,7 +496,7 @@ FR-10.2)** ✅
 **UT-10.4 — Grace period prevents reprocessing the same conflict
 (FR-10.3)** ✅
 
-* With the rule from UT-10.1 active and `AUTORESOLVE_HISTORY_AGE` at its
+* With the rule from UT-10.1 active and `AutoResolveHistoryAgeSeconds` at its
   default (30 seconds), let UT-10.1 run once.
 * Note the timestamp of the resulting `resolve.log` entry.
 * Without changing the file again, wait less than 30 seconds and check
@@ -516,7 +516,7 @@ implemented.
 
 **UT-11.1 — New conflict raises a toast notification (FR-11.1)** ✅
 
-* Ensure `"NOTIFY_CONFLICTS": true` in `config/config_mutagenmon.json`.
+* Ensure `"NotifyConflicts": true` in `config/config_mutagenmon.json`.
 * Produce a conflict (see the FR-9 setup).
 * Within one poll cycle (~1 second) a non-modal toast notification titled
   "New conflicts" appears near the tray icon, naming the session and file
@@ -536,7 +536,7 @@ implemented.
 **UT-11.3 — Auto-resolved conflicts are excluded from the "new conflicts"
 toast (FR-10.2/FR-11.1)** ✅
 
-* With an `AUTORESOLVE` rule configured to match a file (see UT-10.1),
+* With an `AutoResolve` rule configured to match a file (see UT-10.1),
   produce a matching conflict.
 * No "New conflicts" toast appears for that file — it goes straight to the
   auto-resolve notification below instead.
@@ -544,61 +544,61 @@ toast (FR-10.2/FR-11.1)** ✅
 **UT-11.4 — Auto-resolve notification names the rule and the file
 (FR-11.2/FR-10.4)** ✅
 
-* Ensure `"NOTIFY_AUTORESOLVE": true` in `config/config_mutagenmon.json`.
-* Produce a conflict matching an `AUTORESOLVE` rule (see UT-10.1).
+* Ensure `"NotifyAutoresolve": true` in `config/config_mutagenmon.json`.
+* Produce a conflict matching an `AutoResolve` rule (see UT-10.1).
 * Within one poll cycle a toast titled "Conflict auto-resolved" appears,
   naming the session, file, and the resolution applied (e.g. "A wins").
 
 **UT-11.5 — Each notification type is independently toggleable (FR-11)**
 ✅
 
-* Set `"NOTIFY_CONFLICTS": false` and `"NOTIFY_AUTORESOLVE": true`, restart
+* Set `"NotifyConflicts": false` and `"NotifyAutoresolve": true`, restart
   MutagenMon, and produce a plain (non-auto-resolved) conflict.
 * No "New conflicts" toast appears.
-* With the same config, produce a conflict matching an `AUTORESOLVE` rule.
+* With the same config, produce a conflict matching an `AutoResolve` rule.
 * The "Conflict auto-resolved" toast still appears — the two toggles are
   independent.
 
 **UT-11.6 — Stuck-connection-restart notification (FR-11.3)** ✅
 
-* Ensure `"NOTIFY_RESTART_CONNECTION": true` and a small
-  `SESSION_MAX_ERRORS` (e.g. `2`) in `config/config_mutagenmon.json`.
+* Ensure `"NotifyRestartConnection": true` and a small
+  `SessionMaxErrors` (e.g. `2`) in `config/config_mutagenmon.json`.
 * Force a session to stay in a "Connecting to..."/"Waiting to
-  connect..."/"Unknown" status for more than `SESSION_MAX_ERRORS`
+  connect..."/"Unknown" status for more than `SessionMaxErrors`
   consecutive polls (e.g. block the remote endpoint).
 * The session is restarted (terminate + recreate — see UT-13.3) and a
   toast titled with the session name appears, body
   `"Restarting connection: <status>"`.
-* Set `"NOTIFY_RESTART_CONNECTION": false`, repeat — the session still
+* Set `"NotifyRestartConnection": false`, repeat — the session still
   restarts, but no toast appears.
 
 **UT-11.7 — Duplicate-restart notification, always on (FR-11.3b)** ✅
 
-* Set `"NOTIFY_RESTART_CONNECTION": false` (deliberately, to prove this
-  notification is not gated by it) and a small `SESSION_MAX_DUPLICATE`
+* Set `"NotifyRestartConnection": false` (deliberately, to prove this
+  notification is not gated by it) and a small `SessionMaxDuplicate`
   (e.g. `2`) in `config/config_mutagenmon.json`.
-* Produce a duplicate session name for more than `SESSION_MAX_DUPLICATE`
+* Produce a duplicate session name for more than `SessionMaxDuplicate`
   consecutive polls (see UT-13.2 for how the restart itself is verified).
 * A toast titled with the session name appears, body
   `"Restarting duplicate: <status>"`, even though
-  `NOTIFY_RESTART_CONNECTION` is disabled — this notification has no
+  `NotifyRestartConnection` is disabled — this notification has no
   toggle of its own and always fires.
 
 **UT-11.8 — No-session restart never notifies (FR-11.3c)** ✅
 
-* With `"NOTIFY_RESTART_CONNECTION": true` and a small
-  `SESSION_MAX_NOSESSION` (e.g. `2`), make a session disappear from
-  `mutagen sync list` entirely for more than `SESSION_MAX_NOSESSION`
+* With `"NotifyRestartConnection": true` and a small
+  `SessionMaxNoSession` (e.g. `2`), make a session disappear from
+  `mutagen sync list` entirely for more than `SessionMaxNoSession`
   consecutive polls (see UT-13.1).
 * The session is restarted, but no toast appears for it at all — this is
   the one restart cause that is silent by design, unconditionally.
 
 **UT-11.9 — Profile-update notification (FR-11.4)** ✅
 
-* Ensure `"NOTIFY_MUTAGEN_PROFILE_UPDATE": true` in
+* Ensure `"NotifyMutagenProfileUpdate": true` in
   `config/config_mutagenmon.json`.
 * Trigger a real file sync on a monitored session (e.g. save a file inside
-  a synced folder) and wait past `MUTAGEN_PROFILE_GRACE` seconds (default
+  a synced folder) and wait past `MutagenProfileGraceSeconds` seconds (default
   4s) without further writes.
 * A toast titled "Updated" appears, naming the session.
 * See UT-12.2 below for the debounce behavior that gates this toast.
@@ -614,8 +614,8 @@ only user-visible tray effect today.
 **UT-12.2 — Debounced profile-update notification (FR-12.2, gates
 FR-11.4)** ✅
 
-* Ensure `"NOTIFY_MUTAGEN_PROFILE_UPDATE": true` and a short
-  `MUTAGEN_PROFILE_GRACE` (e.g. `4`) in `config/config_mutagenmon.json`.
+* Ensure `"NotifyMutagenProfileUpdate": true` and a short
+  `MutagenProfileGraceSeconds` (e.g. `4`) in `config/config_mutagenmon.json`.
 * Trigger several rapid successive writes on a monitored session within
   less than the grace period — no "Updated" toast appears yet (each write
   keeps pushing the archive mtime forward, so the debounce window never
@@ -627,11 +627,11 @@ FR-11.4)** ✅
 
 **UT-13.1 — No-result restart (FR-13.1)** ✅
 
-* Set a small `SESSION_MAX_NOSESSION` (e.g. `2`) in
+* Set a small `SessionMaxNoSession` (e.g. `2`) in
   `config/config_mutagenmon.json` and restart MutagenMon.
 * Make a monitored session disappear from `mutagen sync list` entirely
   (e.g. `mutagen sync terminate <name>` from a separate shell, without
-  going through MutagenMon) for more than `SESSION_MAX_NOSESSION`
+  going through MutagenMon) for more than `SessionMaxNoSession`
   consecutive polls.
 * MutagenMon recreates the session on its own (`mutagen sync list` shows
   it again shortly after) — no user action needed.
@@ -641,22 +641,22 @@ FR-11.4)** ✅
 
 **UT-13.2 — Duplicate-name restart (FR-13.2)** ✅
 
-* Set a small `SESSION_MAX_DUPLICATE` (e.g. `2`).
+* Set a small `SessionMaxDuplicate` (e.g. `2`).
 * Produce a duplicate session name (e.g. two sessions sharing the same
   `--name` in `mutagen/mutagen-create.bat`, or manually
   `mutagen sync create` a session with a name MutagenMon already manages)
-  for more than `SESSION_MAX_DUPLICATE` consecutive polls.
+  for more than `SessionMaxDuplicate` consecutive polls.
 * The session is restarted and a toast appears (see UT-11.7).
 * `log/restart.log` gets an entry with `Restarting duplicate: <name>`.
 
 **UT-13.3 — Stuck-connecting restart (FR-13.3)** ✅
 
-* Set a small `SESSION_MAX_ERRORS` (e.g. `2`).
+* Set a small `SessionMaxErrors` (e.g. `2`).
 * Force a session's status to stay "Connecting to..."/"Waiting to
-  connect..."/"Unknown" for more than `SESSION_MAX_ERRORS` consecutive
+  connect..."/"Unknown" for more than `SessionMaxErrors` consecutive
   polls (e.g. make the remote endpoint unreachable).
 * The session is restarted; whether a toast appears depends on
-  `NOTIFY_RESTART_CONNECTION` (see UT-11.6).
+  `NotifyRestartConnection` (see UT-11.6).
 * `log/restart.log` gets an entry with `Restarting connection: <name>`.
 
 **UT-13.4 — Restart is terminate-then-recreate, each step independent
@@ -707,16 +707,27 @@ covered elsewhere in this document)*
   process-wide failure restarts or exits the app, per FR-13/FR-6).
 * `log/mutagenMon.log` contains a Critical-level entry with the same
   exception.
+* Windows Event Viewer → Windows Logs → Application also has a matching
+  `Error` entry from source "MutagenMon" — every Critical entry reaches
+  the Windows Event Log, not just ones logged before config is loaded.
 
 **UT-14.2 — A startup failure is logged and shown (FR-14.1)** ✅
 
 * Stop MutagenMon.
 * Rename `config/config_mutagenmon.json` (or edit it so the JSON is
   invalid) so config loading fails.
+* Delete/rename any pre-existing `<BaseDirectory>/log` folder so you can
+  tell whether this run creates one.
 * Start MutagenMon.
 * A window is displayed, titled "MutagenMon — startup error", with the
   content "MutagenMon failed to start:" followed by exception details.
-* `log/mutagenMon.log` contains a matching Critical-level entry.
+* No `<BaseDirectory>/log` folder is (re)created — config's `LogPath`
+  was never read, and there is deliberately no default/fallback path
+  under the app's own directory for this window, nor any fallback file
+  next to the executable (see FR-14.1's rewrite note).
+* Open Windows Event Viewer → Windows Logs → Application. An `Error`
+  entry from source "MutagenMon" is present, with the same exception
+  text — the only durable trace of this failure.
 * Restore the config file afterwards.
 
 **UT-14.3 — Resolution log is a separate file from the main log
@@ -734,11 +745,27 @@ watchdog, FR-6 — see UT-T.11) is a separate, unrelated mechanism and still
 logs to `mutagenMon.log` only — this dedicated log is specifically for
 FR-13's per-session restarts.
 
-**UT-14.5 — Verbosity gate (FR-14.2)** ⏳ NOT IMPLEMENTED *(deliberate
-simplification)*
+**UT-14.5 — Verbosity gate (FR-14.2)** ✅
 
-No test steps — `DEBUG_LEVEL` has no effect in the rewrite by design;
-every log level is always written.
+* Stop MutagenMon.
+* Set `"MinLogLevel": "Warning"` in `config/config_mutagenmon.json`.
+* Start MutagenMon and let it run through a normal startup and a few poll
+  cycles.
+* Open `log/mutagenMon.log` (or wherever `LogPath` points).
+* The file's very first line is already "Configuration loaded: ..." (or
+  later) — **not** "MutagenMon starting..." or "Loading configuration
+  from...": those two lines are logged before config (and therefore
+  `LogPath` itself) is known, so they're never persisted to this file at
+  all (see FR-14.1's rewrite note) — nothing to filter by level, there
+  simply is no file yet at that point.
+* No `[INF]`/`[DBG]`-tagged lines appear anywhere in the file (no routine
+  "tray icon changed", "poll" breadcrumbs, etc.) — only
+  `[WRN]`/`[ERR]`/`[FTL]` lines, if any actually occur.
+* Set `"MinLogLevel": "Trace"` (or remove the key), restart, and confirm
+  `[INF]`/`[DBG]` lines resume appearing throughout (still starting from
+  "Configuration loaded: ...", not from "MutagenMon starting...").
+* Note: `DebugLevel` (the legacy 0-100 dial) has no effect — `MinLogLevel`
+  is the key that actually controls verbosity in the rewrite.
 
 ## FR-15 — Single, always-on background operation
 

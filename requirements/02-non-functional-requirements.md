@@ -57,7 +57,7 @@
   URLs, action taken).
 - A diagnostic log MUST be available for troubleshooting without needing a
   debugger attached. The legacy app gates this behind a verbosity level
-  (`DEBUG_LEVEL`, off by default); the .NET rewrite deliberately drops that
+  (`DebugLevel`, off by default); the .NET rewrite deliberately drops that
   gate — a single log file always captures every level, so a launch
   failure or crash is never undiagnosable just because nobody had
   remembered to raise the verbosity beforehand (see

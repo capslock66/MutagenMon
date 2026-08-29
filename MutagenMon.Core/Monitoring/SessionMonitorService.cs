@@ -122,7 +122,7 @@ public sealed class SessionMonitorService : BackgroundService
             var raw = await _cliClient.GetSyncListRawAsync(cancellationToken);
 
             // log the mutagen sync list output. Uncomment if needed for debugging.
-            // _logger.LogInformation(raw);
+            _logger.LogInformation(raw);
 
             // RawLog,SessionStatuses dic,Conflicts dic
             MutagenSyncListResult parsed = MutagenSyncListParser.Parse(raw, _sessionNames);

@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace MutagenMon.Core.Configuration;
 
@@ -13,6 +14,7 @@ public static class ConfigLoader
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         AllowTrailingCommas = true,
+        Converters = { new JsonStringEnumConverter() },
     };
 
     public static MutagenMonOptions ParseText(string rawTextWithComments)
@@ -22,7 +24,7 @@ public static class ConfigLoader
             ?? throw new InvalidDataException("Config file parsed to a null document.");
 
         // Explicit %USERPROFILE% expansion for
-        // MUTAGEN_PROFILE_DIR; ExpandEnvironmentVariables is a no-op for text with
+        // MutagenProfileDir; ExpandEnvironmentVariables is a no-op for text with
         // no %...% placeholders, so this is safe to always apply.
         options.MutagenProfileDir = Environment.ExpandEnvironmentVariables(options.MutagenProfileDir);
 

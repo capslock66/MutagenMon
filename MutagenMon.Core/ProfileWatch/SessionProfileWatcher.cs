@@ -39,7 +39,7 @@ public sealed class SessionProfileWatcher
     /// <summary>Call once per poll tick. Returns true if any watched session's
     /// archive mtime increased since the last check (0 or negative watch
     /// period disables the check entirely, matching the legacy's
-    /// MUTAGEN_PROFILE_DIR_WATCH_PERIOD == 0 disable switch).</summary>
+    /// MutagenProfileDirWatchPeriod == 0 disable switch).</summary>
     public bool Tick(IReadOnlyDictionary<string, ParsedSessionStatus?> statuses)
     {
         _confirmedUpdates = new List<string>();

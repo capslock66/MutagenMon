@@ -13,10 +13,10 @@ public sealed record AutoResolvedEventArgs(string SessionName, string FileName, 
 /// <summary>
 /// Implements automatic conflict resolution (FR-10). Run once per
 /// poll, before the snapshot is published: every newly-seen conflict is
-/// checked against the ordered <c>AUTORESOLVE</c> rule list (first
+/// checked against the ordered <c>AutoResolve</c> rule list (first
 /// regex match against the file name wins, FR-10.1/FR-10.2); once a
 /// conflict (session + file name) has been through this once, its outcome
-/// is cached for <c>AUTORESOLVE_HISTORY_AGE</c> so it isn't reprocessed —
+/// is cached for <c>AutoResolveHistoryAgeSeconds</c> so it isn't reprocessed —
 /// and re-copied — every poll while mutagen keeps re-reporting it
 /// (FR-10.3).
 /// </summary>
@@ -62,7 +62,7 @@ public sealed class AutoResolveEngine
         return result;
     }
 
-    /// <summary>Evicts history entries older than <c>AUTORESOLVE_HISTORY_AGE</c>.</summary>
+    /// <summary>Evicts history entries older than <c>AutoResolveHistoryAgeSeconds</c>.</summary>
     private void CleanHistory(DateTimeOffset nowUtc)
     {
         if (_history.Count == 0)

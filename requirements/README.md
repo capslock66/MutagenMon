@@ -1,9 +1,6 @@
 # MutagenMon — Requirements
 
-This folder documents the required behavior of MutagenMon. It was
-originally reverse-engineered from a legacy application (since removed
-from this repository) and now serves as the specification against which
-the **.NET WPF** application is built and verified.
+This folder documents the required behavior of MutagenMon.
 
 ## Reading order
 

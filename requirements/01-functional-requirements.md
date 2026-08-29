@@ -10,7 +10,7 @@ IDs are stable identifiers to be referenced from code, tests, and PRs.
 - FR-1.1: The application MUST load a list of synchronization sessions from
   a session-definition source: every line of
   `mutagen/mutagen-create.bat` (path configurable, see
-  `MUTAGEN_SESSIONS_BAT_FILE` in
+  `MutagenSessionsBatFile` in
   [06-configuration-reference.md](06-configuration-reference.md)) that does
   NOT start with `rem `, and from which a session name can be extracted
   with the pattern `--name=(.*?) ` (a **lazy** match up to the next literal
@@ -23,7 +23,7 @@ IDs are stable identifiers to be referenced from code, tests, and PRs.
 - FR-1.2: Session names MUST be unique. If a duplicate name is found, the
   application MUST warn the user with a blocking, OK-only, informational
   modal dialog at startup (title `"MutagenMon"`, body
-  `"<name> session name is duplicate in <MUTAGEN_SESSIONS_BAT_FILE path>"`),
+  `"<name> session name is duplicate in <MutagenSessionsBatFile path>"`),
   one dialog per duplicate encountered, and MUST keep only the
   **last**-seen definition for that name (each new line for the same name
   overwrites the previous one).
@@ -38,7 +38,7 @@ IDs are stable identifiers to be referenced from code, tests, and PRs.
 
 - FR-2.1: A background process/task MUST poll the synchronization engine's
   status for all configured sessions on a fixed interval
-  (`MUTAGEN_POLL_PERIOD`, default 1000 ms), independent of the UI thread.
+  (`MutagenPollPeriodMs`, default 1000 ms), independent of the UI thread.
 - FR-2.2: For each session, the poll result MUST be parsed into at least:
   status text (e.g. "Watching for changes", "Scanning files", "Reconciling
   changes", "Staging files on ...", "Applying changes", "Saving archive",
@@ -112,7 +112,7 @@ The full specification lives in
 
 - FR-6.1: The application MUST track how long ago the background polling
   last produced a result.
-- FR-6.2: If that age exceeds configurable thresholds (`STATUS_MAX_LAG`:
+- FR-6.2: If that age exceeds configurable thresholds (`StatusMaxLag`:
   `Info`, `Warning`, `Error`, `Restart`, default 4/15/50/90 seconds), the
   UI MUST progressively degrade the icon's visual state (Info → subtle,
   Warning → visible, Error → strong) even though the underlying data has
@@ -182,7 +182,7 @@ The full specification lives in
   > `<total>` as the real count of unresolved (non-autoresolved) conflicts
   > across all sessions, unless legacy-parity is explicitly requested.
 - FR-9.2: The user MUST be able to choose one of: **Visual merge** (opens
-  an external diff/merge tool, `MERGE_PATH`, on local copies of both files;
+  an external diff/merge tool, `MergePath`, on local copies of both files;
   if the local "A" copy's file was modified afterwards — mtime changed —
   the merged result is copied to **both** sides, and a confirmation dialog
   is shown: title `"MutagenMon: resolved file conflict"`, body
@@ -240,7 +240,7 @@ The full specification lives in
 ## FR-10 — Automatic conflict resolution
 
 - FR-10.1: The application MUST support a configurable, ordered list of
-  rules (`AUTORESOLVE`, default: empty list — no rule pre-configured), each
+  rules (`AutoResolve`, default: empty list — no rule pre-configured), each
   pairing a regular expression matched against the conflicting file's path
   and a resolution (the literal string `"A wins"` or `"B wins"`). The match
   MUST be an unanchored substring search against the full path (directory +
@@ -255,7 +255,7 @@ The full specification lives in
   conflict" notification (FR-11).
 - FR-10.3: Once a conflict (identified by session + filename) has been
   auto-resolved, it MUST NOT be reprocessed for a configurable grace period
-  (`AUTORESOLVE_HISTORY_AGE`, default 30s), to avoid a loop if the
+  (`AutoResolveHistoryAgeSeconds`, default 30s), to avoid a loop if the
   underlying tool re-reports the same conflict before the sync engine
   catches up.
 - FR-10.4: If notifications for auto-resolve are enabled, each
@@ -271,47 +271,47 @@ three FR-13 restart causes deliberately do NOT share one toggle:
 
 - FR-11.1: **New conflicts** detected since the last check (grouped, one
   notification listing all newly seen `session:file` conflict keys).
-  Toggle: `NOTIFY_CONFLICTS` (default `true`).
+  Toggle: `NotifyConflicts` (default `true`).
 - FR-11.2: **Automatic conflict resolution** performed (FR-10.4).
-  Toggle: `NOTIFY_AUTORESOLVE` (default `true`).
+  Toggle: `NotifyAutoresolve` (default `true`).
 - FR-11.3: **Session restarted because it was stuck in "connecting"**
-  (FR-13.3 threshold hit). Toggle: `NOTIFY_RESTART_CONNECTION` (default
+  (FR-13.3 threshold hit). Toggle: `NotifyRestartConnection` (default
   `false`, i.e. this notification is **off by default**).
 - FR-11.3b: **Session restarted because it was detected as a duplicate**
   (FR-13.2 threshold hit). This notification is **always raised, with no
   configuration toggle** — it MUST NOT be gated by
-  `NOTIFY_RESTART_CONNECTION` or any other flag.
+  `NotifyRestartConnection` or any other flag.
 - FR-11.3c: **Session restarted because no session was found**
   (FR-13.1 threshold hit) does **NOT** raise a notification at all, by
   design — this restart cause is silent.
 - FR-11.4: **Mutagen session profile/archive updated** on disk (i.e. a
   session's underlying sync archive changed), per session name.
-  Toggle: `NOTIFY_MUTAGEN_PROFILE_UPDATE` (default `false`).
+  Toggle: `NotifyMutagenProfileUpdate` (default `false`).
 
 See [06-configuration-reference.md](06-configuration-reference.md) for the
 full default-value table.
 
 ## FR-12 — Session profile change detection
 
-- FR-12.1: On a configurable interval (`MUTAGEN_PROFILE_DIR_WATCH_PERIOD`,
+- FR-12.1: On a configurable interval (`MutagenProfileDirWatchPeriod`,
   default `1` second, `0` disables the watch entirely), for every enabled
   session, the application MUST watch the modification time of the sync
   engine's on-disk archive file for that session
-  (`<MUTAGEN_PROFILE_DIR>/archives/<session-id>`, default
+  (`<MutagenProfileDir>/archives/<session-id>`, default
   `%USERPROFILE%\.mutagen\archives\<session-id>` — the sync engine's own
   data directory, not part of this application's config/log paths). If the
   archive file cannot be found (e.g. session not yet created), the watch
   MUST be silently reset (no error) so the first future appearance of the
   file is not immediately reported as an "update".
 - FR-12.2: A change MUST be debounced by a grace period
-  (`MUTAGEN_PROFILE_GRACE`, default `4` seconds) before being reported as a
+  (`MutagenProfileGraceSeconds`, default `4` seconds) before being reported as a
   real update: a new modification is only confirmed once at least the
   grace period has elapsed since the *previously confirmed* modification —
   to avoid reacting to rapid successive writes.
 - FR-12.3: A confirmed update MUST be exposed to both the tray icon logic
   (as an "updated" visual variant, see tray icon spec) and the notification
   system (FR-11.4), which is itself independently toggled
-  (`NOTIFY_MUTAGEN_PROFILE_UPDATE`, default `false`) — a confirmed update
+  (`NotifyMutagenProfileUpdate`, default `false`) — a confirmed update
   can drive the icon without ever producing a notification.
 
 ## FR-13 — Automatic session recovery
@@ -332,18 +332,18 @@ the default 1000 ms poll period (the `+2` polls are negligible at that
 scale and are folded into the "≈" approximations there).
 
 - FR-13.1: If a session shows no result at all for more than
-  `SESSION_MAX_NOSESSION` consecutive polls (default `200`, ≈3 min 20 s),
+  `SessionMaxNoSession` consecutive polls (default `200`, ≈3 min 20 s),
   it MUST be restarted (terminate + recreate, FR-13.5). No notification is
   raised for this cause (FR-11.3c).
 - FR-13.2: If a session is detected as a duplicate name for more than
-  `SESSION_MAX_DUPLICATE` consecutive polls (default `10000`, ≈2 h 47 min),
+  `SessionMaxDuplicate` consecutive polls (default `10000`, ≈2 h 47 min),
   it MUST be restarted. A notification is **always** raised for this cause,
   unconditionally (FR-11.3b).
 - FR-13.3: If a session stays in a "connecting" state (status starting with
   "Connecting to", "Waiting to connect", or "Unknown" — see FR-3) for more
-  than `SESSION_MAX_ERRORS` consecutive polls (default `30000`, ≈8 h 20
+  than `SessionMaxErrors` consecutive polls (default `30000`, ≈8 h 20
   min), it MUST be restarted. A notification is raised only if
-  `NOTIFY_RESTART_CONNECTION` is enabled (default `false`) — see FR-11.3.
+  `NotifyRestartConnection` is enabled (default `false`) — see FR-11.3.
 - FR-13.4: Every automatic restart, of any of the three causes above, MUST
   be appended to a restart log together with the raw status snapshot that
   triggered it and which of the three causes fired.
@@ -378,26 +378,26 @@ scale and are folded into the "≈" approximations there).
 > actually writes and where.
 
 - FR-14.1: Unhandled exceptions MUST be logged with full traceback to an
-  error log file (`<LOG_PATH>/error.log`), and, unless
-  `DEBUG_EXCEPTIONS_TO_CONSOLE` is `true` (default `false`), MUST be shown
+  error log file (`<LogPath>/error.log`), and, unless
+  `DebugExceptionsToConsole` is `true` (default `false`), MUST be shown
   to the user in a blocking, OK-only error dialog with title
   `"MutagenMon error"` and the traceback as body text. This applies
   uniformly to: external-process failures (`mutagen`/merge tool
   non-zero exit or launch failure), the tray icon failing to (re)install
   (FR-6.4), and any other unhandled exception reaching the top of the main
   loop.
-- FR-14.2: A configurable verbosity level (`DEBUG_LEVEL`, default `0`) MUST
-  gate a separate debug log (`<LOG_PATH>/debug.log`) capturing internal
+- FR-14.2: A configurable verbosity level (`DebugLevel`, default `0`) MUST
+  gate a separate debug log (`<LogPath>/debug.log`) capturing internal
   state transitions (0 = disabled, up to 100 = maximum verbosity) — each
   logged line carries its own verbosity level, and only lines at or below
-  the configured `DEBUG_LEVEL` are written.
+  the configured `DebugLevel` are written.
 - FR-14.3: Restarts (FR-13) and conflict resolutions (FR-9/FR-10) MUST be
   logged to their own dedicated log files, independent of the debug log.
 
 ### Rewrite implementation note (deliberate simplification)
 
 FR-14.1–14.3 above describe the legacy behavior (4 separate files:
-`error.log`, `debug.log` gated by `DEBUG_LEVEL`, `restart.log`,
+`error.log`, `debug.log` gated by `DebugLevel`, `restart.log`,
 `resolve.log`). The .NET rewrite deliberately simplifies this rather than
 reproducing it verbatim:
 
@@ -405,30 +405,53 @@ reproducing it verbatim:
   dedicated `error.log` — there is no such file in the .NET app.
   Exceptions are logged, at `Information` level or above, to the same
   single unified log file as everything else (FR-14.2's rewrite note
-  below): `<LOG_PATH>/mutagenMon.log` by default, written through a
-  hand-rolled `ILoggerProvider` (`FileLoggerProvider`, see
-  [App.xaml.cs](../dotNet/src/MutagenMon.App/App.xaml.cs)). A second,
-  genuinely separate file, `mutagenMon.fatal.log` (next to the executable,
-  not under `LOG_PATH`), exists purely as a fallback for failures that
-  happen before `mutagenMon.log`'s own path can be resolved from config,
-  or if writing to it fails — it stays empty in normal operation and is
-  not where you should look for ordinary exceptions. Every unhandled
-  exception (startup, UI thread, background threads, unobserved task
-  exceptions, including ones raised inside a nested dispatcher frame such
-  as an open context menu — a known WPF gotcha the rewrite specifically
-  guards against) is logged with full exception detail and always shown
-  to the user via a blocking `MessageBox`. The legacy's "log to console
-  instead" flag (`DEBUG_EXCEPTIONS_TO_CONSOLE` in config) is preserved as
-  a config key for compatibility but has no effect yet in the rewrite.
-- **FR-14.2 (deliberately not reproduced)**: the rewrite uses a single
-  always-on log sink capturing every level (Debug and above), all the
-  time — no verbosity gate, no separate debug file. `DEBUG_LEVEL` remains
-  in `config_mutagenmon.json` for compatibility but currently has no
-  effect. Rationale: the legacy's default-off debug log was the direct
-  cause of a real diagnosability incident during Phase 1 manual
-  verification (a startup exception produced literally no log output,
-  because logging hadn't even been configured yet at the point it was
-  thrown) — always-on beats "remember to flip a flag after the fact."
+  below): `<LogPath>/mutagenMon.log`, written through a hand-rolled
+  `ILoggerProvider` (`FileLoggerProvider`, see
+  [App.xaml.cs](../dotNet/src/MutagenMon.App/App.xaml.cs)). Deliberately no
+  default/fallback path under the app's own directory: until
+  `config_mutagenmon.json` is loaded and its `LogPath` known, nothing at
+  all is written to this primary sink — no stray `<BaseDirectory>/log`
+  folder is ever created for a path the user never configured. There is
+  also deliberately no fallback file next to the executable either (the
+  app never writes a log file anywhere but the configured `LogPath`).
+  Instead, every Critical entry — which covers that whole pre-config
+  window, including config loading itself failing — goes to the Windows
+  Application Event Log (source `"MutagenMon"`, `Error` level): a durable,
+  always-present sink that doesn't depend on any path this app resolves,
+  so it survives even a startup failure caused by an unwritable app
+  directory. Every unhandled exception (startup, UI thread, background
+  threads, unobserved task exceptions, including ones raised inside a
+  nested dispatcher frame such as an open context menu — a known WPF
+  gotcha the rewrite specifically guards against) is logged with full
+  exception detail and always shown to the user via a blocking
+  `MessageBox`. The legacy's "log to console instead" flag
+  (`DebugExceptionsToConsole` in config) is preserved as a config key for
+  compatibility but has no effect yet in the rewrite.
+- **FR-14.2 (reproduced with a different config key, `MinLogLevel`
+  instead of `DebugLevel`)**: the rewrite uses a single log sink for
+  every level, gated by a minimum `LogLevel` (`Trace`, `Debug`,
+  `Information`, `Warning`, `Error`, `Critical`, or `None`) — no separate
+  debug file, everything still goes to `<LogPath>/mutagenMon.log`, just
+  filtered by level. Default is `Trace` (log everything, matching the
+  rewrite's original always-on behavior). `DebugLevel` (the legacy 0-100
+  dial) remains in `config_mutagenmon.json` for compatibility but has no
+  effect — `MinLogLevel` is what actually controls verbosity now.
+  Crucially, `MinLogLevel` is irrelevant before
+  `config_mutagenmon.json` has actually been loaded, since (per FR-14.1's
+  rewrite note above) the primary sink doesn't exist yet at that point
+  regardless of level — ordinary lines logged during that window aren't
+  persisted to any file at all; only Critical-level ones reach the Windows
+  Event Log (see FR-14.1's rewrite note). So a startup failure is never
+  silently dropped for having configured too high a level — it just isn't
+  dropped by going to a *file* at all in that window; see FR-14.1.
+  Rationale for treating this pre-config window specially in the first
+  place: the legacy's default-off debug log was the direct cause of a
+  real diagnosability incident during Phase 1 manual verification (a
+  startup exception produced literally no log output, because logging
+  hadn't even been configured yet at the point it was thrown) — the fix
+  here is a durable, path-independent sink for that window (the Windows
+  Event Log), not "log everything to a guessed file path," which is what
+  created the unwanted `<BaseDirectory>/log` folder this note now avoids.
 - **FR-14.3 (partially implemented, Phase 3)**: the conflict-resolution
   half is done — every manual resolution (FR-9) appends to a dedicated
   `resolve.log`, independent of the main log

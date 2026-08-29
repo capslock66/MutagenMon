@@ -36,7 +36,7 @@ public interface IConflictFileClient
     Task PushLocalFileAsync(
         string localPath, SessionEndpoint destination, string relativePath, CancellationToken cancellationToken);
 
-    /// <summary>Launches the configured MERGE_PATH tool
+    /// <summary>Launches the configured MergePath tool
     /// with both local paths and waits for it to exit.</summary>
     Task RunMergeToolAsync(string localPath1, string localPath2, CancellationToken cancellationToken);
 }

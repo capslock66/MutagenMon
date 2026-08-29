@@ -27,15 +27,14 @@ namespace MutagenMon.App;
 ///
 /// Logging goes through <see cref="FileLoggerProvider"/> — a small
 /// hand-rolled <c>ILoggerProvider</c>, no third-party logging library —
-/// capturing every level (Debug and above) in one primary file, configured
-/// in two stages: constructed with a default path so failures are visible
-/// even before config is read, then re-pointed via
-/// <see cref="FileLoggerProvider.SetPrimaryLogPath"/> once
-/// <see cref="MutagenMonOptions"/> is loaded to honor the configured
-/// LOG_PATH. Every startup step logs at Information so a failed launch
-/// (e.g. missing config/session file, tray icon creation failure) is always
-/// traceable in that file instead of failing silently — see global
-/// exception handlers below.
+/// capturing one primary file, whose path is only known once
+/// <see cref="MutagenMonOptions"/> is loaded (<see cref="FileLoggerProvider.SetPrimaryLogPath"/>);
+/// deliberately no default path under the app's own directory before that,
+/// and no fallback file next to the executable either — see
+/// <see cref="FileLoggerProvider"/>'s remarks. Every Critical entry (which
+/// includes a startup failure, even config loading itself failing, before
+/// LogPath is even known) instead reaches the Windows Application Event
+/// Log, a durable sink that doesn't depend on any path this app resolves.
 /// </summary>
 public partial class App : Application
 {
@@ -56,8 +55,7 @@ public partial class App : Application
         base.OnStartup(e);
 
         var baseDir = AppContext.BaseDirectory;
-        var fatalLogPath = Path.Combine(baseDir, "mutagenMon.fatal.log");
-        _loggerProvider = new FileLoggerProvider(ResolveLogFilePath(baseDir, "log"), fatalLogPath);
+        _loggerProvider = new FileLoggerProvider();
         _logger = new LoggerFactory(new[] { _loggerProvider }).CreateLogger<App>();
 
         // UnhandledExceptionFilter fires before WPF decides whether an
@@ -77,7 +75,29 @@ public partial class App : Application
 
         try
         {
-            // Show the tray icon before the rest of startup (config/session
+            // Load config first, still ahead of everything else — so
+            // LogPath/MinLogLevel (both config-driven) are in effect for as
+            // much of startup as possible. It can't be moved any earlier
+            // than the top of this try: a config-load failure here still
+            // needs to land in the catch block below for the dedicated
+            // "MutagenMon failed to start" dialog/shutdown (FR-14.1,
+            // UT-14.2) — moving it before the try, ahead of the "MutagenMon
+            // starting" line above, would route a config failure through
+            // the generic OnDispatcherUnhandledException path instead,
+            // which (deliberately, see that handler) does NOT shut down —
+            // leaving a half-initialized app with no tray icon and no way
+            // for the user to interact with it, worse than today's clean
+            // exit.
+            var configPath = Path.Combine(baseDir, "config", "config_mutagenmon.json");
+            _logger.LogInformation("Loading configuration from {ConfigPath}", configPath);
+            var options = ConfigLoader.Load(configPath);
+            _loggerProvider.SetPrimaryLogPath(ResolveLogFilePath(baseDir, options.LogPath));
+            _loggerProvider.SetMinLevel(options.MinLogLevel);
+            _logger.LogInformation(
+                "Configuration loaded: PollPeriod={PollPeriodMs}ms, StartEnabled={StartEnabled}, LogPath={LogPath}",
+                options.MutagenPollPeriodMs, options.StartEnabled, options.LogPath);
+
+            // Show the tray icon before the rest of startup (session
             // loading, DI container build, host start below all take real
             // time). With no main window, nothing else makes the app visible
             // in the meantime, so the user would otherwise stare at what
@@ -97,14 +117,6 @@ public partial class App : Application
             trayIcon.ForceCreate();
             trayIcon.Icon = iconCache.Get("lightgray-init");
             _logger.LogInformation("Tray icon shown early (lightgray-init, waiting for status)");
-
-            var configPath = Path.Combine(baseDir, "config", "config_mutagenmon.json");
-            _logger.LogInformation("Loading configuration from {ConfigPath}", configPath);
-            var options = ConfigLoader.Load(configPath);
-            _loggerProvider.SetPrimaryLogPath(ResolveLogFilePath(baseDir, options.LogPath));
-            _logger.LogInformation(
-                "Configuration loaded: PollPeriod={PollPeriodMs}ms, StartEnabled={StartEnabled}, LogPath={LogPath}",
-                options.MutagenPollPeriodMs, options.StartEnabled, options.LogPath);
 
             var sessionsPath = Path.Combine(baseDir, options.MutagenSessionsBatFile.Replace('/', Path.DirectorySeparatorChar));
             _logger.LogInformation("Loading session definitions from {SessionsPath}", sessionsPath);
@@ -154,6 +166,9 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
+            // Critical-level entries always reach the Windows Event Log
+            // (see FileLoggerProvider.Write) — no separate call needed here,
+            // even though config (and therefore LogPath) never loaded.
             _logger.LogCritical(ex, "MutagenMon failed to start");
             MessageBox.Show(
                 $"MutagenMon failed to start:\n\n{ex}",
@@ -311,7 +326,7 @@ public partial class App : Application
         Path.Combine(ResolveLogDirectory(baseDir, logPath), "mutagenMon.log");
 
     /// <summary>Shared by the primary log (mutagenMon.log) and the dedicated
-    /// resolve log (resolve.log, FR-9.7/FR-14.3) — same LOG_PATH resolution
+    /// resolve log (resolve.log, FR-9.7/FR-14.3) — same LogPath resolution
     /// rule (relative to baseDir unless rooted/absolute).</summary>
     private static string ResolveLogDirectory(string baseDir, string logPath)
     {
