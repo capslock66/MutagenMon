@@ -174,7 +174,8 @@ public sealed class SessionMonitorService : BackgroundService
                 nowUtc,
                 parsed.RawLog,
                 parsed.SessionStatuses,
-                conflicts));
+                conflicts,
+                _profileWatcher.LastSeenMtimeUtc));
 
             if (_enabled)
                 await RestartUnhealthySessionsAsync(parsed.SessionStatuses, parsed.RawLog, nowUtc, cancellationToken);

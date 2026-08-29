@@ -26,6 +26,20 @@ public class SessionProfileWatcherTests
     }
 
     [Fact]
+    public void LastSeenMtimeUtcExposesTheObservedArchiveTimestampPerSession()
+    {
+        var fake = new FakeTimestampProvider();
+        var path = Path.Combine("/profile", "archives", "abc");
+        fake.Timestamps[path] = DateTimeOffset.UnixEpoch;
+        var watcher = new SessionProfileWatcher(fake, "/profile", watchPeriodTicks: 1);
+        var statuses = new Dictionary<string, ParsedSessionStatus?> { ["s"] = StatusWithId("abc") };
+
+        watcher.Tick(statuses);
+
+        Assert.Equal(DateTimeOffset.UnixEpoch, watcher.LastSeenMtimeUtc["s"]);
+    }
+
+    [Fact]
     public void FirstObservationNeverReportsAnUpdateItJustEstablishesTheBaseline()
     {
         var fake = new FakeTimestampProvider();

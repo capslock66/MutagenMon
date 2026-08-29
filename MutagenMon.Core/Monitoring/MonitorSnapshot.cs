@@ -12,7 +12,8 @@ public sealed record MonitorSnapshot(
     DateTimeOffset LastSuccessfulPollUtc,
     string RawLog,
     IReadOnlyDictionary<string, ParsedSessionStatus?> SessionStatuses,
-    IReadOnlyDictionary<string, IReadOnlyList<ConflictRecord>> Conflicts)
+    IReadOnlyDictionary<string, IReadOnlyList<ConflictRecord>> Conflicts,
+    IReadOnlyDictionary<string, DateTimeOffset?> LastChangedUtc)
 {
     public static MonitorSnapshot Initial(DateTimeOffset nowUtc, bool enabled) => new(
         SessionStatusCode.Unknown,
@@ -21,5 +22,6 @@ public sealed record MonitorSnapshot(
         nowUtc,
         "",
         new Dictionary<string, ParsedSessionStatus?>(),
-        new Dictionary<string, IReadOnlyList<ConflictRecord>>());
+        new Dictionary<string, IReadOnlyList<ConflictRecord>>(),
+        new Dictionary<string, DateTimeOffset?>());
 }

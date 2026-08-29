@@ -310,8 +310,12 @@ Covered above by UT-7.1.
 * While the window stays open (FR-8.4), if the tray icon changes (e.g. a
   session goes into error), the icon shown on this line updates within
   about a second, in sync with the tray icon.
-* The window's content shows one "Name: / Status: / Alpha: / Beta:" block
-  per configured session.
+* The window's content shows a grid with one row per configured session,
+  columns Name / Status / Alpha / Beta / Last changed. Session identifiers
+  are never shown. "Last changed" reads "—" for a session that hasn't
+  synced anything since the app started, or a timestamp otherwise.
+* The window can be resized (drag an edge/corner) and the grid grows/
+  shrinks with it.
 * Only an "OK" button is displayed — no "Cancel", no "Resolve conflicts".
 * Click "OK".
 * The window closes.
@@ -340,6 +344,11 @@ Covered above by UT-7.1.
 * Within about a second, the already-open window updates on its own: the
   "CONFLICTS" section (and Cancel/"Resolve conflicts" buttons) appear
   without the window being closed and reopened.
+* Likewise, editing/syncing a file in a healthy session updates that
+  session's "Last changed" column within a poll or two, without closing
+  the window. Rows for sessions whose data hasn't changed don't visibly
+  flicker/redraw (FR-8.4's no-op-when-unchanged behavior applies per row,
+  not just to the window as a whole).
 
 ## FR-9 — Manual conflict resolution
 

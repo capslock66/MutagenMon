@@ -157,12 +157,15 @@ The full specification lives in
 ## FR-8 — Detailed status view
 
 - FR-8.1: On demand (left-click or menu), the application MUST show a
-  window/dialog with the full status of every configured session: raw
-  status text per session, with identifiers and endpoint URLs stripped for
-  readability, and, if any un-auto-resolved conflicts exist, a list of
-  `<session>: <file>` entries (annotated `[autoresolving]` for conflicts
-  that will be resolved automatically) under a clearly separated
-  "CONFLICTS" section.
+  resizable window with the full status of every configured session, one
+  row per session in a grid: Name, Status (raw status text, session
+  identifiers never shown), Alpha URL, Beta URL, and Last changed (the
+  session's mutagen archive-file mtime tracked by FR-12 — the only signal
+  that reliably reflects a completed sync regardless of how briefly it
+  was in flight, "—" if never observed). If any un-auto-resolved conflicts
+  exist, a list of `<session>: <file>` entries (annotated `[autoresolving]`
+  for conflicts that will be resolved automatically) is also shown under a
+  clearly separated "CONFLICTS" section, below the grid.
 - FR-8.2: If there are unresolved conflicts, the view MUST offer an action
   to start the conflict-resolution workflow (FR-9) in addition to
   dismissing the view.

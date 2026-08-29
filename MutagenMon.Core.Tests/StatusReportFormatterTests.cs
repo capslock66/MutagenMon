@@ -12,30 +12,51 @@ public class StatusReportFormatterTests
     private static ParsedSessionStatus Watching(string name) =>
         new(name, "hidden-id", "Watching for changes", false, false, false, AlphaEndpoint, BetaEndpoint);
 
+    private static readonly IReadOnlyDictionary<string, DateTimeOffset?> NoLastChanged = new Dictionary<string, DateTimeOffset?>();
+
     [Fact]
-    public void SessionsSectionListsEachSessionAndOmitsTheIdentifier()
+    public void SessionRowsListEachSessionAndOmitTheIdentifier()
     {
         var statuses = new Dictionary<string, ParsedSessionStatus?> { ["photos-sync"] = Watching("photos-sync") };
 
-        var text = StatusReportFormatter.BuildSessionsSection(new[] { "photos-sync" }, statuses);
+        var rows = StatusReportFormatter.BuildSessionRows(new[] { "photos-sync" }, statuses, NoLastChanged);
 
-        Assert.Equal(
-            "Name: photos-sync\n" +
-            "Status: Watching for changes\n" +
-            "Alpha: C:/local/photos\n" +
-            "Beta: myserver:/home/me/photos",
-            text);
-        Assert.DoesNotContain("hidden-id", text);
+        var row = Assert.Single(rows);
+        Assert.Equal("photos-sync", row.Name);
+        Assert.Equal("Watching for changes", row.Status);
+        Assert.Equal("C:/local/photos", row.AlphaUrl);
+        Assert.Equal("myserver:/home/me/photos", row.BetaUrl);
     }
 
     [Fact]
-    public void SessionsSectionShowsNotRunningForAMissingSession()
+    public void SessionRowsShowNotRunningForAMissingSession()
     {
         var statuses = new Dictionary<string, ParsedSessionStatus?> { ["docs-sync"] = null };
 
-        var text = StatusReportFormatter.BuildSessionsSection(new[] { "docs-sync" }, statuses);
+        var rows = StatusReportFormatter.BuildSessionRows(new[] { "docs-sync" }, statuses, NoLastChanged);
 
-        Assert.Contains("Status: (not running)", text);
+        Assert.Equal("(not running)", Assert.Single(rows).Status);
+    }
+
+    [Fact]
+    public void SessionRowsIncludeLastChangedWhenAvailable()
+    {
+        var statuses = new Dictionary<string, ParsedSessionStatus?> { ["photos-sync"] = Watching("photos-sync") };
+        var lastChanged = new Dictionary<string, DateTimeOffset?> { ["photos-sync"] = new DateTimeOffset(2026, 8, 29, 17, 25, 0, TimeSpan.Zero) };
+
+        var rows = StatusReportFormatter.BuildSessionRows(new[] { "photos-sync" }, statuses, lastChanged);
+
+        Assert.Equal(lastChanged["photos-sync"], Assert.Single(rows).LastChangedUtc);
+    }
+
+    [Fact]
+    public void SessionRowsLastChangedDisplayIsAPlaceholderWhenNull()
+    {
+        var statuses = new Dictionary<string, ParsedSessionStatus?> { ["photos-sync"] = Watching("photos-sync") };
+
+        var rows = StatusReportFormatter.BuildSessionRows(new[] { "photos-sync" }, statuses, NoLastChanged);
+
+        Assert.Equal("—", Assert.Single(rows).LastChangedDisplay);
     }
 
     [Fact]

@@ -11,25 +11,27 @@ namespace MutagenMon.Core.Status;
 /// </summary>
 public static class StatusReportFormatter
 {
-    /// <summary>One "Name:/Status:/Alpha:/Beta:" block per session, blank-line
-    /// separated, in <paramref name="sessionNames"/> order.</summary>
-    public static string BuildSessionsSection(
-        IReadOnlyCollection<string> sessionNames, IReadOnlyDictionary<string, ParsedSessionStatus?> statuses)
+    /// <summary>One row per session (FR-8.1), in <paramref name="sessionNames"/>
+    /// order, for the status view's grid.</summary>
+    public static IReadOnlyList<SessionSummaryRow> BuildSessionRows(
+        IReadOnlyCollection<string> sessionNames,
+        IReadOnlyDictionary<string, ParsedSessionStatus?> statuses,
+        IReadOnlyDictionary<string, DateTimeOffset?> lastChangedUtc)
     {
-        var sb = new StringBuilder();
+        var rows = new List<SessionSummaryRow>();
         foreach (var name in sessionNames)
         {
-            if (sb.Length > 0)
-                sb.Append('\n').Append('\n');
-
             statuses.TryGetValue(name, out var status);
-            sb.Append("Name: ").Append(name).Append('\n');
-            sb.Append("Status: ").Append(status is null || string.IsNullOrEmpty(status.Status) ? "(not running)" : status.Status).Append('\n');
-            sb.Append("Alpha: ").Append(status?.Alpha?.Url ?? "(unknown)").Append('\n');
-            sb.Append("Beta: ").Append(status?.Beta?.Url ?? "(unknown)");
+            lastChangedUtc.TryGetValue(name, out var lastChanged);
+            rows.Add(new SessionSummaryRow(
+                name,
+                status is null || string.IsNullOrEmpty(status.Status) ? "(not running)" : status.Status,
+                status?.Alpha?.Url ?? "(unknown)",
+                status?.Beta?.Url ?? "(unknown)",
+                lastChanged));
         }
 
-        return sb.ToString();
+        return rows;
     }
 
     /// <summary>The "==== CONFLICTS ====" section, listing every conflict
