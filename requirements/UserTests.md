@@ -289,10 +289,14 @@ Covered above by UT-7.1.
 
 * With every session healthy and no conflicts, left-click the tray icon.
 * A window is displayed. Its title bar reads plain "MutagenMon" (not the
-  full tray tooltip); the first line of its content shows the tray
-  tooltip's status part only, with the redundant "MutagenMon: " prefix
-  stripped (e.g. "mutagen is watching for changes"), in bold, same font
-  size as the rest of the content.
+  full tray tooltip); the first line of its content shows the current
+  tray icon (same image as the system tray) to the left of the text, and
+  the tray tooltip's status part only, with the redundant "MutagenMon: "
+  prefix stripped (e.g. "mutagen is watching for changes"), in bold, same
+  font size as the rest of the content.
+* While the window stays open (FR-8.4), if the tray icon changes (e.g. a
+  session goes into error), the icon shown on this line updates within
+  about a second, in sync with the tray icon.
 * The window's content shows one "Name: / Status: / Alpha: / Beta:" block
   per configured session.
 * Only an "OK" button is displayed — no "Cancel", no "Resolve conflicts".

@@ -14,6 +14,7 @@ using MutagenMon.Core.Notifications;
 using MutagenMon.Core.ProfileWatch;
 using MutagenMon.Core.Resolution;
 using MutagenMon.Core.Sessions;
+using MutagenMon.Core.Status;
 
 namespace MutagenMon.App;
 
@@ -177,11 +178,8 @@ public partial class App : Application
             _statusWindow = new StatusWindow();
             _statusWindow.ResolveConflictsRequested += OnResolveConflictsRequested;
         }
-        if (_stateStore is not null)
-        {
-            var title = ((TaskbarIcon)Resources["TrayIcon"]).ToolTipText ?? "MutagenMon";
-            _statusWindow.UpdateContent(title, _stateStore.Get(), _sessionNames);
-        }
+        if (_stateStore is not null && _trayIconController?.CurrentState is { } state)
+            _statusWindow.UpdateContent(state.Tooltip, _iconCache?.GetImageSource(state.IconKey), _stateStore.Get(), _sessionNames);
         _statusWindow.Show();
         _statusWindow.Activate();
     }
@@ -191,10 +189,10 @@ public partial class App : Application
     /// with the latest snapshot. Re-assigning identical WPF property values
     /// (Text/Visibility) is a no-op internally, so this doesn't flicker or
     /// disturb the view when nothing actually changed.</summary>
-    private void OnPolled(MonitorSnapshot snapshot, string tooltip)
+    private void OnPolled(MonitorSnapshot snapshot, TrayIconState state)
     {
         if (_statusWindow is { IsVisible: true })
-            _statusWindow.UpdateContent(tooltip, snapshot, _sessionNames);
+            _statusWindow.UpdateContent(state.Tooltip, _iconCache?.GetImageSource(state.IconKey), snapshot, _sessionNames);
     }
 
     /// <summary>Handles the status view's "Resolve conflicts" action (FR-8.2 ->

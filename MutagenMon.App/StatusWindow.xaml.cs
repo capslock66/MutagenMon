@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Media;
 using MutagenMon.Core.Monitoring;
 using MutagenMon.Core.Status;
 
@@ -25,10 +26,11 @@ public partial class StatusWindow : Window
         InitializeComponent();
     }
 
-    public void UpdateContent(string title, MonitorSnapshot snapshot, IReadOnlyList<string> sessionNames)
+    public void UpdateContent(string title, ImageSource? icon, MonitorSnapshot snapshot, IReadOnlyList<string> sessionNames)
     {
         Title = "MutagenMon";
         TitleText.Text = StripAppNamePrefix(title);
+        StatusIcon.Source = icon;
 
         var body = StatusReportFormatter.BuildSessionsSection(sessionNames, snapshot.SessionStatuses);
         var conflictsSection = StatusReportFormatter.BuildConflictsSection(sessionNames, snapshot.Conflicts);
