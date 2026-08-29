@@ -122,7 +122,7 @@ public sealed class SessionMonitorService : BackgroundService
             var raw = await _cliClient.GetSyncListRawAsync(cancellationToken);
 
             // log the mutagen sync list output. Uncomment if needed for debugging.
-            _logger.LogInformation(raw);
+            //_logger.LogInformation(raw);
 
             // RawLog,SessionStatuses dic,Conflicts dic
             MutagenSyncListResult parsed = MutagenSyncListParser.Parse(raw, _sessionNames);
@@ -138,8 +138,11 @@ public sealed class SessionMonitorService : BackgroundService
             {
                 parsed.SessionStatuses.TryGetValue(name, out var status);
 
-                // log the mutagen session status output. Uncomment if needed for debugging. 
-                // _logger.LogInformation($"Session '{name}' status: {status}");
+                if (status?.Staging is { } staging)
+                    _logger.LogInformation(
+                        "Session '{Name}' staging: {FilesCompleted}/{FilesTotal} files, {BytesTransferred} ({PercentComplete}%){CurrentFile}",
+                        name, staging.FilesCompleted, staging.FilesTotal, staging.BytesTransferred, staging.PercentComplete,
+                        staging.CurrentFileName is null ? "" : $" — current file: {staging.CurrentFileName} ({staging.CurrentFileBytesTransferred}/{staging.CurrentFileTotalBytes})");
 
                 var code = _tracker.Update(name, status);
                 if (code < worst)

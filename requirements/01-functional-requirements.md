@@ -45,6 +45,18 @@ IDs are stable identifiers to be referenced from code, tests, and PRs.
   "Connecting to ...", "Waiting to connect", "Unknown"), a numeric session
   code (see FR-3), duplicate-name flag, problems flag, conflicts flag,
   session identifier, and per-endpoint URL/transport (local vs. SSH).
+  - While actively staging, mutagen prints two further, optional lines
+    under the `Status: Staging files on <side>` line: `Staging progress:
+    <filesCompleted>/<filesTotal> - <bytesTransferred> - <percent>%` and
+    `Current file: <name> (<bytesTransferred>/<totalBytes>)`. These MUST
+    also be parsed (`StagingProgress` in `MutagenMon.Core.Mutagen.Models`)
+    when present — but a session's status starting with "Staging files
+    on" does NOT guarantee they're present: mutagen omits them for the
+    poll immediately before staging completes, reporting the bare
+    `Status:` line alone that one time. Parsed staging progress is
+    currently logged only (`SessionMonitorService`, one Information line
+    per poll while staging is in flight) — not yet surfaced in the tray
+    tooltip or status view (FR-8).
 - FR-2.3: The full raw status text and the timestamp of the last successful
   poll MUST be retained for display and for staleness detection (FR-6).
 

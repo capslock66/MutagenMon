@@ -185,4 +185,64 @@ public class MutagenSyncListParserTests
         var result = MutagenSyncListParser.FindMatchingOpenParen(s, closeIndex);
         Assert.Equal(expectedOpenIndex, result);
     }
+
+    // Exact real-world sample captured mid-transfer (2026-08-29), not a
+    // guess at mutagen's format.
+    private const string StagingRaw = """
+        Name: robbie-mutagenmon
+        Identifier: sync_AAAA
+        Status: Staging files on beta
+        Staging progress: 0/1 - 34 MB - 0%
+        Current file: Tracetool.zip (34 MB/260 MB)
+        Alpha:
+        	URL: C:\sources\mutagenMon
+        Beta:
+        	URL: robbie:sources/mutagenMon
+        -----------------------------------------------------------------------------
+        """;
+
+    [Fact]
+    public void ParsesStagingProgressAndCurrentFile()
+    {
+        var result = MutagenSyncListParser.Parse(StagingRaw, new[] { "robbie-mutagenmon" });
+        var staging = result.SessionStatuses["robbie-mutagenmon"]!.Staging;
+
+        Assert.NotNull(staging);
+        Assert.Equal(0, staging!.FilesCompleted);
+        Assert.Equal(1, staging.FilesTotal);
+        Assert.Equal("34 MB", staging.BytesTransferred);
+        Assert.Equal(0, staging.PercentComplete);
+        Assert.Equal("Tracetool.zip", staging.CurrentFileName);
+        Assert.Equal("34 MB", staging.CurrentFileBytesTransferred);
+        Assert.Equal("260 MB", staging.CurrentFileTotalBytes);
+    }
+
+    [Fact]
+    public void StagingIsNullWhenNoProgressLinesArePresent()
+    {
+        // Observed right before staging completes: mutagen still reports
+        // "Staging files on beta" but omits the progress/current-file lines
+        // entirely for that one poll.
+        const string raw = """
+            Name: robbie-mutagenmon
+            Identifier: sync_AAAA
+            Status: Staging files on beta
+            Alpha:
+            	URL: C:\sources\mutagenMon
+            Beta:
+            	URL: robbie:sources/mutagenMon
+            """;
+
+        var result = MutagenSyncListParser.Parse(raw, new[] { "robbie-mutagenmon" });
+
+        Assert.Null(result.SessionStatuses["robbie-mutagenmon"]!.Staging);
+    }
+
+    [Fact]
+    public void StagingIsNullWhenWatchingForChanges()
+    {
+        var result = MutagenSyncListParser.Parse(Raw, KnownSessions);
+
+        Assert.Null(result.SessionStatuses["photos-sync"]!.Staging);
+    }
 }

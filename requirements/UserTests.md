@@ -97,6 +97,19 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
   icon, not the Ready icon — the worst session wins even though the other
   one is fine.
 
+**UT-2.3 — Staging progress is parsed and logged (FR-2.2)** ✅
+
+* Copy a large file (100+ MB, large enough that staging takes clearly
+  longer than `MutagenPollPeriodMs`) into a session's alpha folder.
+* While the transfer is in progress, watch `log/mutagenMon.log`.
+* One Information-level line per poll appears: `Session '<name>' staging:
+  <completed>/<total> files, <bytes> (<percent>%) — current file: <name>
+  (<bytes>/<totalBytes>)`.
+* Across consecutive polls, the byte counts increase.
+* No such line appears for a session that's just "Watching for changes".
+* Note: this is logged only for now — not yet shown in the tray tooltip
+  or the status view.
+
 ## Tray icon (FR-5, TIC-1..10 — [03-tray-icon-requirements.md](03-tray-icon-requirements.md))
 
 **UT-T.1 — Initial "waiting for status" icon (TIC-3)** ✅

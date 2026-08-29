@@ -63,6 +63,10 @@ public static partial class MutagenSyncListParser
                 current.Id = line[12..];
             else if (line.StartsWith("Status: ", StringComparison.Ordinal))
                 current.Status = line[8..];
+            else if (line.StartsWith("Staging progress: ", StringComparison.Ordinal))
+                current.Staging = ParseStagingProgressLine(line[18..]);
+            else if (line.StartsWith("Current file: ", StringComparison.Ordinal))
+                current.Staging = ApplyCurrentFileLine(current.Staging, line[14..]);
             else if (line.StartsWith("Alpha:", StringComparison.Ordinal))
                 side = 1;
             else if (line.StartsWith("Beta:", StringComparison.Ordinal))
@@ -165,6 +169,48 @@ public static partial class MutagenSyncListParser
             : new SessionEndpoint(url, TransportKind.Local, null, null);
     }
 
+    /// <summary>Parses "0/1 - 34 MB - 0%" (the text after "Staging progress: ")
+    /// into completed/total file counts, the cumulative bytes-transferred
+    /// text (kept as-is — units vary, no need to parse them for display),
+    /// and the percentage. Returns null on any unexpected shape rather than
+    /// throwing — a format change upstream should degrade to "no staging
+    /// info" instead of breaking the whole poll.</summary>
+    private static StagingProgress? ParseStagingProgressLine(string rest)
+    {
+        var parts = rest.Split(" - ", 3);
+        if (parts.Length != 3)
+            return null;
+        var counts = parts[0].Split('/', 2);
+        if (counts.Length != 2 || !int.TryParse(counts[0], out var completed) || !int.TryParse(counts[1], out var total))
+            return null;
+        if (!int.TryParse(parts[2].TrimEnd('%'), out var percent))
+            return null;
+        return new StagingProgress(completed, total, parts[1], percent);
+    }
+
+    /// <summary>Parses "Tracetool.zip (34 MB/260 MB)" (the text after
+    /// "Current file: ") and folds it onto <paramref name="staging"/> — this
+    /// line always follows a "Staging progress: " line in practice, but if
+    /// it somehow didn't, still produces a <see cref="StagingProgress"/>
+    /// with zeroed-out file counts rather than dropping the current-file
+    /// detail entirely.</summary>
+    private static StagingProgress? ApplyCurrentFileLine(StagingProgress? staging, string rest)
+    {
+        var openParen = rest.LastIndexOf('(');
+        if (openParen < 0 || !rest.EndsWith(')'))
+            return staging;
+        var name = rest[..openParen].TrimEnd();
+        var inside = rest[(openParen + 1)..^1];
+        var slash = inside.IndexOf('/');
+        if (slash < 0)
+            return staging;
+        var doneBytes = inside[..slash];
+        var totalBytes = inside[(slash + 1)..];
+        return staging is null
+            ? new StagingProgress(0, 0, "", 0, name, doneBytes, totalBytes)
+            : staging with { CurrentFileName = name, CurrentFileBytesTransferred = doneBytes, CurrentFileTotalBytes = totalBytes };
+    }
+
     /// <summary>Finds, scanning backwards from just before <paramref name="closeIndex"/>
     /// (which the caller already knows holds the closing paren to match), the
     /// index of its matching '('.</summary>
@@ -193,8 +239,9 @@ public static partial class MutagenSyncListParser
         public bool HasConflicts;
         public SessionEndpoint? Alpha;
         public SessionEndpoint? Beta;
+        public StagingProgress? Staging;
 
         public ParsedSessionStatus ToParsedStatus(string name) =>
-            new(name, Id, Status, IsDuplicate, HasProblems, HasConflicts, Alpha, Beta);
+            new(name, Id, Status, IsDuplicate, HasProblems, HasConflicts, Alpha, Beta, Staging);
     }
 }
