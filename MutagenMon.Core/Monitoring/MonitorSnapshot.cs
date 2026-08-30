@@ -13,7 +13,8 @@ public sealed record MonitorSnapshot(
     string RawLog,
     IReadOnlyDictionary<string, ParsedSessionStatus?> SessionStatuses,
     IReadOnlyDictionary<string, IReadOnlyList<ConflictRecord>> Conflicts,
-    IReadOnlyDictionary<string, DateTimeOffset?> LastChangedUtc)
+    IReadOnlyDictionary<string, DateTimeOffset?> LastChangedUtc,
+    IReadOnlyDictionary<string, SessionStatusCode> SessionCodes)
 {
     public static MonitorSnapshot Initial(DateTimeOffset nowUtc, bool enabled) => new(
         SessionStatusCode.Unknown,
@@ -23,5 +24,6 @@ public sealed record MonitorSnapshot(
         "",
         new Dictionary<string, ParsedSessionStatus?>(),
         new Dictionary<string, IReadOnlyList<ConflictRecord>>(),
-        new Dictionary<string, DateTimeOffset?>());
+        new Dictionary<string, DateTimeOffset?>(),
+        new Dictionary<string, SessionStatusCode>());
 }

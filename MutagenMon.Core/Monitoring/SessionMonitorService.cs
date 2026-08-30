@@ -130,6 +130,7 @@ public sealed class SessionMonitorService : BackgroundService
             
             // SessionStatusCode: ConnectionError = -2,NotRunning = -1,Unknown = 0,Scanning = 30,Syncing = 40,Problems = 50,Conflicts = 60,Ready = 100
             var worst = SessionStatusCode.Ready;
+            var sessionCodes = new Dictionary<string, SessionStatusCode>();
             foreach (var name in _sessionNames)
             {
                 parsed.SessionStatuses.TryGetValue(name, out var status);
@@ -141,6 +142,7 @@ public sealed class SessionMonitorService : BackgroundService
                         staging.CurrentFileName is null ? "" : $" — current file: {staging.CurrentFileName} ({staging.CurrentFileBytesTransferred}/{staging.CurrentFileTotalBytes})");
 
                 var code = _tracker.Update(name, status);
+                sessionCodes[name] = code;
                 if (code < worst)
                     worst = code;
             }
@@ -171,7 +173,8 @@ public sealed class SessionMonitorService : BackgroundService
                 parsed.RawLog,
                 parsed.SessionStatuses,
                 conflicts,
-                _profileWatcher.LastSeenMtimeUtc));
+                _profileWatcher.LastSeenMtimeUtc,
+                sessionCodes));
 
             if (_enabled)
                 await RestartUnhealthySessionsAsync(parsed.SessionStatuses, parsed.RawLog, cancellationToken);

@@ -164,16 +164,20 @@ The full specification lives in
 
 - FR-8.1: On demand (left-click or menu), the application MUST show a
   resizable window with the full status of every configured session, one
-  row per session in a grid: Name, Status (raw status text, session
-  identifiers never shown — except while actively staging a file with
-  parsed `StagingProgress` available, see FR-2.2, where an upload-progress
-  summary replaces the raw text), Alpha URL, Beta URL, and Last changed (the
+  row per session in a grid: Name, Status (a small per-session status icon —
+  the same 15-key icon set as the tray icon, FR-5/FR-3, resolved from that
+  session's own numeric code and the global enabled/disabled state, not the
+  aggregated worst-of-all-sessions code — to the left of the raw status text;
+  session identifiers never shown; while actively staging a file with parsed
+  `StagingProgress` available, see FR-2.2, an upload-progress summary
+  replaces the raw text), Alpha URL, Beta URL, and Last changed (the
   session's mutagen archive-file mtime tracked by FR-12 — the only signal
   that reliably reflects a completed sync regardless of how briefly it
   was in flight, "—" if never observed). If any un-auto-resolved conflicts
   exist, a list of `<session>: <file>` entries (annotated `[autoresolving]`
   for conflicts that will be resolved automatically) is also shown under a
-  clearly separated "CONFLICTS" section, below the grid.
+  clearly separated "CONFLICTS" section, below the grid. There is no
+  separate header line above the grid (the per-row icon replaced it).
 - FR-8.2: If there are unresolved conflicts, the view MUST offer an action
   to start the conflict-resolution workflow (FR-9) in addition to
   dismissing the view.

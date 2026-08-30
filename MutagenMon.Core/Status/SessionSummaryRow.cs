@@ -7,6 +7,7 @@ namespace MutagenMon.Core.Status;
 /// ever caught the transfer in flight.</summary>
 public sealed record SessionSummaryRow(
     string Name,
+    string IconKey,
     string Status,
     string AlphaUrl,
     string BetaUrl,

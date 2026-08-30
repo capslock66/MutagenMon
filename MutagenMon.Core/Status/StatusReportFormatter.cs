@@ -16,15 +16,19 @@ public static class StatusReportFormatter
     public static IReadOnlyList<SessionSummaryRow> BuildSessionRows(
         IReadOnlyCollection<string> sessionNames,
         IReadOnlyDictionary<string, ParsedSessionStatus?> statuses,
-        IReadOnlyDictionary<string, DateTimeOffset?> lastChangedUtc)
+        IReadOnlyDictionary<string, DateTimeOffset?> lastChangedUtc,
+        IReadOnlyDictionary<string, SessionStatusCode> sessionCodes,
+        bool enabled)
     {
         var rows = new List<SessionSummaryRow>();
         foreach (var name in sessionNames)
         {
             statuses.TryGetValue(name, out var status);
             lastChangedUtc.TryGetValue(name, out var lastChanged);
+            sessionCodes.TryGetValue(name, out var code);
             rows.Add(new SessionSummaryRow(
                 name,
+                TrayIconStateResolver.ResolveSessionIconKey(code, enabled),
                 BuildStatusDisplay(status),
                 status?.Alpha?.Url ?? "(unknown)",
                 status?.Beta?.Url ?? "(unknown)",

@@ -75,6 +75,20 @@ public static class TrayIconStateResolver
         return new TrayIconState(BaseIconKey(input.WorstCode), prefix + baseDescription);
     }
 
+    /// <summary>Per-session status icon for the status view's grid (FR-8.1) —
+    /// a simplified subset of <see cref="Resolve"/> that omits staleness and
+    /// the "just updated" flash: both are computed from the poll as a whole
+    /// (last successful poll time, profile-watcher confirmation) rather than
+    /// any single session, so they wouldn't vary row-to-row anyway.</summary>
+    public static string ResolveSessionIconKey(SessionStatusCode code, bool enabled) => code switch
+    {
+        SessionStatusCode.Unknown => "lightgray-init",
+        SessionStatusCode.NotRunning => enabled ? "darkgray-restart" : "darkgray",
+        SessionStatusCode.ConnectionError => enabled ? "orange-restart" : "orange",
+        SessionStatusCode.Ready when !enabled => "green-stop",
+        _ => BaseIconKey(code),
+    };
+
     private static bool IsUpdateFlashEligible(SessionStatusCode code) =>
         code is SessionStatusCode.Ready or SessionStatusCode.Syncing or SessionStatusCode.Scanning;
 

@@ -301,19 +301,15 @@ Covered above by UT-7.1.
 **UT-8.1 — Status view with no conflicts (FR-8.1/FR-8.3)** ✅
 
 * With every session healthy and no conflicts, left-click the tray icon.
-* A window is displayed. Its title bar reads plain "MutagenMon" (not the
-  full tray tooltip); the first line of its content shows the current
-  tray icon (same image as the system tray) to the left of the text, and
-  the tray tooltip's status part only, with the redundant "MutagenMon: "
-  prefix stripped (e.g. "mutagen is watching for changes"), in bold, same
-  font size as the rest of the content.
-* While the window stays open (FR-8.4), if the tray icon changes (e.g. a
-  session goes into error), the icon shown on this line updates within
-  about a second, in sync with the tray icon.
+* A window is displayed. Its title bar reads plain "MutagenMon" — there is
+  no separate header line above the grid.
 * The window's content shows a grid with one row per configured session,
   columns Name / Status / Alpha / Beta / Last changed. Session identifiers
-  are never shown. "Last changed" reads "—" for a session that hasn't
-  synced anything since the app started, or a timestamp otherwise.
+  are never shown. Each row's Status cell shows a small status icon (the
+  same icon that would be shown in the system tray if this were the only/
+  worst session) to the left of the status text, e.g. green for "Watching
+  for changes". "Last changed" reads "—" for a session that hasn't synced
+  anything since the app started, or a timestamp otherwise.
 * The window can be resized (drag an edge/corner) and the grid grows/
   shrinks with it.
 * Only an "OK" button is displayed — no "Cancel", no "Resolve conflicts".
@@ -345,10 +341,10 @@ Covered above by UT-7.1.
   "CONFLICTS" section (and Cancel/"Resolve conflicts" buttons) appear
   without the window being closed and reopened.
 * Likewise, editing/syncing a file in a healthy session updates that
-  session's "Last changed" column within a poll or two, without closing
-  the window. Rows for sessions whose data hasn't changed don't visibly
-  flicker/redraw (FR-8.4's no-op-when-unchanged behavior applies per row,
-  not just to the window as a whole).
+  session's "Last changed" column and its row's status icon within a poll
+  or two, without closing the window. Rows for sessions whose data hasn't
+  changed don't visibly flicker/redraw (FR-8.4's no-op-when-unchanged
+  behavior applies per row, not just to the window as a whole).
 
 **UT-8.4 — Upload progress shown while staging a large file (FR-2.2/FR-8.1)** ✅
 

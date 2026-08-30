@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows;
-using System.Windows.Media;
 using Microsoft.Extensions.Logging;
 using MutagenMon.Core.Monitoring;
 using MutagenMon.Core.Status;
@@ -32,20 +31,18 @@ public partial class StatusWindow : Window
     private readonly ObservableCollection<SessionSummaryRow> _sessionRows = new();
     private readonly ILogger _logger;
 
-    public StatusWindow(ILogger logger)
+    public StatusWindow(ILogger logger, IconImageCache iconCache)
     {
         InitializeComponent();
         SessionsGrid.ItemsSource = _sessionRows;
+        ((IconKeyToImageSourceConverter)Resources["IconKeyToImageSourceConverter"]).Cache = iconCache;
         _logger = logger;
     }
 
-    public void UpdateContent(string title, ImageSource? icon, MonitorSnapshot snapshot, IReadOnlyList<string> sessionNames)
+    public void UpdateContent(MonitorSnapshot snapshot, IReadOnlyList<string> sessionNames)
     {
-        Title = "MutagenMon";
-        TitleText.Text = StripAppNamePrefix(title);
-        StatusIcon.Source = icon;
-
-        var rows = StatusReportFormatter.BuildSessionRows(sessionNames, snapshot.SessionStatuses, snapshot.LastChangedUtc);
+        var rows = StatusReportFormatter.BuildSessionRows(
+            sessionNames, snapshot.SessionStatuses, snapshot.LastChangedUtc, snapshot.SessionCodes, snapshot.Enabled);
         SyncRows(_sessionRows, rows);
 
         ConflictsText.Text = StatusReportFormatter.BuildConflictsSection(sessionNames, snapshot.Conflicts);
@@ -74,17 +71,6 @@ public partial class StatusWindow : Window
 
         while (target.Count > source.Count)
             target.RemoveAt(target.Count - 1);
-    }
-
-    /// <summary>The incoming title is the tray tooltip, formatted as
-    /// "&lt;TrayTooltip&gt;: &lt;status&gt;" (<see cref="TrayIconStateResolver"/>)
-    /// — redundant here since the window's own title bar already says
-    /// "MutagenMon". Strips generically on the first ": " rather than a
-    /// hardcoded "MutagenMon:", since TrayTooltip is configurable.</summary>
-    private static string StripAppNamePrefix(string title)
-    {
-        var separatorIndex = title.IndexOf(": ", StringComparison.Ordinal);
-        return separatorIndex >= 0 ? title[(separatorIndex + 2)..] : title;
     }
 
     private void OnOkClick(object sender, RoutedEventArgs e)

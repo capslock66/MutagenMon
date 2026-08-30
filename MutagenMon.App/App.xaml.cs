@@ -188,11 +188,11 @@ public partial class App : Application
         _logger?.LogDebug("User action: show status clicked");
         if (_statusWindow is null)
         {
-            _statusWindow = new StatusWindow(_logger!);
+            _statusWindow = new StatusWindow(_logger!, _iconCache!);
             _statusWindow.ResolveConflictsRequested += OnResolveConflictsRequested;
         }
-        if (_stateStore is not null && _trayIconController?.CurrentState is { } state)
-            _statusWindow.UpdateContent(state.Tooltip, _iconCache?.GetImageSource(state.IconKey), _stateStore.Get(), _sessionNames);
+        if (_stateStore is not null)
+            _statusWindow.UpdateContent(_stateStore.Get(), _sessionNames);
         _statusWindow.Show();
         _statusWindow.Activate();
     }
@@ -205,7 +205,7 @@ public partial class App : Application
     private void OnPolled(MonitorSnapshot snapshot, TrayIconState state)
     {
         if (_statusWindow is { IsVisible: true })
-            _statusWindow.UpdateContent(state.Tooltip, _iconCache?.GetImageSource(state.IconKey), snapshot, _sessionNames);
+            _statusWindow.UpdateContent(snapshot, _sessionNames);
     }
 
     /// <summary>Handles the status view's "Resolve conflicts" action (FR-8.2 ->
