@@ -53,10 +53,16 @@ IDs are stable identifiers to be referenced from code, tests, and PRs.
     when present — but a session's status starting with "Staging files
     on" does NOT guarantee they're present: mutagen omits them for the
     poll immediately before staging completes, reporting the bare
-    `Status:` line alone that one time. Parsed staging progress is
-    currently logged only (`SessionMonitorService`, one Information line
-    per poll while staging is in flight) — not yet surfaced in the tray
-    tooltip or status view (FR-8).
+    `Status:` line alone that one time. Parsed staging progress is logged
+    (`SessionMonitorService`, one Information line per poll while staging
+    is in flight) and, when a current file is present, also surfaces in
+    the status view's grid (FR-8.1): the Status column shows "Uploading
+    `<filesInProgress>`/`<filesTotal>` , `<currentFileName>` ,
+    `<bytesTransferred>`" instead of the bare "Staging files on ..." text.
+    `<filesInProgress>` is `FilesCompleted + 1` (capped at `filesTotal`) —
+    the count of the file actively transferring, not the count already
+    finished, so e.g. "0/2" while the first of two files uploads reads
+    "1/2", not "0/2". Not yet surfaced in the tray tooltip.
 - FR-2.3: The full raw status text and the timestamp of the last successful
   poll MUST be retained for display and for staleness detection (FR-6).
 
@@ -159,7 +165,9 @@ The full specification lives in
 - FR-8.1: On demand (left-click or menu), the application MUST show a
   resizable window with the full status of every configured session, one
   row per session in a grid: Name, Status (raw status text, session
-  identifiers never shown), Alpha URL, Beta URL, and Last changed (the
+  identifiers never shown — except while actively staging a file with
+  parsed `StagingProgress` available, see FR-2.2, where an upload-progress
+  summary replaces the raw text), Alpha URL, Beta URL, and Last changed (the
   session's mutagen archive-file mtime tracked by FR-12 — the only signal
   that reliably reflects a completed sync regardless of how briefly it
   was in flight, "—" if never observed). If any un-auto-resolved conflicts
@@ -309,16 +317,21 @@ full default-value table.
 
 ## FR-12 — Session profile change detection
 
-- FR-12.1: On a configurable interval (`MutagenProfileDirWatchPeriod`,
-  default `1` second, `0` disables the watch entirely), for every enabled
-  session, the application MUST watch the modification time of the sync
-  engine's on-disk archive file for that session
+- FR-12.1: On every poll (see FR-2.1), for every enabled session, the
+  application MUST watch the modification time of the sync engine's
+  on-disk archive file for that session
   (`<MutagenProfileDir>/archives/<session-id>`, default
   `%USERPROFILE%\.mutagen\archives\<session-id>` — the sync engine's own
   data directory, not part of this application's config/log paths). If the
   archive file cannot be found (e.g. session not yet created), the watch
   MUST be silently reset (no error) so the first future appearance of the
-  file is not immediately reported as an "update".
+  file is not immediately reported as an "update". *(Rewrite note: the
+  legacy app exposed a separate `MutagenProfileDirWatchPeriod` config key
+  to check this less often than every poll, or disable it entirely.
+  Removed in the .NET rewrite — the profile watch and the mutagen-status
+  poll always ran on the very same loop in this rewrite's architecture, so
+  the extra key was never anything but `N × MutagenPollPeriodMs`
+  expressed indirectly; it now simply runs every poll, unconditionally.)*
 - FR-12.2: A change MUST be debounced by a grace period
   (`MutagenProfileGraceSeconds`, default `4` seconds) before being reported as a
   real update: a new modification is only confirmed once at least the

@@ -25,13 +25,35 @@ public static class StatusReportFormatter
             lastChangedUtc.TryGetValue(name, out var lastChanged);
             rows.Add(new SessionSummaryRow(
                 name,
-                status is null || string.IsNullOrEmpty(status.Status) ? "(not running)" : status.Status,
+                BuildStatusDisplay(status),
                 status?.Alpha?.Url ?? "(unknown)",
                 status?.Beta?.Url ?? "(unknown)",
                 lastChanged));
         }
 
         return rows;
+    }
+
+    /// <summary>While a large file is actively transferring, the bare
+    /// "Staging files on &lt;side&gt;" status text never changes and gives no
+    /// indication of progress (FR-2.2). When <see cref="StagingProgress"/> is
+    /// available, show which file is currently uploading and how much data
+    /// has moved instead. <see cref="StagingProgress.FilesCompleted"/> counts
+    /// fully-finished files, so it is bumped by one here to report the file
+    /// *in progress* (e.g. "0/2" while the first of two files is uploading
+    /// becomes "1/2", not "0/2").</summary>
+    private static string BuildStatusDisplay(ParsedSessionStatus? status)
+    {
+        if (status is null || string.IsNullOrEmpty(status.Status))
+            return "(not running)";
+
+        if (status.Staging is { CurrentFileName: { } fileName } staging)
+        {
+            var filesInProgress = Math.Min(staging.FilesCompleted + 1, staging.FilesTotal);
+            return $"Uploading {filesInProgress}/{staging.FilesTotal} , {fileName} , {staging.BytesTransferred}";
+        }
+
+        return status.Status;
     }
 
     /// <summary>The "==== CONFLICTS ====" section, listing every conflict

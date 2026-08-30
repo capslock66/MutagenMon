@@ -87,10 +87,6 @@ public sealed class MutagenMonOptions
     /// <summary>Set to the mutagen directory with caches and archives.</summary>
     public string MutagenProfileDir { get; set; } = "";
 
-    /// <summary>Watch the mutagen profile dir for session updates (in
-    /// seconds, or 0 to disable).</summary>
-    public int MutagenProfileDirWatchPeriod { get; set; } = 1;
-
     /// <summary>Ignore more frequent session updates than this (in
     /// seconds).</summary>
     public int MutagenProfileGraceSeconds { get; set; } = 4;

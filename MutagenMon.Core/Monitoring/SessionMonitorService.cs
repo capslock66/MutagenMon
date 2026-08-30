@@ -85,8 +85,7 @@ public sealed class SessionMonitorService : BackgroundService
         _sessionMaxNoSession = opts.SessionMaxNoSession;
         _sessionMaxDuplicate = opts.SessionMaxDuplicate;
         _sessionMaxErrors = opts.SessionMaxErrors;
-        _profileWatcher = new SessionProfileWatcher(
-            timestampProvider, opts.MutagenProfileDir, opts.MutagenProfileDirWatchPeriod, opts.MutagenProfileGraceSeconds);
+        _profileWatcher = new SessionProfileWatcher(timestampProvider, opts.MutagenProfileDir, opts.MutagenProfileGraceSeconds);
         _autoResolveEngine = new AutoResolveEngine(
             opts.AutoResolve, TimeSpan.FromSeconds(opts.AutoResolveHistoryAgeSeconds), conflictResolutionService);
         _notificationDispatcher = new NotificationDispatcher(

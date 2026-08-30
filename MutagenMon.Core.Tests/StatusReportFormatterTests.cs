@@ -29,6 +29,41 @@ public class StatusReportFormatterTests
     }
 
     [Fact]
+    public void SessionRowsShowUploadProgressWhenStagingAFile()
+    {
+        var staging = new StagingProgress(FilesCompleted: 0, FilesTotal: 2, BytesTransferred: "237 MB", PercentComplete: 50, CurrentFileName: "Tracetool.zip");
+        var status = Watching("photos-sync") with { Status = "Staging files on beta", Staging = staging };
+        var statuses = new Dictionary<string, ParsedSessionStatus?> { ["photos-sync"] = status };
+
+        var rows = StatusReportFormatter.BuildSessionRows(new[] { "photos-sync" }, statuses, NoLastChanged);
+
+        Assert.Equal("Uploading 1/2 , Tracetool.zip , 237 MB", Assert.Single(rows).Status);
+    }
+
+    [Fact]
+    public void SessionRowsUploadProgressCountsTheFileInProgressNotFilesCompleted()
+    {
+        var staging = new StagingProgress(FilesCompleted: 1, FilesTotal: 2, BytesTransferred: "260 MB", PercentComplete: 90, CurrentFileName: "Tracetool2.zip");
+        var status = Watching("photos-sync") with { Status = "Staging files on beta", Staging = staging };
+        var statuses = new Dictionary<string, ParsedSessionStatus?> { ["photos-sync"] = status };
+
+        var rows = StatusReportFormatter.BuildSessionRows(new[] { "photos-sync" }, statuses, NoLastChanged);
+
+        Assert.Equal("Uploading 2/2 , Tracetool2.zip , 260 MB", Assert.Single(rows).Status);
+    }
+
+    [Fact]
+    public void SessionRowsShowRawStatusWhenStagingHasNoCurrentFileYet()
+    {
+        var status = Watching("photos-sync") with { Status = "Staging files on beta", Staging = null };
+        var statuses = new Dictionary<string, ParsedSessionStatus?> { ["photos-sync"] = status };
+
+        var rows = StatusReportFormatter.BuildSessionRows(new[] { "photos-sync" }, statuses, NoLastChanged);
+
+        Assert.Equal("Staging files on beta", Assert.Single(rows).Status);
+    }
+
+    [Fact]
     public void SessionRowsShowNotRunningForAMissingSession()
     {
         var statuses = new Dictionary<string, ParsedSessionStatus?> { ["docs-sync"] = null };

@@ -126,7 +126,6 @@ public class SessionMonitorServiceTests
         {
             MutagenPollPeriodMs = 1000,
             StartEnabled = startEnabled,
-            MutagenProfileDirWatchPeriod = 0, // disable profile watching for this test
             AutoResolve = autoResolveRules?.ToList() ?? new List<AutoResolveRule>(),
             AutoResolveHistoryAgeSeconds = 30,
             NotifyConflicts = notifyConflicts,

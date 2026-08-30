@@ -350,6 +350,24 @@ Covered above by UT-7.1.
   flicker/redraw (FR-8.4's no-op-when-unchanged behavior applies per row,
   not just to the window as a whole).
 
+**UT-8.4 — Upload progress shown while staging a large file (FR-2.2/FR-8.1)** ✅
+
+* Change a large file (at least a few hundred MB, so staging takes more
+  than a couple of polls) on one side of a healthy session.
+* Open the status view while the session is actively staging that file to
+  the other side.
+* Instead of the static "Staging files on alpha"/"Staging files on beta"
+  text, the Status column shows "Uploading `<n>`/`<total>` ,
+  `<file name>` , `<bytes transferred>`" (e.g. "Uploading 1/2 ,
+  Tracetool.zip , 237 MB"), and both `<n>` and `<bytes transferred>`
+  advance on subsequent polls without closing/reopening the window
+  (FR-8.4).
+* `<n>` counts the file currently in flight, not files already finished:
+  it starts at 1 (not 0) as soon as the first file begins uploading, and
+  only reaches `<total>` while the last file is transferring.
+* Once staging finishes, the Status column reverts to the normal status
+  text (e.g. "Watching for changes").
+
 ## FR-9 — Manual conflict resolution
 
 **Setup used by every test below**: to produce a real conflict, right-click

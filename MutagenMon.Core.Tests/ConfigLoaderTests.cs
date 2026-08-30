@@ -20,7 +20,6 @@ public class ConfigLoaderTests
         "MutagenPollPeriodMs": 1000,
         "StatusMaxLag": {"Info": 4, "Warning": 15, "Error": 50, "Restart": 90},
         "MutagenProfileDir": "C:\\Users\\me\\.mutagen",
-        "MutagenProfileDirWatchPeriod": 1,
         "MutagenProfileGraceSeconds": 4,
 
         # Add records matching filenames:

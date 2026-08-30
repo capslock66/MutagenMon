@@ -14,19 +14,15 @@ public sealed class SessionProfileWatcher
 {
     private readonly IFileTimestampProvider _timestamps;
     private readonly string _profileDir;
-    private readonly int _watchPeriodTicks;
     private readonly TimeSpan _grace;
     private readonly Dictionary<string, DateTimeOffset?> _lastSeenMtime = new();
     private readonly Dictionary<string, DateTimeOffset?> _lastGraceMtime = new();
     private List<string> _confirmedUpdates = new();
-    private int _tick;
 
-    public SessionProfileWatcher(
-        IFileTimestampProvider timestamps, string profileDir, int watchPeriodTicks, int graceSeconds = 4)
+    public SessionProfileWatcher(IFileTimestampProvider timestamps, string profileDir, int graceSeconds = 4)
     {
         _timestamps = timestamps;
         _profileDir = profileDir;
-        _watchPeriodTicks = watchPeriodTicks;
         _grace = TimeSpan.FromSeconds(graceSeconds);
     }
 
@@ -37,26 +33,18 @@ public sealed class SessionProfileWatcher
     public IReadOnlyList<string> ConfirmedUpdatedSessions => _confirmedUpdates;
 
     /// <summary>Each watched session's archive mtime as of the most recent
-    /// tick that actually checked it (ticks skipped by
-    /// <see cref="_watchPeriodTicks"/>, and sessions with no resolvable
-    /// archive file, leave the previous value in place or null — same
-    /// semantics as the raw change signal <see cref="Tick"/> returns).
-    /// Surfaced for display (a "last changed" column) — not otherwise used
-    /// internally beyond what <see cref="Tick"/> already computes.</summary>
+    /// tick (sessions with no resolvable archive file leave the previous
+    /// value in place or null — same semantics as the raw change signal
+    /// <see cref="Tick"/> returns). Surfaced for display (a "last changed"
+    /// column) — not otherwise used internally beyond what <see cref="Tick"/>
+    /// already computes.</summary>
     public IReadOnlyDictionary<string, DateTimeOffset?> LastSeenMtimeUtc => _lastSeenMtime;
 
     /// <summary>Call once per poll tick. Returns true if any watched session's
-    /// archive mtime increased since the last check (0 or negative watch
-    /// period disables the check entirely, matching the legacy's
-    /// MutagenProfileDirWatchPeriod == 0 disable switch).</summary>
+    /// archive mtime increased since the last check.</summary>
     public bool Tick(IReadOnlyDictionary<string, ParsedSessionStatus?> statuses)
     {
         _confirmedUpdates = new List<string>();
-        if (_watchPeriodTicks <= 0)
-            return false;
-        _tick++;
-        if (_tick % _watchPeriodTicks != 0)
-            return false;
 
         var anyUpdating = false;
         foreach (var (name, status) in statuses)
