@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MutagenMon.Core.Configuration;
@@ -119,7 +120,7 @@ public class SessionMonitorServiceTests
         bool notifyConflicts = true, bool notifyAutoresolve = true,
         bool startEnabled = true, bool notifyRestartConnection = false,
         int sessionMaxNoSession = 200, int sessionMaxDuplicate = 10000, int sessionMaxErrors = 30000,
-        RestartLogWriter? restartLogWriter = null)
+        CapturingLogger<SessionMonitorService>? logger = null)
     {
         var options = Options.Create(new MutagenMonOptions
         {
@@ -135,16 +136,12 @@ public class SessionMonitorServiceTests
             SessionMaxDuplicate = sessionMaxDuplicate,
             SessionMaxErrors = sessionMaxErrors,
         });
-        var resolveLog = new ResolveLogWriter(
-            Path.Combine(Path.GetTempPath(), "MutagenMon.Tests", Guid.NewGuid().ToString("N")));
         var conflictResolutionService = new ConflictResolutionService(
-            conflictFileClient ?? new RecordingConflictFileClient(), resolveLog);
+            conflictFileClient ?? new RecordingConflictFileClient(), NullLogger<ConflictResolutionService>.Instance);
         return new SessionMonitorService(
             cli, store, options, sessions, new FileTimestampProvider(), conflictResolutionService,
             notificationQueue ?? new NotificationQueue(),
-            restartLogWriter ?? new RestartLogWriter(
-                Path.Combine(Path.GetTempPath(), "MutagenMon.Tests", Guid.NewGuid().ToString("N"))),
-            NullLogger<SessionMonitorService>.Instance);
+            (ILogger<SessionMonitorService>?)logger ?? NullLogger<SessionMonitorService>.Instance);
     }
 
     [Fact]
@@ -553,23 +550,19 @@ public class SessionMonitorServiceTests
     }
 
     [Fact]
-    public async Task ARestartIsAppendedToTheDedicatedRestartLog()
+    public async Task ARestartIsLoggedToTheMainLog()
     {
         var cli = new FakeMutagenCliClient();
         cli.Enqueue("");
         cli.Enqueue("");
         var sessions = new[] { new SessionDefinition("alpha-sync", "mutagen sync create --name=alpha-sync ...") };
-        var logDir = Path.Combine(Path.GetTempPath(), "MutagenMon.Tests", Guid.NewGuid().ToString("N"));
-        var restartLog = new RestartLogWriter(logDir);
+        var logger = new CapturingLogger<SessionMonitorService>();
         var service = BuildService(
-            cli, new SessionStateStore(), sessions, sessionMaxNoSession: 1, restartLogWriter: restartLog);
+            cli, new SessionStateStore(), sessions, sessionMaxNoSession: 1, logger: logger);
 
         await service.PollOnceAsync(CancellationToken.None);
         await service.PollOnceAsync(CancellationToken.None);
 
-        var logPath = Path.Combine(logDir, "restart.log");
-        Assert.True(File.Exists(logPath));
-        var content = File.ReadAllText(logPath);
-        Assert.Contains("Restarting: alpha-sync", content);
+        Assert.Contains(logger.Messages, m => m.Contains("Restarting: alpha-sync"));
     }
 }

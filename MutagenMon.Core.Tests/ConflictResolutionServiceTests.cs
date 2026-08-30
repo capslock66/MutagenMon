@@ -59,44 +59,43 @@ public class ConflictResolutionServiceTests
         return path;
     }
 
-    private static (ConflictResolutionService Service, FakeConflictFileClient Client, ResolveLogWriter Log, string LogDir) Build()
+    private static (ConflictResolutionService Service, FakeConflictFileClient Client, CapturingLogger<ConflictResolutionService> Logger) Build()
     {
         var client = new FakeConflictFileClient();
-        var logDir = Path.Combine(Path.GetTempPath(), "MutagenMon.Tests", Guid.NewGuid().ToString("N"));
-        var log = new ResolveLogWriter(logDir);
-        return (new ConflictResolutionService(client, log), client, log, logDir);
+        var logger = new CapturingLogger<ConflictResolutionService>();
+        return (new ConflictResolutionService(client, logger), client, logger);
     }
 
     [Fact]
     public async Task ResolveAWinsCopiesAlphaOverBetaAndLogs()
     {
-        var (service, client, _, logDir) = Build();
+        var (service, client, logger) = Build();
 
         await service.ResolveAsync(Conflict, ConflictResolutionChoice.AWins, DateTimeOffset.UtcNow, CancellationToken.None);
 
         Assert.Single(client.Copies);
         Assert.Equal(LocalAlpha, client.Copies[0].Source);
         Assert.Equal(SshBeta, client.Copies[0].Destination);
-        Assert.Contains("A wins", File.ReadAllText(Path.Combine(logDir, "resolve.log")));
+        Assert.Contains(logger.Messages, m => m.Contains("A wins"));
     }
 
     [Fact]
     public async Task ResolveBWinsCopiesBetaOverAlphaAndLogs()
     {
-        var (service, client, _, logDir) = Build();
+        var (service, client, logger) = Build();
 
         await service.ResolveAsync(Conflict, ConflictResolutionChoice.BWins, DateTimeOffset.UtcNow, CancellationToken.None);
 
         Assert.Single(client.Copies);
         Assert.Equal(SshBeta, client.Copies[0].Source);
         Assert.Equal(LocalAlpha, client.Copies[0].Destination);
-        Assert.Contains("B wins", File.ReadAllText(Path.Combine(logDir, "resolve.log")));
+        Assert.Contains(logger.Messages, m => m.Contains("B wins"));
     }
 
     [Fact]
     public async Task CompleteVisualMergeReturnsFalseAndDoesNotPropagateWhenNothingChanged()
     {
-        var (service, client, _, logDir) = Build();
+        var (service, client, logger) = Build();
         client.LocalCopy1 = NewTempFile();
         client.LocalCopy2 = NewTempFile();
         client.TouchLocalPath1DuringMerge = false;
@@ -107,13 +106,13 @@ public class ConflictResolutionServiceTests
 
         Assert.False(result);
         Assert.Empty(client.Pushes);
-        Assert.False(File.Exists(Path.Combine(logDir, "resolve.log")));
+        Assert.Empty(logger.Messages);
     }
 
     [Fact]
     public async Task CompleteVisualMergePushesToBothSidesAndLogsWhenTheToolChangedAlphaLocalCopy()
     {
-        var (service, client, _, logDir) = Build();
+        var (service, client, logger) = Build();
         client.LocalCopy1 = NewTempFile();
         client.LocalCopy2 = NewTempFile();
         client.TouchLocalPath1DuringMerge = true;
@@ -126,7 +125,7 @@ public class ConflictResolutionServiceTests
         // Alpha is local: the local copy IS the real file already, so no push back to alpha.
         Assert.Single(client.Pushes);
         Assert.Equal(SshBeta, client.Pushes[0].Destination);
-        Assert.Contains("Visual merge", File.ReadAllText(Path.Combine(logDir, "resolve.log")));
+        Assert.Contains(logger.Messages, m => m.Contains("Visual merge"));
     }
 
     [Fact]
@@ -137,7 +136,7 @@ public class ConflictResolutionServiceTests
         // BETA side instead of alpha. Before the fix, only alpha's mtime
         // was checked, so this looked like "nothing changed" and silently
         // dropped the edit.
-        var (service, client, _, logDir) = Build();
+        var (service, client, logger) = Build();
         client.LocalCopy1 = NewTempFile();
         client.LocalCopy2 = NewTempFile();
         client.TouchLocalPath2DuringMerge = true;
@@ -152,13 +151,13 @@ public class ConflictResolutionServiceTests
         Assert.Equal(2, client.Pushes.Count);
         Assert.Contains(client.Pushes, p => p.Destination == SshBeta && p.LocalPath == client.LocalCopy2);
         Assert.Contains(client.Pushes, p => p.Destination == LocalAlpha && p.LocalPath == client.LocalCopy2);
-        Assert.Contains("Visual merge", File.ReadAllText(Path.Combine(logDir, "resolve.log")));
+        Assert.Contains(logger.Messages, m => m.Contains("Visual merge"));
     }
 
     [Fact]
     public async Task CompleteVisualMergePrefersAlphaAsTieBreakWhenBothSidesChanged()
     {
-        var (service, client, _, _) = Build();
+        var (service, client, _) = Build();
         client.LocalCopy1 = NewTempFile();
         client.LocalCopy2 = NewTempFile();
         client.TouchLocalPath1DuringMerge = true;
@@ -175,7 +174,7 @@ public class ConflictResolutionServiceTests
     public async Task CompleteVisualMergePushesBackToAlphaTooWhenAlphaIsRemote()
     {
         var conflict = new PendingConflict("alpha-sync", "shared.txt", SshBeta, LocalAlpha);
-        var (service, client, _, _) = Build();
+        var (service, client, _) = Build();
         client.LocalCopy1 = NewTempFile();
         client.LocalCopy2 = NewTempFile();
         client.TouchLocalPath1DuringMerge = true;

@@ -39,7 +39,6 @@ public sealed class SessionMonitorService : BackgroundService
     private readonly AutoResolveEngine _autoResolveEngine;
     private readonly ConflictNotificationTracker _conflictNotificationTracker = new();
     private readonly NotificationDispatcher _notificationDispatcher;
-    private readonly RestartLogWriter _restartLogWriter;
     private readonly int _sessionMaxNoSession;
     private readonly int _sessionMaxDuplicate;
     private readonly int _sessionMaxErrors;
@@ -72,14 +71,12 @@ public sealed class SessionMonitorService : BackgroundService
         IFileTimestampProvider timestampProvider,
         ConflictResolutionService conflictResolutionService,
         INotificationQueue notificationQueue,
-        RestartLogWriter restartLogWriter,
         ILogger<SessionMonitorService> logger)
     {
         _cliClient = cliClient;
         _stateStore = stateStore;
         _sessionNames = sessions.Select(s => s.Name).ToArray();
         _sessionDefinitionsByName = sessions.ToDictionary(s => s.Name);
-        _restartLogWriter = restartLogWriter;
         _logger = logger;
 
         var opts = options.Value;
@@ -178,7 +175,7 @@ public sealed class SessionMonitorService : BackgroundService
                 _profileWatcher.LastSeenMtimeUtc));
 
             if (_enabled)
-                await RestartUnhealthySessionsAsync(parsed.SessionStatuses, parsed.RawLog, nowUtc, cancellationToken);
+                await RestartUnhealthySessionsAsync(parsed.SessionStatuses, parsed.RawLog, cancellationToken);
             else
                 await TerminateRunningSessionsAsync(parsed.SessionStatuses, cancellationToken);
         }
@@ -195,8 +192,7 @@ public sealed class SessionMonitorService : BackgroundService
     /// <see cref="SessionStateTracker.Update"/> above, and restarts the
     /// session once its cause-specific threshold is exceeded.</summary>
     private async Task RestartUnhealthySessionsAsync(
-        IReadOnlyDictionary<string, ParsedSessionStatus?> statuses, string rawLog, DateTimeOffset nowUtc,
-        CancellationToken cancellationToken)
+        IReadOnlyDictionary<string, ParsedSessionStatus?> statuses, string rawLog, CancellationToken cancellationToken)
     {
         foreach (var name in _sessionNames)
         {
@@ -229,8 +225,9 @@ public sealed class SessionMonitorService : BackgroundService
             else
                 continue;
 
-            _logger.LogWarning("{Cause}: {SessionName} (stuck for {Misses} consecutive poll(s))", cause, name, misses);
-            _restartLogWriter.Append(name, rawLog, cause, nowUtc);
+            _logger.LogWarning(
+                "{Cause}: {SessionName} (stuck for {Misses} consecutive poll(s)). Snapshot: {RawStatusSnapshot}",
+                cause, name, misses, rawLog);
 
             await RestartSessionAsync(name, sessionExists: status is not null, cancellationToken);
             _tracker.ResetConsecutiveMisses(name);

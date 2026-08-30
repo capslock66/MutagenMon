@@ -248,9 +248,10 @@ The full specification lives in
 - FR-9.6: While copying/inspecting a remote (SSH) endpoint, the application
   MUST show a lightweight "connecting" indicator, dismissed automatically
   once the operation completes.
-- FR-9.7: Every resolution (manual or automatic) MUST be appended to a
-  resolution log with session, both URLs, filename, method, and whether it
-  was automatic.
+- FR-9.7: Every resolution (manual or automatic) MUST be logged with
+  session, both URLs, filename, method, and whether it was automatic (the
+  rewrite logs this to the same unified `mutagenMon.log` as everything
+  else — see FR-14.3's rewrite note).
 
 ## FR-10 — Automatic conflict resolution
 
@@ -360,8 +361,10 @@ scale and are folded into the "≈" approximations there).
   min), it MUST be restarted. A notification is raised only if
   `NotifyRestartConnection` is enabled (default `false`) — see FR-11.3.
 - FR-13.4: Every automatic restart, of any of the three causes above, MUST
-  be appended to a restart log together with the raw status snapshot that
-  triggered it and which of the three causes fired.
+  be logged together with the raw status snapshot that triggered it and
+  which of the three causes fired (the rewrite logs this to the same
+  unified `mutagenMon.log` as everything else — see FR-14.4's rewrite
+  note).
 - FR-13.5: The restart action itself is: request termination of the
   session (`mutagen sync terminate <name>`), then recreate it from its
   original definition (FR-1.1). Both steps MUST tolerate failure of the
@@ -470,14 +473,15 @@ reproducing it verbatim:
   here is a durable, path-independent sink for that window (the Windows
   Event Log), not "log everything to a guessed file path," which is what
   created the unwanted `<BaseDirectory>/log` folder this note now avoids.
-- **FR-14.3 (partially implemented, Phase 3)**: the conflict-resolution
-  half is done — every manual resolution (FR-9) appends to a dedicated
-  `resolve.log`, independent of the main log
-  (`MutagenMon.Core/Resolution/ResolveLogWriter.cs`). The restart-log half
-  still depends on FR-13 (automatic session restart execution, Phase 5),
-  not yet built; until then, the one self-restart mechanism that *is*
-  implemented in Phase 1 (the tray icon's staleness watchdog, FR-6) logs
-  to the same single file as everything else.
+- **FR-14.3 (superseded — no longer implemented as written)**: an earlier
+  revision of the rewrite did give restarts and conflict resolutions their
+  own dedicated `restart.log`/`resolve.log` files
+  (`RestartLogWriter`/`ResolveLogWriter`, since deleted). Both have since
+  been folded back into the single unified log: every automatic restart
+  (FR-13) and every conflict resolution, manual (FR-9) or automatic
+  (FR-10), is now logged via `ILogger` straight to `mutagenMon.log`, same
+  as everything else — no separate log files exist any more. See FR-9.7
+  and FR-13.4 for the current wording.
 
 ## FR-15 — Single, always-on background operation
 

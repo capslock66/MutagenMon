@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using MutagenMon.Core.Mutagen;
 
 namespace MutagenMon.Core.Resolution;
@@ -11,12 +12,12 @@ namespace MutagenMon.Core.Resolution;
 public sealed class ConflictResolutionService
 {
     private readonly IConflictFileClient _fileClient;
-    private readonly ResolveLogWriter _resolveLog;
+    private readonly ILogger<ConflictResolutionService> _logger;
 
-    public ConflictResolutionService(IConflictFileClient fileClient, ResolveLogWriter resolveLog)
+    public ConflictResolutionService(IConflictFileClient fileClient, ILogger<ConflictResolutionService> logger)
     {
         _fileClient = fileClient;
-        _resolveLog = resolveLog;
+        _logger = logger;
     }
 
     public Task<FileStat> StatAlphaAsync(PendingConflict conflict, CancellationToken cancellationToken) =>
@@ -38,9 +39,10 @@ public sealed class ConflictResolutionService
             : (conflict.Beta, conflict.Alpha);
 
         await _fileClient.CopyBetweenEndpointsAsync(source, destination, conflict.FileName, cancellationToken);
-        _resolveLog.Append(
-            conflict.SessionName, conflict.Alpha.Url, conflict.Beta.Url, conflict.FileName,
-            choice == ConflictResolutionChoice.AWins ? "A wins" : "B wins", automatic, timestampUtc);
+        _logger.LogInformation(
+            "Conflict resolved{Automatic}: session={SessionName}, file={FileName}, alpha={UrlAlpha}, beta={UrlBeta}, method={Method}",
+            automatic ? " [AUTO]" : "", conflict.SessionName, conflict.FileName, conflict.Alpha.Url, conflict.Beta.Url,
+            choice == ConflictResolutionChoice.AWins ? "A wins" : "B wins");
     }
 
     /// <summary>Fetches local working copies for the visual merge tool,
@@ -92,9 +94,9 @@ public sealed class ConflictResolutionService
             await _fileClient.PushLocalFileAsync(winningPath, winningEndpoint, conflict.FileName, cancellationToken);
         await _fileClient.PushLocalFileAsync(winningPath, otherEndpoint, conflict.FileName, cancellationToken);
 
-        _resolveLog.Append(
-            conflict.SessionName, conflict.Alpha.Url, conflict.Beta.Url, conflict.FileName,
-            "Visual merge", automatic: false, timestampUtc);
+        _logger.LogInformation(
+            "Conflict resolved: session={SessionName}, file={FileName}, alpha={UrlAlpha}, beta={UrlBeta}, method={Method}",
+            conflict.SessionName, conflict.FileName, conflict.Alpha.Url, conflict.Beta.Url, "Visual merge");
         return true;
     }
 }

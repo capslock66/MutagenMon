@@ -136,11 +136,9 @@ public partial class App : Application
             builder.Services.AddSingleton<ISessionStateStore, SessionStateStore>();
             builder.Services.AddSingleton<IFileTimestampProvider, FileTimestampProvider>();
             builder.Services.AddSingleton<INotificationQueue, NotificationQueue>();
-            builder.Services.AddSingleton(new RestartLogWriter(ResolveLogDirectory(baseDir, options.LogPath)));
             builder.Services.AddSingleton<SessionMonitorService>();
             builder.Services.AddHostedService(sp => sp.GetRequiredService<SessionMonitorService>());
             builder.Services.AddSingleton<IConflictFileClient, ConflictFileClient>();
-            builder.Services.AddSingleton(new ResolveLogWriter(ResolveLogDirectory(baseDir, options.LogPath)));
             builder.Services.AddSingleton<ConflictResolutionService>();
 
             _host = builder.Build();
@@ -324,9 +322,6 @@ public partial class App : Application
     private static string ResolveLogFilePath(string baseDir, string logPath) =>
         Path.Combine(ResolveLogDirectory(baseDir, logPath), "mutagenMon.log");
 
-    /// <summary>Shared by the primary log (mutagenMon.log) and the dedicated
-    /// resolve log (resolve.log, FR-9.7/FR-14.3) — same LogPath resolution
-    /// rule (relative to baseDir unless rooted/absolute).</summary>
     private static string ResolveLogDirectory(string baseDir, string logPath)
     {
         var logDir = Path.IsPathRooted(logPath) ? logPath : Path.Combine(baseDir, logPath);

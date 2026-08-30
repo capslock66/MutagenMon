@@ -384,9 +384,9 @@ detects this as a two-sided edit and reports a conflict on its next poll.
 * Click "OK".
 * B's copy of the file now has A's content (compare the two files
   directly).
-* Open `log/resolve.log`.
-* A new entry is present with the session name, both URLs, the file
-  name, method "A wins", and no "[AUTO]" tag.
+* Open `log/mutagenMon.log`.
+* A new "Conflict resolved" line is present with the session name, both
+  URLs, the file name, method "A wins", and no "[AUTO]" tag.
 
 **UT-9.4 — "B wins" resolution (FR-9.2)** ✅
 
@@ -394,7 +394,8 @@ detects this as a two-sided edit and reports a conflict on its next poll.
 * Open the resolution dialog and click the "B wins" radio button.
 * Click "OK".
 * A's copy of the file now has B's content.
-* `log/resolve.log` has a new entry with method "B wins".
+* `log/mutagenMon.log` has a new "Conflict resolved" line with method "B
+  wins".
 
 **UT-9.5 — Visual merge resolution (FR-9.2)** ✅
 
@@ -474,7 +475,7 @@ FR-9 wording)** ✅
   side's contents at that path with an exact copy of the winning side's
   subtree (recursively), or deletes the destination entirely when the
   winning side no longer has the entry.
-* `log/resolve.log` gets a new entry as usual.
+* `log/mutagenMon.log` gets a new "Conflict resolved" line as usual.
 
 ## FR-10 — Automatic conflict resolution
 
@@ -490,8 +491,9 @@ FR-10.2)** ✅
 * Wait one poll cycle (~1 second).
 * No conflict-resolution window is displayed.
 * B's copy of the file is automatically overwritten with A's content.
-* Open `log/resolve.log`.
-* A new entry is present with method "A wins" and the "[AUTO]" tag.
+* Open `log/mutagenMon.log`.
+* A new "Conflict resolved" line is present with method "A wins" and the
+  "[AUTO]" tag.
 
 **UT-10.2 — First matching rule wins (FR-10.1)** ✅
 
@@ -520,15 +522,16 @@ FR-10.2)** ✅
 
 * With the rule from UT-10.1 active and `AutoResolveHistoryAgeSeconds` at its
   default (30 seconds), let UT-10.1 run once.
-* Note the timestamp of the resulting `resolve.log` entry.
+* Note the timestamp of the resulting "Conflict resolved" line in
+  `log/mutagenMon.log`.
 * Without changing the file again, wait less than 30 seconds and check
-  `resolve.log` again.
-* No second entry has appeared for the same session/file — the grace
-  period is preventing reprocessing.
+  `mutagenMon.log` again.
+* No second "Conflict resolved" line has appeared for the same
+  session/file — the grace period is preventing reprocessing.
 * Wait until more than 30 seconds have passed since the first entry, then
   modify the conflicting file identically on both sides again.
-* A new `resolve.log` entry appears for that session/file once the grace
-  period has elapsed.
+* A new "Conflict resolved" line appears for that session/file once the
+  grace period has elapsed.
 
 ## FR-11 — Desktop notifications
 
@@ -658,8 +661,8 @@ FR-11.4)** ✅
 * MutagenMon recreates the session on its own (`mutagen sync list` shows
   it again shortly after) — no user action needed.
 * No "New conflicts"/restart toast appears for this session (see UT-11.8).
-* `log/restart.log` gets a new entry with the raw status snapshot and
-  `Restarting: <name>`.
+* `log/mutagenMon.log` gets a new Warning-level line with the raw status
+  snapshot and `Restarting: <name>`.
 
 **UT-13.2 — Duplicate-name restart (FR-13.2)** ✅
 
@@ -669,7 +672,7 @@ FR-11.4)** ✅
   `mutagen sync create` a session with a name MutagenMon already manages)
   for more than `SessionMaxDuplicate` consecutive polls.
 * The session is restarted and a toast appears (see UT-11.7).
-* `log/restart.log` gets an entry with `Restarting duplicate: <name>`.
+* `log/mutagenMon.log` gets a line with `Restarting duplicate: <name>`.
 
 **UT-13.3 — Stuck-connecting restart (FR-13.3)** ✅
 
@@ -679,7 +682,7 @@ FR-11.4)** ✅
   polls (e.g. make the remote endpoint unreachable).
 * The session is restarted; whether a toast appears depends on
   `NotifyRestartConnection` (see UT-11.6).
-* `log/restart.log` gets an entry with `Restarting connection: <name>`.
+* `log/mutagenMon.log` gets a line with `Restarting connection: <name>`.
 
 **UT-13.4 — Restart is terminate-then-recreate, each step independent
 (FR-13.5)** ✅
@@ -752,20 +755,21 @@ covered elsewhere in this document)*
   text — the only durable trace of this failure.
 * Restore the config file afterwards.
 
-**UT-14.3 — Resolution log is a separate file from the main log
-(FR-14.3, partial)** ✅
+**UT-14.3 — Conflict resolutions are logged to the unified log (FR-9.7)** ✅
 
-Covered above by UT-9.3/UT-9.4/UT-10.1 — `resolve.log` is independent of
-`mutagenMon.log`.
+Covered above by UT-9.3/UT-9.4/UT-10.1 — every resolution is logged to
+`mutagenMon.log`. There is no separate `resolve.log` any more (see
+FR-14.3's rewrite note).
 
-**UT-14.4 — Dedicated restart log (FR-14.3, restart half)** ✅
+**UT-14.4 — Automatic restarts are logged to the unified log (FR-13.4)** ✅
 
 Covered above by UT-13.1/UT-13.2/UT-13.3 — every FR-13 automatic restart
-appends to `log/restart.log`, independent of `mutagenMon.log` and of
-`resolve.log`. Note: the *whole-app* self-restart mechanism (staleness
-watchdog, FR-6 — see UT-T.11) is a separate, unrelated mechanism and still
-logs to `mutagenMon.log` only — this dedicated log is specifically for
-FR-13's per-session restarts.
+is logged to `mutagenMon.log`. There is no separate `restart.log` any more
+(see FR-14.3's rewrite note). Note: the *whole-app* self-restart mechanism
+(staleness watchdog, FR-6 — see UT-T.11) is a separate, unrelated
+mechanism that has always logged to `mutagenMon.log` only — this entry is
+specifically about FR-13's per-session restarts, which used to go to a
+dedicated file and no longer do.
 
 **UT-14.5 — Verbosity gate (FR-14.2)** ✅
 
@@ -847,6 +851,6 @@ defects:
 * FR-11.1/FR-11.2/FR-11.3/FR-11.4 (new-conflict, auto-resolve,
   automatic-restart, and profile-update notifications), FR-12 (session
   profile change detection, including the FR-12.2 debounce), and FR-13
-  (automatic session recovery, including its dedicated `restart.log`,
-  FR-14.3) are all implemented. Only FR-14.2 (verbosity gate) remains
+  (automatic session recovery, logged to the unified `mutagenMon.log` per
+  FR-13.4) are all implemented. Only FR-14.2 (verbosity gate) remains
   deliberately unimplemented — see the ⏳ section above.

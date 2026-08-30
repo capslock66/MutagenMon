@@ -41,14 +41,14 @@ public class AutoResolveEngineTests
                 "alpha-sync", "id-a", "Watching for changes", IsDuplicate: false, HasProblems: false, HasConflicts: true, LocalAlpha, SshBeta),
         };
 
-    private static (AutoResolveEngine Engine, FakeConflictFileClient Client, string LogDir) Build(
+    private static (AutoResolveEngine Engine, FakeConflictFileClient Client, CapturingLogger<ConflictResolutionService> Logger) Build(
         IReadOnlyList<AutoResolveRule> rules, TimeSpan? historyAge = null)
     {
         var client = new FakeConflictFileClient();
-        var logDir = Path.Combine(Path.GetTempPath(), "MutagenMon.Tests", Guid.NewGuid().ToString("N"));
-        var resolutionService = new ConflictResolutionService(client, new ResolveLogWriter(logDir));
+        var logger = new CapturingLogger<ConflictResolutionService>();
+        var resolutionService = new ConflictResolutionService(client, logger);
         var engine = new AutoResolveEngine(rules, historyAge ?? TimeSpan.FromSeconds(30), resolutionService);
-        return (engine, client, logDir);
+        return (engine, client, logger);
     }
 
     private static Dictionary<string, IReadOnlyList<ConflictRecord>> OneConflict(bool autoResolved = false) =>
@@ -84,7 +84,7 @@ public class AutoResolveEngineTests
     [Fact]
     public async Task MatchingAWinsRuleCopiesAlphaOverBetaAndFlagsAutoResolved()
     {
-        var (engine, client, logDir) = Build(new[] { Rule("shared", "A wins") });
+        var (engine, client, logger) = Build(new[] { Rule("shared", "A wins") });
 
         var result = await engine.ApplyAsync(OneConflict(), SessionStatuses, DateTimeOffset.UtcNow, CancellationToken.None);
 
@@ -92,9 +92,7 @@ public class AutoResolveEngineTests
         Assert.Single(client.Copies);
         Assert.Equal(LocalAlpha, client.Copies[0].Source);
         Assert.Equal(SshBeta, client.Copies[0].Destination);
-        var logText = File.ReadAllText(Path.Combine(logDir, "resolve.log"));
-        Assert.Contains("[AUTO]", logText);
-        Assert.Contains("A wins", logText);
+        Assert.Contains(logger.Messages, m => m.Contains("[AUTO]") && m.Contains("A wins"));
     }
 
     [Fact]
