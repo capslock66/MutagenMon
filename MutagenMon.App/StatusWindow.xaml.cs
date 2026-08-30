@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Media;
+using Microsoft.Extensions.Logging;
 using MutagenMon.Core.Monitoring;
 using MutagenMon.Core.Status;
 
@@ -29,11 +30,13 @@ public partial class StatusWindow : Window
     /// every row (losing selection/scroll position, and flickering) even
     /// when nothing actually changed.</summary>
     private readonly ObservableCollection<SessionSummaryRow> _sessionRows = new();
+    private readonly ILogger _logger;
 
-    public StatusWindow()
+    public StatusWindow(ILogger logger)
     {
         InitializeComponent();
         SessionsGrid.ItemsSource = _sessionRows;
+        _logger = logger;
     }
 
     public void UpdateContent(string title, ImageSource? icon, MonitorSnapshot snapshot, IReadOnlyList<string> sessionNames)
@@ -84,12 +87,21 @@ public partial class StatusWindow : Window
         return separatorIndex >= 0 ? title[(separatorIndex + 2)..] : title;
     }
 
-    private void OnOkClick(object sender, RoutedEventArgs e) => Hide();
+    private void OnOkClick(object sender, RoutedEventArgs e)
+    {
+        _logger.LogInformation("User action: status window OK clicked");
+        Hide();
+    }
 
-    private void OnCancelClick(object sender, RoutedEventArgs e) => Hide();
+    private void OnCancelClick(object sender, RoutedEventArgs e)
+    {
+        _logger.LogInformation("User action: status window Cancel clicked");
+        Hide();
+    }
 
     private void OnResolveConflictsClick(object sender, RoutedEventArgs e)
     {
+        _logger.LogInformation("User action: resolve conflicts clicked");
         Hide();
         ResolveConflictsRequested?.Invoke(this, EventArgs.Empty);
     }

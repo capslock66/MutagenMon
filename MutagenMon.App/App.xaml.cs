@@ -187,10 +187,10 @@ public partial class App : Application
 
     private void OnShowStatusClick(object sender, RoutedEventArgs e)
     {
-        _logger?.LogDebug("Show status clicked");
+        _logger?.LogDebug("User action: show status clicked");
         if (_statusWindow is null)
         {
-            _statusWindow = new StatusWindow();
+            _statusWindow = new StatusWindow(_logger!);
             _statusWindow.ResolveConflictsRequested += OnResolveConflictsRequested;
         }
         if (_stateStore is not null && _trayIconController?.CurrentState is { } state)
@@ -218,7 +218,6 @@ public partial class App : Application
         if (_stateStore is null || _conflictResolutionService is null || _conflictResolutionControllerLogger is null || _statusWindow is null)
             return;
 
-        _logger?.LogInformation("Resolve conflicts requested");
         var controller = new ConflictResolutionController(
             _statusWindow, _stateStore, _sessionNames, _conflictResolutionService, _conflictResolutionControllerLogger);
         await controller.RunAsync();
@@ -229,7 +228,7 @@ public partial class App : Application
     /// arm the tray icon controller's restart-readiness check.</summary>
     private void OnReloadClick(object sender, RoutedEventArgs e)
     {
-        _logger?.LogInformation("Reload config & restart mutagen requested");
+        _logger?.LogInformation("User action: reload config & restart mutagen requested");
         _monitorService?.SetEnabled(false);
         _trayIconController?.RequestRestart();
     }
@@ -240,7 +239,7 @@ public partial class App : Application
         if (_monitorService is null)
             return;
         var newEnabled = !_monitorService.IsEnabled;
-        _logger?.LogInformation("Toggling monitoring to {Enabled}", newEnabled);
+        _logger?.LogInformation("User action: toggling monitoring to {Enabled}", newEnabled);
         _monitorService.SetEnabled(newEnabled);
     }
 
@@ -278,7 +277,7 @@ public partial class App : Application
 
     private async void OnExitClick(object sender, RoutedEventArgs e)
     {
-        _logger?.LogInformation("Exit requested; shutting down");
+        _logger?.LogInformation("User action: exit requested; shutting down");
         _trayIconController?.Stop();
         if (_host is not null)
         {

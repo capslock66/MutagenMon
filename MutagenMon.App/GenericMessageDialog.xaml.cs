@@ -1,4 +1,5 @@
 using System.Windows;
+using Microsoft.Extensions.Logging;
 
 namespace MutagenMon.App;
 
@@ -10,23 +11,25 @@ namespace MutagenMon.App;
 /// </summary>
 public partial class GenericMessageDialog : Window
 {
+    private ILogger _logger = null!;
+
     public GenericMessageDialog()
     {
         InitializeComponent();
     }
 
     /// <summary>Shows an OK-only informational dialog and blocks until dismissed.</summary>
-    public static void ShowInfo(Window? owner, string title, string body)
+    public static void ShowInfo(Window? owner, ILogger logger, string title, string body)
     {
-        var dialog = new GenericMessageDialog { Title = title, Owner = owner };
+        var dialog = new GenericMessageDialog { Title = title, Owner = owner, _logger = logger };
         dialog.BodyText.Text = body;
         dialog.ShowDialog();
     }
 
     /// <summary>Shows an OK/Cancel confirmation dialog and returns true if OK was chosen.</summary>
-    public static bool ShowConfirm(Window? owner, string title, string body, string okLabel = "OK", string cancelLabel = "Cancel")
+    public static bool ShowConfirm(Window? owner, ILogger logger, string title, string body, string okLabel = "OK", string cancelLabel = "Cancel")
     {
-        var dialog = new GenericMessageDialog { Title = title, Owner = owner };
+        var dialog = new GenericMessageDialog { Title = title, Owner = owner, _logger = logger };
         dialog.BodyText.Text = body;
         dialog.OkButton.Content = okLabel;
         dialog.CancelButton.Content = cancelLabel;
@@ -36,11 +39,13 @@ public partial class GenericMessageDialog : Window
 
     private void OnOkClick(object sender, RoutedEventArgs e)
     {
+        _logger.LogInformation("User action: {Title} OK clicked", Title);
         DialogResult = true;
     }
 
     private void OnCancelClick(object sender, RoutedEventArgs e)
     {
+        _logger.LogInformation("User action: {Title} Cancel clicked", Title);
         DialogResult = false;
     }
 }

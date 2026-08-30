@@ -408,6 +408,9 @@ scale and are folded into the "≈" approximations there).
   the configured `DebugLevel` are written.
 - FR-14.3: Restarts (FR-13) and conflict resolutions (FR-9/FR-10) MUST be
   logged to their own dedicated log files, independent of the debug log.
+- FR-14.4 (rewrite only, no legacy equivalent): Every user-initiated action
+  on the tray context menu or on a button in any window/dialog MUST be
+  logged, with a message starting with `"User action: "`.
 
 ### Rewrite implementation note (deliberate simplification)
 

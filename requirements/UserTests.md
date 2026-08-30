@@ -789,6 +789,36 @@ FR-13's per-session restarts.
 * Note: `DebugLevel` (the legacy 0-100 dial) has no effect — `MinLogLevel`
   is the key that actually controls verbosity in the rewrite.
 
+**UT-14.6 — Every menu/button action is logged as "User action: ..."
+(FR-14.4)** ✅
+
+* Left-click the tray icon (or use "Show status" from the context menu) to
+  open the status window.
+* `log/mutagenMon.log` contains `User action: show status clicked`.
+* From the tray context menu, click "Reload config & restart mutagen".
+* The log contains `User action: reload config & restart mutagen
+  requested`.
+* From the tray context menu, click "Stop Mutagen sessions" (or "Start
+  Mutagen sessions").
+* The log contains `User action: toggling monitoring to True` (or
+  `False`).
+* In the status window, click "OK" or "Cancel" — the log contains `User
+  action: status window OK clicked` or `User action: status window Cancel
+  clicked` respectively.
+* Trigger at least one conflict, open the status window, and click
+  "Resolve conflicts" — the log contains `User action: resolve conflicts
+  clicked`.
+* In the resulting conflict resolution dialog, click "OK" — the log
+  contains `User action: conflict resolution OK clicked (<Choice>)` with
+  the chosen resolution; clicking "Cancel" instead logs `User action:
+  conflict resolution Cancel clicked`.
+* Trigger a "Too many conflicts" or "resolved file conflict" informational
+  dialog (`GenericMessageDialog`) and click "OK" (or "Cancel" when
+  offered) — the log contains `User action: <dialog title> OK clicked` (or
+  `Cancel clicked`).
+* From the tray context menu, click "Exit MutagenMon".
+* The log contains `User action: exit requested; shutting down`.
+
 ## FR-15 — Single, always-on background operation
 
 **UT-15.1 — No main window is ever shown (FR-15.1)** ✅

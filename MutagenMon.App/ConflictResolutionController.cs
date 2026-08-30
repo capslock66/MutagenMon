@@ -50,7 +50,7 @@ public sealed class ConflictResolutionController
                 "Refusing to start conflict resolution: {Count} pending conflict(s) exceeds the limit of {Limit}",
                 pending.Count, ConflictBatchPlanner.MaxBatchSize);
             GenericMessageDialog.ShowInfo(
-                _owner, "MutagenMon: resolve file conflict",
+                _owner, _logger, "MutagenMon: resolve file conflict",
                 "Too many conflicts. You can restart resolving or resolve manually.");
             return;
         }
@@ -87,7 +87,7 @@ public sealed class ConflictResolutionController
 
             var defaultChoice = ConflictBatchPlanner.DefaultChoice(alphaStat, betaStat);
             var choice = ConflictResolutionWindow.Show(
-                _owner, count, total, conflict.FileName, conflict.Alpha.Url, alphaStat, conflict.Beta.Url, betaStat, defaultChoice);
+                _owner, _logger, count, total, conflict.FileName, conflict.Alpha.Url, alphaStat, conflict.Beta.Url, betaStat, defaultChoice);
 
             if (choice is null)
                 return true;
@@ -106,7 +106,7 @@ public sealed class ConflictResolutionController
                     continue;
 
                 GenericMessageDialog.ShowInfo(
-                    _owner, "MutagenMon: resolved file conflict",
+                    _owner, _logger, "MutagenMon: resolved file conflict",
                     $"Merged file copied to both sides:\n\n{conflict.FileName}");
                 return false;
             }
