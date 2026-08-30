@@ -12,7 +12,7 @@
                     <Separator />
                     <MenuItem Header="Show status" Click="OnShowStatusClick" />
                     <Separator />
-                    <MenuItem Header="Restarting..." IsEnabled="False" Visibility="Collapsed" />
+                    <MenuItem Header="Reloading..." IsEnabled="False" Visibility="Collapsed" />
                     <MenuItem Header="Exit MutagenMon" Click="OnExitClick" />
                 </ContextMenu>
             </tb:TaskbarIcon.ContextMenu>

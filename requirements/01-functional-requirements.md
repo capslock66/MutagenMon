@@ -145,7 +145,13 @@ The full specification lives in
 
 - FR-7.1: The context menu MUST offer "Reload config & restart mutagen",
   which stops all sessions, waits for confirmation they are stopped, then
-  triggers a full application restart (FR-6.3 path).
+  re-reads configuration and session definitions from disk and recreates
+  the mutagen sessions from them, in place — the MutagenMon application
+  process itself does NOT restart (distinct from the FR-6.3 self-restart,
+  which remains a full process restart). If the reloaded configuration or
+  session file is invalid, the application MUST show an error and resume
+  monitoring with the previous, still-valid configuration instead of
+  losing sync coverage.
 - FR-7.2: The context menu MUST offer a toggle action: "Stop Mutagen
   sessions" when monitoring is currently enabled, or "Start Mutagen
   sessions" when it is currently disabled.
@@ -156,9 +162,9 @@ The full specification lives in
   left-click (FR-8).
 - FR-7.4: The context menu MUST offer "Exit MutagenMon", which stops the
   background poller and closes the application (no self-restart).
-- FR-7.5: While a restart is in progress, the menu MUST replace the
+- FR-7.5: While a reload is in progress, the menu MUST replace the
   start/stop/reload/show-status items with a single disabled
-  "Restarting..." item, keeping only "Exit" available.
+  "Reloading..." item, keeping only "Exit" available.
 
 ## FR-8 — Detailed status view
 
@@ -180,7 +186,9 @@ The full specification lives in
   separate header line above the grid (the per-row icon replaced it).
 - FR-8.2: If there are unresolved conflicts, the view MUST offer an action
   to start the conflict-resolution workflow (FR-9) in addition to
-  dismissing the view.
+  dismissing the view. Starting the workflow MUST NOT close or hide the
+  status view — it stays open and live (FR-8.4) behind the conflict
+  dialogs (FR-9), which are modal and appear on top of it.
 - FR-8.3: If there are no unresolved conflicts, the view MUST be purely
   informational (single dismiss action).
 - FR-8.4: While the status view is open, it MUST stay live: whenever the
@@ -190,6 +198,13 @@ The full specification lives in
   the snapshot at the moment it was opened — a background status change,
   e.g. a new conflict appearing, was silently invisible until the next
   open.)
+- FR-8.5: The status view MUST also offer direct access to the tray
+  context menu's "Reload config & restart mutagen" (FR-7.1), "Stop/Start
+  Mutagen sessions" (FR-7.2), and "Exit MutagenMon" (FR-7.4) actions as
+  buttons, without requiring the user to right-click the tray icon
+  separately. The dismiss action's button is labeled "Close". The three
+  action buttons MUST be disabled while a reload triggered from either the
+  tray menu or the status view is in progress (mirrors FR-7.5).
 
 ## FR-9 — Manual conflict resolution
 

@@ -249,19 +249,35 @@ Covered above by UT-T.10 and UT-T.11.
 
 ## FR-7 — Tray context menu & session control
 
-**UT-7.1 — "Reload config & restart mutagen" (FR-7.1)** ✅
+**UT-7.1 — "Reload config & restart mutagen" reloads in place (FR-7.1)** ✅
 
 * Right-click the tray icon.
 * Click "Reload config & restart mutagen".
 * Right-click the tray icon again immediately.
-* A menu is displayed with a single disabled "Restarting..." item and
+* A menu is displayed with a single disabled "Reloading..." item and
   "Exit MutagenMon" only — the other items are gone.
 * Wait a few seconds.
-* The process restarts: the tray icon disappears and reappears.
-* `log/mutagenMon.log` records the restart.
-* Right-click the tray icon once it is back.
+* The tray icon does **not** disappear/reappear — the MutagenMon process
+  itself never restarts — but the sessions do get recreated (tooltip/icon
+  briefly reflect scanning/connecting again).
+* `log/mutagenMon.log` records "Every session has stopped; reloading
+  config" followed by "Configuration reloaded: ..." and "Reload complete —
+  monitoring resumed with the new configuration" — no restart entry.
+* Right-click the tray icon once reloading finishes.
 * The full menu (Reload / Stop-Start / Show status / Exit) is displayed
   again.
+
+**UT-7.1b — Reload with an invalid config falls back safely (FR-7.1)** ✅
+
+* Temporarily break `config/config_mutagenmon.json` (e.g. remove a closing
+  brace) or point `MutagenSessionsBatFile` at a missing file.
+* Click "Reload config & restart mutagen".
+* Once sessions have drained, an error message box appears naming the
+  problem; `log/mutagenMon.log` records a "Reload failed" error.
+* Monitoring resumes automatically with the previous, still-valid
+  configuration — sessions come back up, nothing is left permanently
+  disabled.
+* Restore the config file afterwards and reload again to confirm recovery.
 
 **UT-7.2 — "Stop Mutagen sessions" / "Start Mutagen sessions" (FR-7.2)** ✅
 
@@ -292,7 +308,7 @@ Covered above by UT-T.10 and UT-T.11.
 * The MutagenMon process is no longer running, and no new instance
   starts on its own.
 
-**UT-7.5 — Menu collapses to "Restarting..." during a restart (FR-7.5)**
+**UT-7.5 — Menu collapses to "Reloading..." during a reload (FR-7.5)**
 
 Covered above by UT-7.1.
 
@@ -312,8 +328,10 @@ Covered above by UT-7.1.
   anything since the app started, or a timestamp otherwise.
 * The window can be resized (drag an edge/corner) and the grid grows/
   shrinks with it.
-* Only an "OK" button is displayed — no "Cancel", no "Resolve conflicts".
-* Click "OK".
+* A "Close" button is displayed (alongside the "Reload config & restart
+  mutagen" / "Stop Mutagen sessions" / "Exit" buttons, FR-8.5) — no
+  "Cancel", no "Resolve conflicts".
+* Click "Close".
 * The window closes.
 
 **UT-8.2 — Status view with unresolved conflicts (FR-8.1/FR-8.2)** ✅
@@ -326,9 +344,13 @@ Covered above by UT-7.1.
   "`[autoresolving]`" suffix instead if an `AutoResolve` rule matches it
   — see FR-10 below).
 * Both a "Cancel" button and a "Resolve conflicts" button are displayed —
-  no plain "OK".
+  no plain "Close".
 * Click "Cancel".
 * The window closes without starting conflict resolution.
+* Reopen the status view and click "Resolve conflicts" instead. The status
+  view stays open (it does not close or hide) — the conflict-resolution
+  dialog (UT-9.1) appears on top of it, modal, and the status view keeps
+  refreshing live underneath (FR-8.4) once the dialog is dismissed.
 
 **UT-8.3 — Status view stays live while open (FR-8.4)** ✅
 
@@ -363,6 +385,28 @@ Covered above by UT-7.1.
   only reaches `<total>` while the last file is transferring.
 * Once staging finishes, the Status column reverts to the normal status
   text (e.g. "Watching for changes").
+
+**UT-8.5 — Status view exposes Reload/Stop-Start/Exit (FR-8.5)** ✅
+
+* Left-click the tray icon to open the status view.
+* Alongside "Close" (and "Cancel"/"Resolve conflicts" when conflicts are
+  unresolved), the window also shows "Reload config", "Stop Mutagen
+  sessions" (or "Start Mutagen sessions" if monitoring is currently off),
+  and "Exit" buttons, to the left of "Close".
+* Click "Stop Mutagen sessions" in the status window. Every running
+  session is terminated (same effect as the tray menu's FR-7.2 toggle);
+  the button's label flips to "Start Mutagen sessions" on the next
+  refresh. `log/mutagenMon.log` records `User action: status window
+  Stop/Start sessions clicked` followed by `User action: toggling
+  monitoring to False`.
+* Click "Reload config" in the status window. The status window stays
+  open throughout (see UT-7.1 for the full reload behavior) —
+  it keeps refreshing live, and "Reload config"/"Stop Mutagen
+  sessions"/"Exit" grey out while `log/mutagenMon.log`'s "Reloading..."
+  state is active, then re-enable once reload completes.
+* Click "Exit" in the status window. `log/mutagenMon.log` records `User
+  action: status window Exit clicked`, and the application shuts down
+  exactly as the tray menu's "Exit MutagenMon" would (FR-7.4).
 
 ## FR-9 — Manual conflict resolution
 
@@ -820,9 +864,20 @@ dedicated file and no longer do.
   Mutagen sessions").
 * The log contains `User action: toggling monitoring to True` (or
   `False`).
-* In the status window, click "OK" or "Cancel" — the log contains `User
-  action: status window OK clicked` or `User action: status window Cancel
-  clicked` respectively.
+* In the status window, click "Close" or "Cancel" — the log contains `User
+  action: status window Close clicked` or `User action: status window
+  Cancel clicked` respectively.
+* In the status window, click "Reload config" — the log contains `User
+  action: status window Reload config clicked` followed by the same
+  `User action: reload config & restart mutagen requested` line the tray
+  menu item produces (see UT-7.1).
+* In the status window, click "Stop Mutagen sessions" (or "Start Mutagen
+  sessions") — the log contains `User action: status window Stop/Start
+  sessions clicked` followed by `User action: toggling monitoring to True`
+  (or `False`).
+* In the status window, click "Exit" — the log contains `User action:
+  status window Exit clicked` followed by `User action: exit requested;
+  shutting down`.
 * Trigger at least one conflict, open the status window, and click
   "Resolve conflicts" — the log contains `User action: resolve conflicts
   clicked`.

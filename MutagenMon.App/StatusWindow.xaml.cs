@@ -22,6 +22,19 @@ public partial class StatusWindow : Window
     /// (App.xaml.cs), which owns the DI-provided services it needs.</summary>
     public event EventHandler? ResolveConflictsRequested;
 
+    /// <summary>Raised when the user clicks "Reload config" — handled by
+    /// App.xaml.cs, which owns the monitor service and tray icon controller
+    /// (FR-7.1).</summary>
+    public event EventHandler? ReloadConfigRequested;
+
+    /// <summary>Raised when the user clicks "Stop/Start Mutagen sessions" —
+    /// handled by App.xaml.cs, which owns the monitor service (FR-7.2).</summary>
+    public event EventHandler? ToggleMonitoringRequested;
+
+    /// <summary>Raised when the user clicks "Exit" — handled by App.xaml.cs,
+    /// which owns the host lifetime.</summary>
+    public event EventHandler? ExitRequested;
+
     /// <summary>Bound once to <c>SessionsGrid.ItemsSource</c> and updated
     /// in place on every refresh (<see cref="SyncRows"/>) rather than
     /// replaced — while the window stays open it's refreshed roughly once a
@@ -39,7 +52,7 @@ public partial class StatusWindow : Window
         _logger = logger;
     }
 
-    public void UpdateContent(MonitorSnapshot snapshot, IReadOnlyList<string> sessionNames)
+    public void UpdateContent(MonitorSnapshot snapshot, IReadOnlyList<string> sessionNames, bool reloadInProgress)
     {
         var rows = StatusReportFormatter.BuildSessionRows(
             sessionNames, snapshot.SessionStatuses, snapshot.LastChangedUtc, snapshot.SessionCodes, snapshot.Enabled);
@@ -48,9 +61,18 @@ public partial class StatusWindow : Window
         ConflictsText.Text = StatusReportFormatter.BuildConflictsSection(sessionNames, snapshot.Conflicts);
 
         var hasUnresolvedConflicts = StatusReportFormatter.HasUnresolvedConflicts(snapshot.Conflicts);
-        OkButton.Visibility = hasUnresolvedConflicts ? Visibility.Collapsed : Visibility.Visible;
+        CloseButton.Visibility = hasUnresolvedConflicts ? Visibility.Collapsed : Visibility.Visible;
         CancelButton.Visibility = hasUnresolvedConflicts ? Visibility.Visible : Visibility.Collapsed;
         ResolveConflictsButton.Visibility = hasUnresolvedConflicts ? Visibility.Visible : Visibility.Collapsed;
+
+        ToggleMonitoringButton.Content = snapshot.Enabled ? "Stop Mutagen sessions" : "Start Mutagen sessions";
+
+        // Mirrors FR-7.5's tray-menu collapse while a reload drains and
+        // rebuilds the monitor stack — prevents firing a second reload or
+        // toggling monitoring against a service that's about to be replaced.
+        ReloadConfigButton.IsEnabled = !reloadInProgress;
+        ToggleMonitoringButton.IsEnabled = !reloadInProgress;
+        ExitButton.IsEnabled = !reloadInProgress;
     }
 
     /// <summary>Updates <paramref name="target"/> to match
@@ -73,9 +95,9 @@ public partial class StatusWindow : Window
             target.RemoveAt(target.Count - 1);
     }
 
-    private void OnOkClick(object sender, RoutedEventArgs e)
+    private void OnCloseClick(object sender, RoutedEventArgs e)
     {
-        _logger.LogInformation("User action: status window OK clicked");
+        _logger.LogInformation("User action: status window Close clicked");
         Hide();
     }
 
@@ -88,8 +110,26 @@ public partial class StatusWindow : Window
     private void OnResolveConflictsClick(object sender, RoutedEventArgs e)
     {
         _logger.LogInformation("User action: resolve conflicts clicked");
-        Hide();
         ResolveConflictsRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnReloadConfigClick(object sender, RoutedEventArgs e)
+    {
+        _logger.LogInformation("User action: status window Reload config clicked");
+        ReloadConfigRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnToggleMonitoringClick(object sender, RoutedEventArgs e)
+    {
+        _logger.LogInformation("User action: status window Stop/Start sessions clicked");
+        ToggleMonitoringRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnExitClick(object sender, RoutedEventArgs e)
+    {
+        _logger.LogInformation("User action: status window Exit clicked");
+        Hide();
+        ExitRequested?.Invoke(this, EventArgs.Empty);
     }
 
     protected override void OnClosing(CancelEventArgs e)

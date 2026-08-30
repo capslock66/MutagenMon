@@ -49,6 +49,8 @@ public partial class App : Application
     private ConflictResolutionService? _conflictResolutionService;
     private ILogger<ConflictResolutionController>? _conflictResolutionControllerLogger;
     private IReadOnlyList<string> _sessionNames = Array.Empty<string>();
+    private MutagenMonOptions? _options;
+    private INotificationQueue? _notificationQueue;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -91,6 +93,7 @@ public partial class App : Application
             var configPath = Path.Combine(baseDir, "config", "config_mutagenmon.json");
             _logger.LogInformation("Loading configuration from {ConfigPath}", configPath);
             var options = ConfigLoader.Load(configPath);
+            _options = options;
             _loggerProvider.SetPrimaryLogPath(ResolveLogFilePath(baseDir, options.LogPath));
             _loggerProvider.SetMinLevel(options.MinLogLevel);
             _logger.LogInformation(
@@ -152,14 +155,9 @@ public partial class App : Application
             _stateStore = stateStore;
             _conflictResolutionService = _host.Services.GetRequiredService<ConflictResolutionService>();
             _conflictResolutionControllerLogger = _host.Services.GetRequiredService<ILogger<ConflictResolutionController>>();
-            var trayIconLogger = _host.Services.GetRequiredService<ILogger<TrayIconController>>();
-            var notificationQueue = _host.Services.GetRequiredService<INotificationQueue>();
+            _notificationQueue = _host.Services.GetRequiredService<INotificationQueue>();
 
-            _trayIconController = new TrayIconController(
-                trayIcon, stateStore, iconCache, options.TrayTooltip, options.StatusMaxLag.ToLagThresholds(),
-                _sessionNames, notificationQueue, OnSelfRestartNeeded, trayIconLogger);
-            _trayIconController.Polled += OnPolled;
-            _trayIconController.Start();
+            _trayIconController = BuildAndStartTrayIconController(options, _sessionNames);
             _logger.LogInformation("MutagenMon startup complete — tray icon is live");
         }
         catch (Exception ex)
@@ -183,6 +181,100 @@ public partial class App : Application
         SelfRestart.RestartAndExit();
     }
 
+    /// <summary>Builds and starts a <see cref="TrayIconController"/> against
+    /// the given options/session names, reusing everything that isn't
+    /// options-dependent (the tray icon resource itself, <see cref="_stateStore"/>,
+    /// <see cref="_iconCache"/>, <see cref="_notificationQueue"/>, and the
+    /// host's logger factory). Used both at startup and by
+    /// <see cref="OnReloadReady"/> to rebuild the controller after an
+    /// in-place config reload (FR-7.1).</summary>
+    private TrayIconController BuildAndStartTrayIconController(MutagenMonOptions options, IReadOnlyList<string> sessionNames)
+    {
+        var trayIcon = (TaskbarIcon)Resources["TrayIcon"];
+        var trayIconLogger = _host!.Services.GetRequiredService<ILogger<TrayIconController>>();
+        var controller = new TrayIconController(
+            trayIcon, _stateStore!, _iconCache!, options.TrayTooltip, options.StatusMaxLag.ToLagThresholds(),
+            sessionNames, _notificationQueue!, OnSelfRestartNeeded, OnReloadReady, trayIconLogger);
+        controller.Polled += OnPolled;
+        controller.Start();
+        return controller;
+    }
+
+    /// <summary>Implements the in-place half of FR-7.1: once
+    /// <see cref="TrayIconController"/> confirms every session has stopped
+    /// following a "Reload config" request, re-reads configuration and
+    /// session definitions from disk and rebuilds the monitor/tray stack
+    /// from them — without restarting the MutagenMon process itself (that
+    /// remains reserved for the FR-6.3 staleness safety net, handled by
+    /// <see cref="OnSelfRestartNeeded"/>). <see cref="SessionMonitorService"/>,
+    /// <see cref="MutagenCliClient"/>, <see cref="ConflictFileClient"/>, and
+    /// <see cref="ConflictResolutionService"/> all capture their
+    /// options/session-derived state once in their constructors, so
+    /// reconstructing them fresh is simpler and safer than adding live
+    /// setters to each — <see cref="_stateStore"/>, <see cref="_notificationQueue"/>,
+    /// <see cref="_iconCache"/>, the tray icon resource, and <see cref="_host"/>
+    /// itself are the only things reused as-is.</summary>
+    private async void OnReloadReady()
+    {
+        _logger?.LogInformation("Every configured session has stopped; reloading configuration in place");
+        var baseDir = AppContext.BaseDirectory;
+        MutagenMonOptions newOptions;
+        SessionDefinitionLoadResult newSessionResult;
+        try
+        {
+            var configPath = Path.Combine(baseDir, "config", "config_mutagenmon.json");
+            newOptions = ConfigLoader.Load(configPath);
+            var sessionsPath = Path.Combine(baseDir, newOptions.MutagenSessionsBatFile.Replace('/', Path.DirectorySeparatorChar));
+            newSessionResult = SessionDefinitionLoader.ParseFile(sessionsPath);
+            foreach (var duplicate in newSessionResult.DuplicateNames)
+                _logger?.LogWarning("Duplicate session name in {File}: {Name}", sessionsPath, duplicate);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Reload failed: could not load the new configuration; resuming with the previous configuration");
+            MessageBox.Show(
+                $"MutagenMon could not reload the configuration:\n\n{ex}\n\nThe previous configuration stays active.",
+                "MutagenMon — reload error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            _monitorService?.SetEnabled(true);
+            _trayIconController = BuildAndStartTrayIconController(_options!, _sessionNames);
+            return;
+        }
+
+        _logger?.LogInformation(
+            "Configuration reloaded: PollPeriod={PollPeriodMs}ms, StartEnabled={StartEnabled}, LogPath={LogPath}",
+            newOptions.MutagenPollPeriodMs, newOptions.StartEnabled, newOptions.LogPath);
+        _loggerProvider!.SetPrimaryLogPath(ResolveLogFilePath(baseDir, newOptions.LogPath));
+        _loggerProvider.SetMinLevel(newOptions.MinLogLevel);
+
+        if (_monitorService is not null)
+        {
+            await _monitorService.StopAsync(CancellationToken.None);
+            _monitorService.Dispose();
+        }
+
+        var newSessionNames = newSessionResult.Sessions.Select(s => s.Name).ToArray();
+        var optionsWrapper = Options.Create(newOptions);
+        IMutagenCliClient newCliClient = new MutagenCliClient(optionsWrapper, _host!.Services.GetRequiredService<ILogger<MutagenCliClient>>());
+        IConflictFileClient newConflictFileClient = new ConflictFileClient(optionsWrapper, _host.Services.GetRequiredService<ILogger<ConflictFileClient>>());
+        var newConflictResolutionService = new ConflictResolutionService(newConflictFileClient, _host.Services.GetRequiredService<ILogger<ConflictResolutionService>>());
+        var newMonitorService = new SessionMonitorService(
+            newCliClient, _stateStore!, optionsWrapper, newSessionResult.Sessions,
+            _host.Services.GetRequiredService<IFileTimestampProvider>(),
+            newConflictResolutionService, _notificationQueue!,
+            _host.Services.GetRequiredService<ILogger<SessionMonitorService>>());
+        await newMonitorService.StartAsync(CancellationToken.None);
+
+        _options = newOptions;
+        _sessionNames = newSessionNames;
+        _monitorService = newMonitorService;
+        _conflictResolutionService = newConflictResolutionService;
+        _trayIconController = BuildAndStartTrayIconController(newOptions, newSessionNames);
+
+        _logger?.LogInformation("Reload complete — monitoring resumed with the new configuration");
+    }
+
     private void OnShowStatusClick(object sender, RoutedEventArgs e)
     {
         _logger?.LogDebug("User action: show status clicked");
@@ -190,9 +282,12 @@ public partial class App : Application
         {
             _statusWindow = new StatusWindow(_logger!, _iconCache!);
             _statusWindow.ResolveConflictsRequested += OnResolveConflictsRequested;
+            _statusWindow.ReloadConfigRequested += OnStatusWindowReloadConfigRequested;
+            _statusWindow.ToggleMonitoringRequested += OnStatusWindowToggleMonitoringRequested;
+            _statusWindow.ExitRequested += OnStatusWindowExitRequested;
         }
         if (_stateStore is not null)
-            _statusWindow.UpdateContent(_stateStore.Get(), _sessionNames);
+            _statusWindow.UpdateContent(_stateStore.Get(), _sessionNames, _trayIconController?.IsReloadInProgress ?? false);
         _statusWindow.Show();
         _statusWindow.Activate();
     }
@@ -205,7 +300,7 @@ public partial class App : Application
     private void OnPolled(MonitorSnapshot snapshot, TrayIconState state)
     {
         if (_statusWindow is { IsVisible: true })
-            _statusWindow.UpdateContent(snapshot, _sessionNames);
+            _statusWindow.UpdateContent(snapshot, _sessionNames, _trayIconController?.IsReloadInProgress ?? false);
     }
 
     /// <summary>Handles the status view's "Resolve conflicts" action (FR-8.2 ->
@@ -223,16 +318,29 @@ public partial class App : Application
 
     /// <summary>Handles the "Reload config & restart mutagen" action (FR-7.1):
     /// disable monitoring (terminating every session on the next poll) and
-    /// arm the tray icon controller's restart-readiness check.</summary>
-    private void OnReloadClick(object sender, RoutedEventArgs e)
+    /// arm the tray icon controller's reload-readiness check —
+    /// <see cref="OnReloadReady"/> does the actual in-place reload once every
+    /// session has stopped. Shared by the tray context menu and the status
+    /// window's "Reload config" button.</summary>
+    private void OnReloadClick(object sender, RoutedEventArgs e) => ReloadConfig();
+
+    private void OnStatusWindowReloadConfigRequested(object? sender, EventArgs e) => ReloadConfig();
+
+    private void ReloadConfig()
     {
         _logger?.LogInformation("User action: reload config & restart mutagen requested");
         _monitorService?.SetEnabled(false);
-        _trayIconController?.RequestRestart();
+        _trayIconController?.RequestReload();
     }
 
-    /// <summary>Handles the enable/disable monitoring toggle (FR-7.2).</summary>
-    private void OnToggleMonitoringClick(object sender, RoutedEventArgs e)
+    /// <summary>Handles the enable/disable monitoring toggle (FR-7.2). Shared
+    /// by the tray context menu and the status window's "Stop/Start Mutagen
+    /// sessions" button.</summary>
+    private void OnToggleMonitoringClick(object sender, RoutedEventArgs e) => ToggleMonitoring();
+
+    private void OnStatusWindowToggleMonitoringRequested(object? sender, EventArgs e) => ToggleMonitoring();
+
+    private void ToggleMonitoring()
     {
         if (_monitorService is null)
             return;
@@ -243,7 +351,7 @@ public partial class App : Application
 
     /// <summary>Implements the tray context menu's dynamic state
     /// (FR-7.2/FR-7.5) — refreshes the toggle item's label and collapses
-    /// everything but "Restarting.../Exit" while a restart is in progress,
+    /// everything but "Reloading.../Exit" while a reload is in progress,
     /// right before the menu is actually shown. Items are addressed by
     /// position (matching the fixed order in App.xaml) rather than by name:
     /// x:Name on elements nested inside Application.Resources is not
@@ -258,22 +366,26 @@ public partial class App : Application
         var topSeparator = (UIElement)menu.Items[2];
         var showStatusItem = (MenuItem)menu.Items[3];
         var bottomSeparator = (UIElement)menu.Items[4];
-        var restartingItem = (MenuItem)menu.Items[5];
+        var reloadingItem = (MenuItem)menu.Items[5];
 
-        var restarting = _trayIconController?.IsRestartInProgress ?? false;
+        var reloading = _trayIconController?.IsReloadInProgress ?? false;
 
-        reloadItem.Visibility = restarting ? Visibility.Collapsed : Visibility.Visible;
-        toggleItem.Visibility = restarting ? Visibility.Collapsed : Visibility.Visible;
-        topSeparator.Visibility = restarting ? Visibility.Collapsed : Visibility.Visible;
-        showStatusItem.Visibility = restarting ? Visibility.Collapsed : Visibility.Visible;
-        bottomSeparator.Visibility = restarting ? Visibility.Collapsed : Visibility.Visible;
-        restartingItem.Visibility = restarting ? Visibility.Visible : Visibility.Collapsed;
+        reloadItem.Visibility = reloading ? Visibility.Collapsed : Visibility.Visible;
+        toggleItem.Visibility = reloading ? Visibility.Collapsed : Visibility.Visible;
+        topSeparator.Visibility = reloading ? Visibility.Collapsed : Visibility.Visible;
+        showStatusItem.Visibility = reloading ? Visibility.Collapsed : Visibility.Visible;
+        bottomSeparator.Visibility = reloading ? Visibility.Collapsed : Visibility.Visible;
+        reloadingItem.Visibility = reloading ? Visibility.Visible : Visibility.Collapsed;
 
-        if (!restarting && _monitorService is not null)
+        if (!reloading && _monitorService is not null)
             toggleItem.Header = _monitorService.IsEnabled ? "Stop Mutagen sessions" : "Start Mutagen sessions";
     }
 
-    private async void OnExitClick(object sender, RoutedEventArgs e)
+    private async void OnExitClick(object sender, RoutedEventArgs e) => await ExitAsync();
+
+    private async void OnStatusWindowExitRequested(object? sender, EventArgs e) => await ExitAsync();
+
+    private async Task ExitAsync()
     {
         _logger?.LogInformation("User action: exit requested; shutting down");
         _trayIconController?.Stop();

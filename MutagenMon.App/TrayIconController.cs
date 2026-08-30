@@ -48,18 +48,19 @@ public sealed class TrayIconController
     private readonly IReadOnlyList<string> _sessionNames;
     private readonly INotificationQueue _notificationQueue;
     private readonly Action _onSelfRestartNeeded;
+    private readonly Action _onReloadReady;
     private readonly ILogger<TrayIconController> _logger;
     private readonly DispatcherTimer _timer;
     private TrayIconState? _lastState;
     private bool _restartTriggered;
-    private bool _restartRequested;
+    private bool _reloadRequested;
     private bool _isReopeningContextMenu;
 
-    /// <summary>True from <see cref="RequestRestart"/> until every configured
-    /// session has stopped reporting a status and the self-restart has
-    /// actually fired — drives the context menu's "Restarting..." collapse
+    /// <summary>True from <see cref="RequestReload"/> until every configured
+    /// session has stopped reporting a status and the in-place reload has
+    /// actually fired — drives the context menu's "Reloading..." collapse
     /// (FR-7.5).</summary>
-    public bool IsRestartInProgress => _restartRequested;
+    public bool IsReloadInProgress => _reloadRequested;
 
     public TrayIconController(
         TaskbarIcon taskbarIcon,
@@ -70,6 +71,7 @@ public sealed class TrayIconController
         IReadOnlyList<string> sessionNames,
         INotificationQueue notificationQueue,
         Action onSelfRestartNeeded,
+        Action onReloadReady,
         ILogger<TrayIconController> logger)
     {
         _taskbarIcon = taskbarIcon;
@@ -80,20 +82,21 @@ public sealed class TrayIconController
         _sessionNames = sessionNames;
         _notificationQueue = notificationQueue;
         _onSelfRestartNeeded = onSelfRestartNeeded;
+        _onReloadReady = onReloadReady;
         _logger = logger;
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) => Tick();
     }
 
-    /// <summary>Requests a monitored restart —
+    /// <summary>Requests an in-place config reload —
     /// the caller is expected to have already disabled monitoring (so every
     /// session gets terminated on the next poll); this just arms the check
-    /// that fires the actual self-restart once they're all confirmed
+    /// that fires the actual reload once they're all confirmed
     /// stopped (FR-7.1).</summary>
-    public void RequestRestart()
+    public void RequestReload()
     {
-        _logger.LogInformation("Restart requested; waiting for every session to stop before restarting");
-        _restartRequested = true;
+        _logger.LogInformation("Reload requested; waiting for every session to stop before reloading");
+        _reloadRequested = true;
     }
 
     public void Start()
@@ -184,12 +187,12 @@ public sealed class TrayIconController
             return;
         }
 
-        if (_restartRequested && RestartReadiness.AllSessionsStopped(snapshot.SessionStatuses, _sessionNames))
+        if (_reloadRequested && RestartReadiness.AllSessionsStopped(snapshot.SessionStatuses, _sessionNames))
         {
-            _logger.LogInformation("Every session has stopped; restarting");
-            _restartRequested = false;
+            _logger.LogInformation("Every session has stopped; reloading config");
+            _reloadRequested = false;
             Stop();
-            _onSelfRestartNeeded();
+            _onReloadReady();
             return;
         }
 
