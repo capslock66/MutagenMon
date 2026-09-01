@@ -15,6 +15,7 @@
          WPF dependency, smaller footprint); only the WPF host needs full ICU
          data. -->
     <InvariantGlobalization>false</InvariantGlobalization>
+    <ApplicationIcon>Assets/Icons/app_icon_monitor.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
