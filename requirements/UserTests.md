@@ -243,6 +243,19 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
   if monitoring is currently off), a separator, "Show status", a
   separator, "Exit MutagenMon".
 
+**UT-T.14 — Resilient to a stale native tray icon (e.g. after resuming
+from sleep/hibernate)** ✅
+
+* Not deterministically reproducible on demand; verify after an actual
+  occurrence — e.g. leave MutagenMon running, put the PC to sleep/
+  hibernate for a few minutes, then resume it.
+* No "MutagenMon hit an unexpected error" dialog referencing
+  `UpdateToolTip failed` appears.
+* `log/mutagenMon.log` may show `[WRN] ... Failed to update the tray
+  icon/tooltip; will retry next tick` around that time; the icon/tooltip
+  catch up automatically once the tray icon becomes valid again, with no
+  error dialog and no app restart.
+
 ## FR-6 — Staleness detection & self-restart
 
 Covered above by UT-T.10 and UT-T.11.
@@ -905,6 +918,23 @@ dedicated file and no longer do.
 **UT-15.2 — Clean shutdown on Exit (FR-15.2)** ✅
 
 Covered above by UT-7.4.
+
+**UT-15.3 — Second launch shows the running instance's status window instead of starting a duplicate (NFR-3)** ✅
+
+* Start MutagenMon normally; wait for the tray icon to leave the
+  "waiting for status" (lightgray-init) state.
+* Close the status window if it's open.
+* Start MutagenMon a second time (e.g. double-click the executable/shortcut
+  again).
+* The second launch's process exits almost immediately — no second tray
+  icon ever appears (check by counting MutagenMon tray icons).
+* The first instance's status window appears (and is brought to the
+  foreground) without any action on your part.
+* Windows Event Viewer → Windows Logs → Application, source `MutagenMon`,
+  contains an Information entry: "MutagenMon is already running; asking
+  the running instance to show its status window and exiting."
+* `log/mutagenMon.log` (the first instance's log) contains `Show-status
+  request received from a second instance; showing status window`.
 
 ## Appendix — known, accepted gaps (do not report as bugs)
 

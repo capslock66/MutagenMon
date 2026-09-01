@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -38,6 +40,11 @@ namespace MutagenMon.App;
 /// </summary>
 public partial class App : Application
 {
+    private const string SingleInstanceMutexName = "MutagenMon-SingleInstance";
+    private const string ShowStatusEventName = "MutagenMon-ShowStatus";
+
+    private Mutex? _singleInstanceMutex;
+    private EventWaitHandle? _showStatusEvent;
     private FileLoggerProvider? _loggerProvider;
     private ILogger<App>? _logger;
     private IHost? _host;
@@ -55,6 +62,27 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // NFR-3: single-instance enforcement. The mutex is created (not just
+        // opened) atomically by the constructor, so createdNew tells us
+        // unambiguously whether we're first. Checked before any other
+        // startup work so a second launch exits as cheaply as possible.
+        _singleInstanceMutex = new Mutex(true, SingleInstanceMutexName, out var createdNew);
+        if (!createdNew)
+        {
+            FileLoggerProvider.WriteToWindowsEventLog(
+                "MutagenMon is already running; asking the running instance to show its status window and exiting.",
+                EventLogEntryType.Information);
+            SignalRunningInstance();
+            Shutdown();
+            return;
+        }
+
+        // Created ahead of the thread that consumes it (below, once _logger
+        // and _iconCache exist) so a second instance racing in during our
+        // own startup can still signal us: EventWaitHandle latches a Set()
+        // until the next WaitOne(), even if no thread is waiting yet.
+        _showStatusEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowStatusEventName);
 
         var baseDir = AppContext.BaseDirectory;
         _loggerProvider = new FileLoggerProvider();
@@ -110,6 +138,12 @@ public partial class App : Application
             // point by construction.
             var iconCache = new IconImageCache(Path.Combine(baseDir, "Assets", "Icons"));
             _iconCache = iconCache;
+
+            // _logger and _iconCache (both required by ShowStatusWindow) are
+            // ready as of this point, so it's now safe to start reacting to
+            // a second instance's signal.
+            new Thread(WatchForShowStatusRequests) { IsBackground = true, Name = "MutagenMon-ShowStatusWatcher" }.Start();
+
             var trayIcon = (TaskbarIcon)Resources["TrayIcon"];
             // With no main window, TaskbarIcon's native icon is never created
             // implicitly (it normally happens on Loaded, when a control enters
@@ -278,6 +312,11 @@ public partial class App : Application
     private void OnShowStatusClick(object sender, RoutedEventArgs e)
     {
         _logger?.LogDebug("User action: show status clicked");
+        ShowStatusWindow();
+    }
+
+    private void ShowStatusWindow()
+    {
         if (_statusWindow is null)
         {
             _statusWindow = new StatusWindow(_logger!, _iconCache!);
@@ -290,6 +329,39 @@ public partial class App : Application
             _statusWindow.UpdateContent(_stateStore.Get(), _sessionNames, _trayIconController?.IsReloadInProgress ?? false);
         _statusWindow.Show();
         _statusWindow.Activate();
+    }
+
+    /// <summary>Second half of the single-instance flow (NFR-3): opens the
+    /// first instance's <see cref="ShowStatusEventName"/> handle and signals
+    /// it, so that instance shows its status window before this one exits.
+    /// </summary>
+    private static void SignalRunningInstance()
+    {
+        try
+        {
+            using var showStatusEvent = EventWaitHandle.OpenExisting(ShowStatusEventName);
+            showStatusEvent.Set();
+        }
+        catch (WaitHandleCannotBeOpenedException)
+        {
+            // Startup race: the first instance hasn't created its event yet — nothing to signal.
+        }
+    }
+
+    /// <summary>Runs for the lifetime of the (first, and only) instance:
+    /// blocks on <see cref="_showStatusEvent"/> and shows the status window
+    /// on the UI thread each time a second instance signals it.</summary>
+    private void WatchForShowStatusRequests()
+    {
+        while (true)
+        {
+            _showStatusEvent!.WaitOne();
+            Dispatcher.BeginInvoke(() =>
+            {
+                _logger?.LogInformation("Show-status request received from a second instance; showing status window");
+                ShowStatusWindow();
+            });
+        }
     }
 
     /// <summary>Keeps an already-open status view live (FR-8.4): every 1s

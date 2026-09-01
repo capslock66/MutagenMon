@@ -29,7 +29,15 @@
   no continuous rendering, no heavy in-memory history).
 - The application MUST run as a single instance; it must not accumulate
   duplicate tray icons or duplicate background pollers across
-  restarts.
+  restarts. A second launch MUST instead bring the running instance's
+  status window to the front, then exit.
+  - Technical note: a named `Mutex` (`App.OnStartup`) detects whether an
+    instance is already running — `createdNew` from its constructor is
+    an atomic, race-free check. A second, named `EventWaitHandle` is
+    used purely as a cross-process signal (no payload needed): the new
+    process opens it and calls `Set()`, the running instance blocks on
+    `WaitOne()` on a background thread and shows its status window on
+    the UI thread via `Dispatcher.BeginInvoke` when it wakes.
 
 ## NFR-4 — Portability
 

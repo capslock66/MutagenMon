@@ -207,13 +207,28 @@ public sealed class TrayIconController
 
         _logger.LogDebug("Tray icon state changed: {IconKey} — \"{Tooltip}\"", state.IconKey, state.Tooltip);
 
-        if (_lastState?.IconKey != state.IconKey)
+        try
         {
-            _logger.LogInformation("Tray icon changed: {PreviousIconKey} -> {IconKey}", _lastState?.IconKey, state.IconKey);
-            _taskbarIcon.Icon = _iconCache.Get(state.IconKey);
+            if (_lastState?.IconKey != state.IconKey)
+            {
+                _logger.LogInformation("Tray icon changed: {PreviousIconKey} -> {IconKey}", _lastState?.IconKey, state.IconKey);
+                _taskbarIcon.Icon = _iconCache.Get(state.IconKey);
+            }
+
+            _taskbarIcon.ToolTipText = state.Tooltip;
+        }
+        catch (InvalidOperationException ex)
+        {
+            // The native tray icon can go stale after the taskbar is torn
+            // down (Explorer restart, or waking from sleep/hibernate)
+            // without a TaskbarCreated message to recreate it — H.NotifyIcon
+            // throws instead of no-op'ing. _lastState is deliberately left
+            // unset so the same update is retried next tick, rather than
+            // surfacing a disruptive error dialog every second.
+            _logger.LogWarning(ex, "Failed to update the tray icon/tooltip; will retry next tick");
+            return;
         }
 
-        _taskbarIcon.ToolTipText = state.Tooltip;
         _lastState = state;
     }
 }
