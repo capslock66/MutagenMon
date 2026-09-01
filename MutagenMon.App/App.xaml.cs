@@ -459,7 +459,22 @@ public partial class App : Application
 
     private async Task ExitAsync()
     {
+        // Shared by both entry points (tray menu "Exit MutagenMon" and the
+        // status window's "Exit" button) — asked here, before either one
+        // does anything irreversible, so a "No" leaves everything running
+        // exactly as it was.
+        if (MessageBox.Show(
+                "Are you sure you want to exit MutagenMon? Background synchronization will stop.",
+                "MutagenMon — confirm exit",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question) != MessageBoxResult.Yes)
+        {
+            _logger?.LogInformation("User action: exit cancelled at confirmation");
+            return;
+        }
+
         _logger?.LogInformation("User action: exit requested; shutting down");
+        _statusWindow?.Hide();
         _trayIconController?.Stop();
         if (_host is not null)
         {

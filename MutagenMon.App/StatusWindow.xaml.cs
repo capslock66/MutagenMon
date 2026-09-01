@@ -128,7 +128,8 @@ public partial class StatusWindow : Window
     private void OnExitClick(object sender, RoutedEventArgs e)
     {
         _logger.LogInformation("User action: status window Exit clicked");
-        Hide();
+        // Not hidden here: the caller (App.ExitAsync) asks for confirmation
+        // first and only hides/closes everything once the user confirms.
         ExitRequested?.Invoke(this, EventArgs.Empty);
     }
 

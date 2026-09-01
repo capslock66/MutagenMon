@@ -316,6 +316,9 @@ Covered above by UT-T.10 and UT-T.11.
 
 * Right-click the tray icon.
 * Click "Exit MutagenMon".
+* A confirmation dialog appears: "Are you sure you want to exit
+  MutagenMon? Background synchronization will stop."
+* Click "Yes".
 * The tray icon disappears immediately.
 * Open Task Manager.
 * The MutagenMon process is no longer running, and no new instance
@@ -324,6 +327,18 @@ Covered above by UT-T.10 and UT-T.11.
 **UT-7.5 — Menu collapses to "Reloading..." during a reload (FR-7.5)**
 
 Covered above by UT-7.1.
+
+**UT-7.6 — Declining the exit confirmation leaves the app running
+(FR-7.4)** ✅
+
+* Right-click the tray icon and click "Exit MutagenMon" (or open the
+  status window and click "Exit").
+* In the confirmation dialog, click "No".
+* MutagenMon keeps running unchanged — the tray icon is unaffected, and
+  (if opened from the status window) the status window is still open and
+  visible.
+* `log/mutagenMon.log` contains `User action: exit cancelled at
+  confirmation`.
 
 ## FR-8 — Detailed status view
 
@@ -402,10 +417,11 @@ Covered above by UT-7.1.
 **UT-8.5 — Status view exposes Reload/Stop-Start/Exit (FR-8.5)** ✅
 
 * Left-click the tray icon to open the status view.
-* Alongside "Close" (and "Cancel"/"Resolve conflicts" when conflicts are
-  unresolved), the window also shows "Reload config", "Stop Mutagen
-  sessions" (or "Start Mutagen sessions" if monitoring is currently off),
-  and "Exit" buttons, to the left of "Close".
+* "Reload config", "Stop Mutagen sessions" (or "Start Mutagen sessions"
+  if monitoring is currently off), and "Exit" buttons are anchored to the
+  left edge of the window; "Close" (and "Cancel"/"Resolve conflicts" when
+  conflicts are unresolved) are anchored to the right edge, separated
+  from the left-hand group.
 * Click "Stop Mutagen sessions" in the status window. Every running
   session is terminated (same effect as the tray menu's FR-7.2 toggle);
   the button's label flips to "Start Mutagen sessions" on the next
@@ -417,9 +433,11 @@ Covered above by UT-7.1.
   it keeps refreshing live, and "Reload config"/"Stop Mutagen
   sessions"/"Exit" grey out while `log/mutagenMon.log`'s "Reloading..."
   state is active, then re-enable once reload completes.
-* Click "Exit" in the status window. `log/mutagenMon.log` records `User
-  action: status window Exit clicked`, and the application shuts down
-  exactly as the tray menu's "Exit MutagenMon" would (FR-7.4).
+* Click "Exit" in the status window, then confirm in the resulting
+  dialog. `log/mutagenMon.log` records `User action: status window Exit
+  clicked`, and the application shuts down exactly as the tray menu's
+  "Exit MutagenMon" would (FR-7.4) — see UT-7.4/UT-7.6 for the
+  confirmation step itself.
 
 ## FR-9 — Manual conflict resolution
 
@@ -888,9 +906,9 @@ dedicated file and no longer do.
   sessions") — the log contains `User action: status window Stop/Start
   sessions clicked` followed by `User action: toggling monitoring to True`
   (or `False`).
-* In the status window, click "Exit" — the log contains `User action:
-  status window Exit clicked` followed by `User action: exit requested;
-  shutting down`.
+* In the status window, click "Exit", then confirm in the resulting
+  dialog — the log contains `User action: status window Exit clicked`
+  followed by `User action: exit requested; shutting down`.
 * Trigger at least one conflict, open the status window, and click
   "Resolve conflicts" — the log contains `User action: resolve conflicts
   clicked`.
@@ -902,7 +920,8 @@ dedicated file and no longer do.
   dialog (`GenericMessageDialog`) and click "OK" (or "Cancel" when
   offered) — the log contains `User action: <dialog title> OK clicked` (or
   `Cancel clicked`).
-* From the tray context menu, click "Exit MutagenMon".
+* From the tray context menu, click "Exit MutagenMon", then confirm in
+  the resulting dialog.
 * The log contains `User action: exit requested; shutting down`.
 
 ## FR-15 — Single, always-on background operation

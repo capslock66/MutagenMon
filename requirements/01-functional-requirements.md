@@ -161,7 +161,10 @@ The full specification lives in
 - FR-7.3: The context menu MUST offer "Show status", equivalent to a
   left-click (FR-8).
 - FR-7.4: The context menu MUST offer "Exit MutagenMon", which stops the
-  background poller and closes the application (no self-restart).
+  background poller and closes the application (no self-restart). The
+  exit action (from either the tray menu or the status view's "Exit"
+  button, FR-8.5) MUST ask the user to confirm before doing so;
+  declining leaves the application running unchanged.
 - FR-7.5: While a reload is in progress, the menu MUST replace the
   start/stop/reload/show-status items with a single disabled
   "Reloading..." item, keeping only "Exit" available.
