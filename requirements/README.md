@@ -16,7 +16,12 @@ This folder documents the required behavior of MutagenMon.
    every `config_mutagenmon.json` key, its type, default value, and unit.
    Referenced throughout the documents above so no default value ever
    needs to be guessed.
-5. [UserTests.md](UserTests.md) — manual, click-by-click acceptance test
+5. [07-session-management-requirements.md](07-session-management-requirements.md)
+   — requirements and design for adding/editing/deleting sessions
+   (toolbar, grid row actions, add/edit window) from the status view.
+   **Not yet implemented** — a proposal, kept separate from
+   `01-functional-requirements.md` until built.
+6. [UserTests.md](UserTests.md) — manual, click-by-click acceptance test
    script for verifying each requirement against the running application,
    kept in step with implementation progress.
 
