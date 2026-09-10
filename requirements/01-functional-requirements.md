@@ -208,10 +208,12 @@ The full specification lives in
   separately. The dismiss action's button is labeled "Close". The three
   action buttons MUST be disabled while a reload triggered from either the
   tray menu or the status view is in progress (mirrors FR-7.5).
-  - **Proposed rewrite change (not yet implemented)**: see
+  - **Rewrite change**: see
     [07-session-management-requirements.md](07-session-management-requirements.md)
-    FR-16, which relocates the "Reload config & restart mutagen" button
-    from this bottom action row into a new toolbar above the grid.
+    FR-16 — the "Reload config & restart mutagen" button has been
+    relocated from this bottom action row into a new toolbar above the
+    grid (alongside "Add"). "Stop/Start Mutagen sessions" and "Exit"
+    stay in the bottom row.
 
 ## FR-9 — Manual conflict resolution
 

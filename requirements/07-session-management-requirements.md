@@ -5,14 +5,16 @@ synchronization sessions from the status view (FR-8), instead of only by
 hand-editing `mutagen-create.bat` (FR-1.1) and restarting the application
 or issuing "Reload config & restart" (FR-7.1).
 
-It is written as a **requirements + design analysis only**. Nothing in
-this document has been implemented; see
-[Suggested implementation phases](#suggested-implementation-phases) at the
-end for how the work is expected to be broken up, each phase requiring
-explicit go-ahead before it starts.
+**Status: implemented.** Everything below is built: the Core model/parser
+(`MutagenMon.Core/Sessions/SessionCommandLine.cs`,
+`SessionCommandLineParser.cs`, `SessionCommandLineEnumFormatting.cs`), the
+file mutation (`SessionFileMutator.cs`), the live orchestration
+(`SessionEditingService.cs`), and the App-layer UI (`SessionEditWindow.xaml`,
+the status view's toolbar and grid column in `StatusWindow.xaml`). Manually
+verified on Windows (2026-09-10).
 
-Decisions below marked **(confirmed)** were settled with the user before
-writing this document. Everything else is a proposal open to revision.
+Decisions below marked **(confirmed)** were settled with the user during
+the design discussion that produced this document.
 
 ## Relationship to existing requirements
 
@@ -43,13 +45,16 @@ writing this document. Everything else is a proposal open to revision.
 - FR-16.3: The reload action's icon MUST NOT be a generic circular
   "refresh" glyph **(confirmed)** — it needs to read as "reload
   configuration", not "refresh this view". Icon: `PackIconMaterial
-  Kind="CogRefreshOutline"` **(confirmed)**. Icon package for this and
+  Kind="CogRefreshOutline"` **(confirmed)**. NuGet package for this and
   every other icon in this feature (Add/Edit/Delete, FR-17.1):
-  **MahApps.Metro.IconPacks** — usable in plain WPF with no dependency on
-  the MahApps.Metro control library, chosen over adding custom
-  `.ico`/`.png` bitmap assets because it bundles several icon sets
-  (Material, Fluent UI, FontAwesome, ...) in one place, is vector (crisp
-  at any toolbar/grid-cell size), and is MIT/MS-PL licensed.
+  **`MahApps.Metro.IconPacks.Material`** (installed: 6.2.1) — usable in
+  plain WPF with no dependency on the MahApps.Metro control library,
+  chosen over adding custom `.ico`/`.png` bitmap assets because it's
+  vector (crisp at any toolbar/grid-cell size) and MIT/MS-PL licensed.
+  The four `PackIconMaterialKind` names this feature uses
+  (`PlusThick`/`PencilOutline`/`TrashCanOutline`/`CogRefreshOutline`)
+  were confirmed to exist in that installed version before relying on
+  them.
 - FR-16.4: "Edit" and "Delete" are NOT toolbar actions — they exist only
   as the per-row icons described in FR-17 below **(confirmed: row icons
   only, no toolbar duplication)**.
@@ -122,7 +127,7 @@ writing this document. Everything else is a proposal open to revision.
   name mutagen still accepts (still not independently confirmed against
   a live `mutagen` binary, but treated as equivalent per this
   **(confirmed)** decision rather than left as an unknown flag). This
-  also fixes what phase 1 testing found in the repo's own sample
+  also fixes what manual testing found in the repo's own sample
   `mutagen-create.bat`, which uses `--sync-mode=two-way-resolved` — that
   now parses as `Mode = TwoWayResolved` instead of falling into "Unknown
   flags".
@@ -318,10 +323,31 @@ writing this document. Everything else is a proposal open to revision.
      unreachable endpoint, etc.), the window MUST show the CLI's error
      output and MUST NOT touch `mutagen-create.bat` — the file is only
      updated after the live command has succeeded, so the file and the
-     running session-set never diverge.
+     running session-set never diverge. **The window itself MUST stay
+     open** in this case, with every field exactly as the user left it,
+     and MUST re-enable Save/Cancel for another attempt — closing first
+     and reporting the failure afterwards would silently discard
+     everything the user typed. (An earlier implementation got this
+     wrong — the window closed immediately on Save, before the async CLI
+     call even ran — confirmed by manual testing on both Add, which
+     forced retyping the whole form, and Edit, whose just-added field
+     came back blank on the next Edit; fixed by having Save raise an
+     event instead of closing the window directly, with the caller only
+     closing it once the CLI call has actually succeeded.)
 - FR-27.5: After a successful Add/Edit, the status view's in-memory
   session list and grid MUST update immediately, without waiting for the
   next poll cycle or a manual reload.
+  - **Current implementation note**: `SessionMonitorService` has no API to
+    add, edit, or remove a single session from its already-running poll
+    loop — it was built assuming a fixed session list, refreshed only by
+    the full FR-7.1 "Reload config & restart" reload. The current
+    implementation reuses that existing reload pathway after a successful
+    Add/Edit/Delete to bring the change into the live grid, rather than
+    patching the in-memory list directly. This is heavier than "immediately,
+    without... a manual reload" as written above — it stops and restarts
+    *every* configured session, not just the one that changed. A lighter
+    incremental-update path on `SessionMonitorService` would be a real,
+    separate piece of Core work, not yet done.
 
 ## Design: Add/Edit window layout
 
@@ -382,11 +408,12 @@ Notes:
   `StackPanel`) so the window stays a reasonable fixed height rather than
   growing to fit eight zones — matching `StatusWindow`'s existing
   `ResizeMode="CanResize"` pattern.
-- Each 3-column zone (Permissions/Watching/Probing&scanning/Staging)
-  reuses one control template — a small reusable "session/alpha/beta row"
-  piece of markup rather than four independent hand-written layouts — to
-  keep the XAML from becoming repetitive across four near-identical
-  zones. (Design decision, not code — no XAML is written yet.)
+- Each 3-column zone (Permissions/Watching/Probing&scanning/Staging) is
+  plain, independently hand-written XAML (a `Grid` per zone) rather than
+  a shared control template — reconsidered during implementation:
+  repeating markup across four near-identical zones is normal/acceptable
+  for declarative UI, and a generic templated control would have been
+  more machinery than four small Grids warranted.
 
 ## Status view toolbar sketch
 
@@ -400,138 +427,18 @@ Notes:
 └───┴──────┴─────────────────────┴──────────┴──────────┴──────────────┘
 ```
 
-`✎`/`🗑` stand in for the actual Edit/Delete icon assets to be designed;
-`⟲` stands in for the reload icon, explicitly **not** a plain circular
-refresh glyph per FR-16.3.
+`✎`/`🗑` stand in for the actual Edit/Delete icons
+(`PencilOutline`/`TrashCanOutline`); `⟲` stands in for the reload icon
+(`CogRefreshOutline`), explicitly **not** a plain circular refresh glyph
+per FR-16.3.
 
-No open items remain — this document is ready for the phase 1 go-ahead
-below whenever you want to start implementing.
+## Implementation
 
-## Suggested implementation phases
-
-Proposed only — **no phase starts without explicit go-ahead, one at a
-time** (per prior guidance in this project: no auto-advancing to the next
-phase of a rewrite).
-
-1. **Core: command-line model. ✅ Done** — `SessionCommandLine`
-   (`MutagenMon.Core/Sessions/SessionCommandLine.cs`) and
-   `SessionCommandLineParser` (`.../SessionCommandLineParser.cs`, `Parse`/
-   `Render`), unit-tested in `SessionCommandLineParserTests.cs` (round-trip
-   fidelity, default-omission, per-side combining, unknown-flag
-   preservation/drop). No UI yet — nothing to add to UserTests.md at this
-   stage (it documents observable behavior of the running app).
-2. **Core: file mutation. ✅ Done** — `SessionFileMutator`
-   (`MutagenMon.Core/Sessions/SessionFileMutator.cs`): append/
-   replace-in-place/remove-line, as pure line-array functions (unit-tested
-   in `SessionFileMutatorTests.cs`) plus thin file-path wrappers, mirroring
-   `SessionDefinitionLoader.ParseFile`'s split. Line lookup by name is
-   shared with `SessionDefinitionLoader` (a new internal
-   `TryExtractName` helper extracted from it) so both agree on which line
-   a duplicate name resolves to (FR-1.2: last one wins). Replace/Remove
-   throw if the name isn't found — the caller is expected to already know
-   it exists. No UI yet — nothing to add to UserTests.md at this stage.
-   Append adds the new line at the true end of the file — the sample
-   `mutagen-create.bat`'s trailing `mutagen sync list` line is now
-   commented out, so this is no longer a concern.
-3. **Core: apply operations. ✅ Done** — `SessionEditingService`
-   (`MutagenMon.Core/Sessions/SessionEditingService.cs`): `AddAsync`/
-   `EditAsync`/`DeleteAsync`, orchestrating `IMutagenCliClient`
-   (`sync create`/`sync terminate`) with the phase-2 file mutation, in
-   FR-27.4/FR-17.4's order — terminate is tolerated (same
-   `catch (Exception ex) when (ex is not OperationCanceledException)`
-   idiom as FR-13.5's existing automatic restart), a `sync create`
-   failure propagates uncaught so the file is never touched (FR-27.4.4).
-   `EditAsync` takes the session's old name separately from the edited
-   model so renaming (Name field changed) still terminates/locates the
-   right line under its old name while creating/writing under the new
-   one. Unit-tested in `SessionEditingServiceTests.cs` (8 cases: happy
-   paths, tolerated termination failures, and the two "must not touch
-   the file" failure cases) against a fake `IMutagenCliClient` and a real
-   temp file (NFR-11). No UI yet — nothing to add to UserTests.md at this
-   stage.
-4. **App: Add/Edit window. ⚠️ Code complete, not visually verified** —
-   `SessionEditWindow.xaml`/`.xaml.cs` implements every zone from the
-   design mockup above, reading/writing plain named controls directly
-   from/to a `SessionCommandLine` at load/Save time (no continuous
-   data-binding — matches this app's existing code-behind style; no
-   MVVM/`INotifyPropertyChanged` is used anywhere else in it either).
-   Nullable per-side enum comboboxes (Alpha/Beta columns) use a small
-   `ComboOption` wrapper with a blank entry; the Session column always
-   shows a real selection (default pre-selected), matching the mockup.
-   "Unknown flags" (FR-27.2/FR-27.3) uses a mutable `UnknownFlagItem`
-   wrapper since `UnknownFlag.Keep` is init-only (an immutable record,
-   by design for Core) and a two-way-bound CheckBox needs a settable
-   property. FR-18.2/FR-18.4 validation (Name/Alpha/Beta required, no
-   whitespace in Name, uniqueness against the other configured session
-   names) gates the Save button. The window only produces a validated
-   `SessionCommandLine` (+ `OriginalName` for Edit) on Save — it does not
-   itself call `SessionEditingService`; that's phase 5's wiring.
-   `MutagenMon.App` (`net10.0-windows`) builds clean (0 warnings, 0
-   errors) on this Linux sandbox via `EnableWindowsTargeting`, but there
-   is no Windows GUI here to actually open/click through it — layout,
-   tab order, and control behavior need a manual pass on Windows before
-   this is trusted. Also extracted `SessionCommandLineEnumFormatting`
-   (public `ToFlagValue()` extension methods) out of the phase-1 parser
-   so the window's comboboxes show the same kebab-case text
-   (`WatchMode.ForcePoll` → "force-poll") the CLI actually expects,
-   instead of duplicating that mapping.
-5. **App: status view toolbar + grid column. ⚠️ Code complete, not
-   visually verified** — `StatusWindow.xaml`/`.xaml.cs`: a toolbar row
-   above the grid with Add (`PlusThick`) and the relocated Reload config
-   (`CogRefreshOutline`) button, and a new leftmost grid column with
-   per-row Edit (`PencilOutline`)/Delete (`TrashCanOutline`) icon buttons
-   (FR-16/FR-17). Added the `MahApps.Metro.IconPacks.Material` NuGet
-   package (folding in what was originally planned as phase 6 — the
-   icons couldn't be deferred, FR-16/FR-17 need them to render at all);
-   confirmed the four `PackIconMaterialKind` names
-   (`PlusThick`/`PencilOutline`/`TrashCanOutline`/`CogRefreshOutline`)
-   actually exist in the installed 6.2.1 version before relying on them.
-   `StatusWindow` stays a thin view (matching its existing architecture):
-   Add/Edit/Delete are raised as events, handled entirely in
-   `App.xaml.cs`, which owns the new `SessionEditingService` DI
-   registration (rebuilt fresh on every FR-7.1 reload alongside
-   `IMutagenCliClient`/`ConflictResolutionService`, so it never runs
-   against a stale CLI client or `mutagen-create.bat` path after a
-   config reload) and the `IReadOnlyList<SessionDefinition>` needed to
-   parse a session's existing line for Edit. Delete's confirmation
-   dialog reuses `GenericMessageDialog.ShowConfirm` with the FR-17.3
-   wording. Same Linux-sandbox caveat as phase 4: `MutagenMon.App` builds
-   clean (0 warnings, 0 errors) but hasn't been opened/clicked through on
-   Windows yet.
-   - **Bug found and fixed during manual Windows testing (2026-09-10)**:
-     the Add/Edit window originally set `DialogResult = true` directly on
-     Save, closing itself immediately — before the actual (async)
-     `mutagen sync create` call even ran. A CLI failure (e.g. a
-     `--default-owner` naming a Windows account that doesn't exist —
-     mutagen correctly rejects it, "unable to find user or group with
-     specified owner name") then only surfaced *after* the window was
-     already gone, silently discarding everything the user had typed —
-     confirmed independently on both Add (the whole form had to be
-     retyped) and Edit (the just-added field came back empty next time).
-     Fixed: `SessionEditWindow` now raises `SaveRequested` instead of
-     closing itself; `App.xaml.cs`'s handler awaits the CLI call first and
-     only calls the new `window.CompleteSave()` (sets `DialogResult =
-     true`) once it actually succeeds — a failure instead re-enables the
-     form (`SetBusy(false)`) and shows the error on top of it, so the user
-     can fix just the offending field and retry without retyping
-     anything else.
-   - **Known scope gap, not part of FR-27.5/FR-17.4 as literally
-     written**: `SessionMonitorService` has no API to add, edit, or
-     remove a single session from its already-running poll loop (it was
-     built assuming a fixed session list, refreshed only by a full
-     FR-7.1 reload). So after a successful Add/Edit/Delete, this phase
-     calls the existing `ReloadConfig()` (ordinarily the "Reload config &
-     restart mutagen" action) to bring the change into the live grid,
-     instead of patching the in-memory list directly. That's heavier than
-     FR-27.5's "immediately, without... a manual reload" — it stops and
-     restarts *every* configured session, not just the one that changed.
-     Building a lighter incremental-update path on
-     `SessionMonitorService` is a real, but separate, piece of Core work
-     — not attempted here since it's outside "toolbar + grid column"'s
-     stated scope. Flagging this for a decision: accept the reload-based
-     refresh as-is, or add a phase 7 for the incremental Core change?
-
-Each phase, once approved, is expected to also update
-[UserTests.md](UserTests.md) with the corresponding manual test steps,
-per this project's existing practice of keeping that file in step with
-implementation progress.
+Built across `MutagenMon.Core/Sessions/` (`SessionCommandLine.cs`,
+`SessionCommandLineParser.cs`, `SessionCommandLineEnumFormatting.cs`,
+`SessionFileMutator.cs`, `SessionEditingService.cs`) and
+`MutagenMon.App/` (`SessionEditWindow.xaml`/`.xaml.cs`,
+`StatusWindow.xaml`/`.xaml.cs`, wired up in `App.xaml.cs`). Unit-tested in
+`MutagenMon.Core.Tests` (parser round-trip, file mutation, editing-service
+orchestration including the "must not touch the file on failure" cases).
+Manually verified on Windows (2026-09-10).
