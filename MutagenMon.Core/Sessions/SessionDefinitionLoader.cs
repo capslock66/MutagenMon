@@ -22,16 +22,7 @@ public static partial class SessionDefinitionLoader
 
         foreach (var rawLine in lines)
         {
-            var line = rawLine.Trim();
-            if (line.StartsWith("rem ", StringComparison.Ordinal))
-                continue;
-
-            var match = NameRegex().Match(line);
-            if (!match.Success)
-                continue;
-
-            var name = match.Groups[1].Value;
-            if (name.Length == 0)
+            if (!TryExtractName(rawLine, out var line, out var name))
                 continue;
 
             if (sessions.ContainsKey(name))
@@ -43,4 +34,25 @@ public static partial class SessionDefinitionLoader
     }
 
     public static SessionDefinitionLoadResult ParseFile(string path) => ParseLines(File.ReadAllLines(path));
+
+    /// <summary>Shared with <see cref="SessionFileMutator"/> so "which line
+    /// is session X" is decided in exactly one place. Returns false (a
+    /// `rem `-prefixed line, or one with no/empty `--name=`) for anything
+    /// that isn't an active session line — <paramref name="trimmedLine"/>
+    /// and <paramref name="name"/> are only meaningful when it returns
+    /// true.</summary>
+    internal static bool TryExtractName(string rawLine, out string trimmedLine, out string name)
+    {
+        trimmedLine = rawLine.Trim();
+        name = "";
+        if (trimmedLine.StartsWith("rem ", StringComparison.Ordinal))
+            return false;
+
+        var match = NameRegex().Match(trimmedLine);
+        if (!match.Success || match.Groups[1].Value.Length == 0)
+            return false;
+
+        name = match.Groups[1].Value;
+        return true;
+    }
 }

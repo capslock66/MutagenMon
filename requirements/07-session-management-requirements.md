@@ -111,12 +111,26 @@ writing this document. Everything else is a proposal open to revision.
 ## FR-19 — Sync mode
 
 - FR-19.1: A group box **"Options"** contains, first, a **"Sync mode"**
-  combobox with exactly these four values (mutagen's own `--sync-mode`
+  combobox with exactly these four values (mutagen's own sync mode
   values): `two-way-safe` (default/pre-selected), `two-way-resolved`,
   `one-way-safe`, `one-way-replica`.
-- FR-19.2: Maps to `--sync-mode=<value>`. **(confirmed)** Omitted
-  entirely when the selected value is the default `two-way-safe`, to keep
-  generated lines close to what a human would hand-write (mutagen behaves
+- FR-19.2: **(confirmed)** Parsing recognizes `--mode`, `-m`, and
+  `--sync-mode` as synonyms — all three set the same `Mode` field.
+  `mutagen sync create --help` (checked 2026-09-09) confirms `-m,
+  --mode` as the flag pair; the synchronization docs page separately
+  lists `-m`/`--sync-mode`, suggesting `--sync-mode` is an older/alias
+  name mutagen still accepts (still not independently confirmed against
+  a live `mutagen` binary, but treated as equivalent per this
+  **(confirmed)** decision rather than left as an unknown flag). This
+  also fixes what phase 1 testing found in the repo's own sample
+  `mutagen-create.bat`, which uses `--sync-mode=two-way-resolved` — that
+  now parses as `Mode = TwoWayResolved` instead of falling into "Unknown
+  flags".
+  Rendering, regardless of which synonym was in the source line, always
+  emits the canonical `-m <value>` (never `--mode=`/`--sync-mode=`) —
+  saving a session normalizes its mode flag to `-m`. Omitted entirely when
+  the selected value is the default `two-way-safe`, to keep generated
+  lines close to what a human would hand-write (mutagen behaves
   identically either way since that's already its own default). This is
   the general rule for every default-valued combobox in this window
   (FR-22 symlink mode, FR-23 watch mode, FR-24 probe/scan mode, FR-25
@@ -259,10 +273,11 @@ writing this document. Everything else is a proposal open to revision.
   recognized by FR-18 through FR-26 into its corresponding control.
 - FR-27.2: **(confirmed)** Recognition works against a maintained
   dictionary of every flag documented in FR-19 through FR-26 (e.g.
-  `--sync-mode`, `--default-owner`, `--default-owner-alpha`, ...), one
+  `-m`, `--default-owner`, `--default-owner-alpha`, ...), one
   entry per flag name, each knowing whether it takes a value (all of them
-  do, except symlink/sync-mode-style flags which always take one too —
-  in practice every recognized flag here takes exactly one value, either
+  do except `--ignore-vcs`/`--no-ignore-vcs`, which are boolean
+  presence-only flags — every other recognized flag here takes exactly
+  one value, either
   as `--flag=value` or as two separate tokens `--flag value`). Walking
   the line's tokens (after the positional alpha/beta and `--name=`),
   each token is looked up in the dictionary:
@@ -398,26 +413,123 @@ Proposed only — **no phase starts without explicit go-ahead, one at a
 time** (per prior guidance in this project: no auto-advancing to the next
 phase of a rewrite).
 
-1. **Core: command-line model.** A structured representation of a
-   `mutagen sync create` line (name, alpha, beta, sync mode, ignores,
-   permissions, symlink mode, watching, probing/scanning, staging,
-   limits, plus a bucket for unrecognized tokens) with parse (line →
-   model) and render (model → line) functions, unit-tested for
-   round-trip fidelity including the unrecognized-token case.
-2. **Core: file mutation.** Append/replace-in-place/remove-line
-   operations against `mutagen-create.bat`, reusing FR-1.1's line-based
-   model.
-3. **Core: apply operations.** Add/Edit/Delete orchestration — invoking
-   `IMutagenCliClient` (`sync create`/`sync terminate`) and the file
-   mutation from step 2 together, with the failure ordering from FR-27.4
-   (CLI success gates the file write).
-4. **App: Add/Edit window.** The XAML window from the design above,
-   wired to the step 1 model, with FR-18 validation.
-5. **App: status view toolbar + grid column.** Add button, relocated
-   Reload button (new icon, FR-16.3), and the new Edit/Delete row column
-   with the FR-17.3 confirmation dialog.
-6. **Icon assets.** `MahApps.Metro.IconPacks` NuGet reference, per
-   FR-16.3/FR-17.1.
+1. **Core: command-line model. ✅ Done** — `SessionCommandLine`
+   (`MutagenMon.Core/Sessions/SessionCommandLine.cs`) and
+   `SessionCommandLineParser` (`.../SessionCommandLineParser.cs`, `Parse`/
+   `Render`), unit-tested in `SessionCommandLineParserTests.cs` (round-trip
+   fidelity, default-omission, per-side combining, unknown-flag
+   preservation/drop). No UI yet — nothing to add to UserTests.md at this
+   stage (it documents observable behavior of the running app).
+2. **Core: file mutation. ✅ Done** — `SessionFileMutator`
+   (`MutagenMon.Core/Sessions/SessionFileMutator.cs`): append/
+   replace-in-place/remove-line, as pure line-array functions (unit-tested
+   in `SessionFileMutatorTests.cs`) plus thin file-path wrappers, mirroring
+   `SessionDefinitionLoader.ParseFile`'s split. Line lookup by name is
+   shared with `SessionDefinitionLoader` (a new internal
+   `TryExtractName` helper extracted from it) so both agree on which line
+   a duplicate name resolves to (FR-1.2: last one wins). Replace/Remove
+   throw if the name isn't found — the caller is expected to already know
+   it exists. No UI yet — nothing to add to UserTests.md at this stage.
+   Append adds the new line at the true end of the file — the sample
+   `mutagen-create.bat`'s trailing `mutagen sync list` line is now
+   commented out, so this is no longer a concern.
+3. **Core: apply operations. ✅ Done** — `SessionEditingService`
+   (`MutagenMon.Core/Sessions/SessionEditingService.cs`): `AddAsync`/
+   `EditAsync`/`DeleteAsync`, orchestrating `IMutagenCliClient`
+   (`sync create`/`sync terminate`) with the phase-2 file mutation, in
+   FR-27.4/FR-17.4's order — terminate is tolerated (same
+   `catch (Exception ex) when (ex is not OperationCanceledException)`
+   idiom as FR-13.5's existing automatic restart), a `sync create`
+   failure propagates uncaught so the file is never touched (FR-27.4.4).
+   `EditAsync` takes the session's old name separately from the edited
+   model so renaming (Name field changed) still terminates/locates the
+   right line under its old name while creating/writing under the new
+   one. Unit-tested in `SessionEditingServiceTests.cs` (8 cases: happy
+   paths, tolerated termination failures, and the two "must not touch
+   the file" failure cases) against a fake `IMutagenCliClient` and a real
+   temp file (NFR-11). No UI yet — nothing to add to UserTests.md at this
+   stage.
+4. **App: Add/Edit window. ⚠️ Code complete, not visually verified** —
+   `SessionEditWindow.xaml`/`.xaml.cs` implements every zone from the
+   design mockup above, reading/writing plain named controls directly
+   from/to a `SessionCommandLine` at load/Save time (no continuous
+   data-binding — matches this app's existing code-behind style; no
+   MVVM/`INotifyPropertyChanged` is used anywhere else in it either).
+   Nullable per-side enum comboboxes (Alpha/Beta columns) use a small
+   `ComboOption` wrapper with a blank entry; the Session column always
+   shows a real selection (default pre-selected), matching the mockup.
+   "Unknown flags" (FR-27.2/FR-27.3) uses a mutable `UnknownFlagItem`
+   wrapper since `UnknownFlag.Keep` is init-only (an immutable record,
+   by design for Core) and a two-way-bound CheckBox needs a settable
+   property. FR-18.2/FR-18.4 validation (Name/Alpha/Beta required, no
+   whitespace in Name, uniqueness against the other configured session
+   names) gates the Save button. The window only produces a validated
+   `SessionCommandLine` (+ `OriginalName` for Edit) on Save — it does not
+   itself call `SessionEditingService`; that's phase 5's wiring.
+   `MutagenMon.App` (`net10.0-windows`) builds clean (0 warnings, 0
+   errors) on this Linux sandbox via `EnableWindowsTargeting`, but there
+   is no Windows GUI here to actually open/click through it — layout,
+   tab order, and control behavior need a manual pass on Windows before
+   this is trusted. Also extracted `SessionCommandLineEnumFormatting`
+   (public `ToFlagValue()` extension methods) out of the phase-1 parser
+   so the window's comboboxes show the same kebab-case text
+   (`WatchMode.ForcePoll` → "force-poll") the CLI actually expects,
+   instead of duplicating that mapping.
+5. **App: status view toolbar + grid column. ⚠️ Code complete, not
+   visually verified** — `StatusWindow.xaml`/`.xaml.cs`: a toolbar row
+   above the grid with Add (`PlusThick`) and the relocated Reload config
+   (`CogRefreshOutline`) button, and a new leftmost grid column with
+   per-row Edit (`PencilOutline`)/Delete (`TrashCanOutline`) icon buttons
+   (FR-16/FR-17). Added the `MahApps.Metro.IconPacks.Material` NuGet
+   package (folding in what was originally planned as phase 6 — the
+   icons couldn't be deferred, FR-16/FR-17 need them to render at all);
+   confirmed the four `PackIconMaterialKind` names
+   (`PlusThick`/`PencilOutline`/`TrashCanOutline`/`CogRefreshOutline`)
+   actually exist in the installed 6.2.1 version before relying on them.
+   `StatusWindow` stays a thin view (matching its existing architecture):
+   Add/Edit/Delete are raised as events, handled entirely in
+   `App.xaml.cs`, which owns the new `SessionEditingService` DI
+   registration (rebuilt fresh on every FR-7.1 reload alongside
+   `IMutagenCliClient`/`ConflictResolutionService`, so it never runs
+   against a stale CLI client or `mutagen-create.bat` path after a
+   config reload) and the `IReadOnlyList<SessionDefinition>` needed to
+   parse a session's existing line for Edit. Delete's confirmation
+   dialog reuses `GenericMessageDialog.ShowConfirm` with the FR-17.3
+   wording. Same Linux-sandbox caveat as phase 4: `MutagenMon.App` builds
+   clean (0 warnings, 0 errors) but hasn't been opened/clicked through on
+   Windows yet.
+   - **Bug found and fixed during manual Windows testing (2026-09-10)**:
+     the Add/Edit window originally set `DialogResult = true` directly on
+     Save, closing itself immediately — before the actual (async)
+     `mutagen sync create` call even ran. A CLI failure (e.g. a
+     `--default-owner` naming a Windows account that doesn't exist —
+     mutagen correctly rejects it, "unable to find user or group with
+     specified owner name") then only surfaced *after* the window was
+     already gone, silently discarding everything the user had typed —
+     confirmed independently on both Add (the whole form had to be
+     retyped) and Edit (the just-added field came back empty next time).
+     Fixed: `SessionEditWindow` now raises `SaveRequested` instead of
+     closing itself; `App.xaml.cs`'s handler awaits the CLI call first and
+     only calls the new `window.CompleteSave()` (sets `DialogResult =
+     true`) once it actually succeeds — a failure instead re-enables the
+     form (`SetBusy(false)`) and shows the error on top of it, so the user
+     can fix just the offending field and retry without retyping
+     anything else.
+   - **Known scope gap, not part of FR-27.5/FR-17.4 as literally
+     written**: `SessionMonitorService` has no API to add, edit, or
+     remove a single session from its already-running poll loop (it was
+     built assuming a fixed session list, refreshed only by a full
+     FR-7.1 reload). So after a successful Add/Edit/Delete, this phase
+     calls the existing `ReloadConfig()` (ordinarily the "Reload config &
+     restart mutagen" action) to bring the change into the live grid,
+     instead of patching the in-memory list directly. That's heavier than
+     FR-27.5's "immediately, without... a manual reload" — it stops and
+     restarts *every* configured session, not just the one that changed.
+     Building a lighter incremental-update path on
+     `SessionMonitorService` is a real, but separate, piece of Core work
+     — not attempted here since it's outside "toolbar + grid column"'s
+     stated scope. Flagging this for a decision: accept the reload-based
+     refresh as-is, or add a phase 7 for the incremental Core change?
 
 Each phase, once approved, is expected to also update
 [UserTests.md](UserTests.md) with the corresponding manual test steps,

@@ -35,6 +35,19 @@ public partial class StatusWindow : Window
     /// which owns the host lifetime.</summary>
     public event EventHandler? ExitRequested;
 
+    /// <summary>Raised when the user clicks the toolbar's "Add" action
+    /// (FR-16.1) — handled by App.xaml.cs, which owns
+    /// <c>SessionEditingService</c> and the session definitions.</summary>
+    public event EventHandler? AddSessionRequested;
+
+    /// <summary>Raised when the user clicks a row's Edit icon (FR-17.2),
+    /// with that session's name.</summary>
+    public event EventHandler<string>? EditSessionRequested;
+
+    /// <summary>Raised when the user clicks a row's Delete icon (FR-17.3),
+    /// with that session's name.</summary>
+    public event EventHandler<string>? DeleteSessionRequested;
+
     /// <summary>Bound once to <c>SessionsGrid.ItemsSource</c> and updated
     /// in place on every refresh (<see cref="SyncRows"/>) rather than
     /// replaced — while the window stays open it's refreshed roughly once a
@@ -117,6 +130,28 @@ public partial class StatusWindow : Window
     {
         _logger.LogInformation("User action: status window Reload config clicked");
         ReloadConfigRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnAddSessionClick(object sender, RoutedEventArgs e)
+    {
+        _logger.LogInformation("User action: status window Add session clicked");
+        AddSessionRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnEditSessionClick(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).DataContext is not SessionSummaryRow row)
+            return;
+        _logger.LogInformation("User action: status window Edit session clicked ({Name})", row.Name);
+        EditSessionRequested?.Invoke(this, row.Name);
+    }
+
+    private void OnDeleteSessionClick(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).DataContext is not SessionSummaryRow row)
+            return;
+        _logger.LogInformation("User action: status window Delete session clicked ({Name})", row.Name);
+        DeleteSessionRequested?.Invoke(this, row.Name);
     }
 
     private void OnToggleMonitoringClick(object sender, RoutedEventArgs e)

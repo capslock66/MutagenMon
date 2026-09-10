@@ -55,6 +55,8 @@ public partial class App : Application
     private ISessionStateStore? _stateStore;
     private ConflictResolutionService? _conflictResolutionService;
     private ILogger<ConflictResolutionController>? _conflictResolutionControllerLogger;
+    private SessionEditingService? _sessionEditingService;
+    private IReadOnlyList<SessionDefinition> _sessionDefinitions = Array.Empty<SessionDefinition>();
     private IReadOnlyList<string> _sessionNames = Array.Empty<string>();
     private MutagenMonOptions? _options;
     private INotificationQueue? _notificationQueue;
@@ -177,17 +179,21 @@ public partial class App : Application
             builder.Services.AddHostedService(sp => sp.GetRequiredService<SessionMonitorService>());
             builder.Services.AddSingleton<IConflictFileClient, ConflictFileClient>();
             builder.Services.AddSingleton<ConflictResolutionService>();
+            builder.Services.AddSingleton(sp => new SessionEditingService(
+                sp.GetRequiredService<IMutagenCliClient>(), sessionsPath, sp.GetRequiredService<ILogger<SessionEditingService>>()));
 
             _host = builder.Build();
             _logger.LogInformation("Starting background session monitor");
             await _host.StartAsync();
             _logger.LogInformation("Background session monitor started");
 
+            _sessionDefinitions = sessionResult.Sessions;
             _sessionNames = sessionResult.Sessions.Select(s => s.Name).ToArray();
             _monitorService = _host.Services.GetRequiredService<SessionMonitorService>();
             var stateStore = _host.Services.GetRequiredService<ISessionStateStore>();
             _stateStore = stateStore;
             _conflictResolutionService = _host.Services.GetRequiredService<ConflictResolutionService>();
+            _sessionEditingService = _host.Services.GetRequiredService<SessionEditingService>();
             _conflictResolutionControllerLogger = _host.Services.GetRequiredService<ILogger<ConflictResolutionController>>();
             _notificationQueue = _host.Services.GetRequiredService<INotificationQueue>();
 
@@ -254,11 +260,12 @@ public partial class App : Application
         var baseDir = AppContext.BaseDirectory;
         MutagenMonOptions newOptions;
         SessionDefinitionLoadResult newSessionResult;
+        string sessionsPath;
         try
         {
             var configPath = Path.Combine(baseDir, "config", "config_mutagenmon.json");
             newOptions = ConfigLoader.Load(configPath);
-            var sessionsPath = Path.Combine(baseDir, newOptions.MutagenSessionsBatFile.Replace('/', Path.DirectorySeparatorChar));
+            sessionsPath = Path.Combine(baseDir, newOptions.MutagenSessionsBatFile.Replace('/', Path.DirectorySeparatorChar));
             newSessionResult = SessionDefinitionLoader.ParseFile(sessionsPath);
             foreach (var duplicate in newSessionResult.DuplicateNames)
                 _logger?.LogWarning("Duplicate session name in {File}: {Name}", sessionsPath, duplicate);
@@ -301,9 +308,12 @@ public partial class App : Application
         await newMonitorService.StartAsync(CancellationToken.None);
 
         _options = newOptions;
+        _sessionDefinitions = newSessionResult.Sessions;
         _sessionNames = newSessionNames;
         _monitorService = newMonitorService;
         _conflictResolutionService = newConflictResolutionService;
+        _sessionEditingService = new SessionEditingService(
+            newCliClient, sessionsPath, _host.Services.GetRequiredService<ILogger<SessionEditingService>>());
         _trayIconController = BuildAndStartTrayIconController(newOptions, newSessionNames);
 
         _logger?.LogInformation("Reload complete — monitoring resumed with the new configuration");
@@ -324,6 +334,9 @@ public partial class App : Application
             _statusWindow.ReloadConfigRequested += OnStatusWindowReloadConfigRequested;
             _statusWindow.ToggleMonitoringRequested += OnStatusWindowToggleMonitoringRequested;
             _statusWindow.ExitRequested += OnStatusWindowExitRequested;
+            _statusWindow.AddSessionRequested += OnAddSessionRequested;
+            _statusWindow.EditSessionRequested += OnEditSessionRequested;
+            _statusWindow.DeleteSessionRequested += OnDeleteSessionRequested;
         }
         if (_stateStore is not null)
             _statusWindow.UpdateContent(_stateStore.Get(), _sessionNames, _trayIconController?.IsReloadInProgress ?? false);
@@ -386,6 +399,122 @@ public partial class App : Application
         var controller = new ConflictResolutionController(
             _statusWindow, _stateStore, _sessionNames, _conflictResolutionService, _conflictResolutionControllerLogger);
         await controller.RunAsync();
+    }
+
+    /// <summary>Handles the toolbar's "Add" action (FR-16.1 -&gt; FR-27.4).
+    /// The window only actually closes once <c>SessionEditingService</c>'s
+    /// live `sync create` call has actually succeeded (<see
+    /// cref="SessionEditWindow.SaveRequested"/>'s remarks) — a failed
+    /// creation (e.g. an invalid `--default-owner`) re-enables the form with
+    /// everything the user typed still there, instead of silently discarding
+    /// it. On success, reuses the existing "Reload config &amp; restart"
+    /// pathway (<see cref="ReloadConfig"/>) to bring the new session into the
+    /// live monitor/grid — <see cref="SessionMonitorService"/> has no API to
+    /// add a single session to its already-running poll loop, so a full
+    /// reload is the only way to pick it up without a deeper Core change.
+    /// Heavier than FR-27.5's "immediately, without... a manual reload"
+    /// wording strictly asks for (it restarts every other session too),
+    /// called out as a known gap for this phase rather than silently
+    /// accepted.</summary>
+    private void OnAddSessionRequested(object? sender, EventArgs e)
+    {
+        if (_sessionEditingService is null || _statusWindow is null || _logger is null)
+            return;
+
+        var window = new SessionEditWindow(null, _sessionNames, _logger) { Owner = _statusWindow };
+        window.SaveRequested += async (_, _) =>
+        {
+            window.SetBusy(true);
+            try
+            {
+                await _sessionEditingService.AddAsync(window.Result!, CancellationToken.None);
+                _logger.LogInformation("Session added: {Name}", window.Result!.Name);
+                window.CompleteSave();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to add session '{Name}'", window.Result!.Name);
+                window.SetBusy(false);
+                MessageBox.Show(
+                    window, $"MutagenMon could not create the session:\n\n{ex.Message}",
+                    "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        };
+
+        if (window.ShowDialog() == true)
+            ReloadConfig();
+    }
+
+    /// <summary>Handles a row's Edit icon (FR-17.2 -&gt; FR-27.4). Parses the
+    /// session's stored line (<see cref="SessionCommandLineParser"/>) to
+    /// pre-populate the window, keyed by its current name — see
+    /// <see cref="OnAddSessionRequested"/>'s remarks re: keeping the window
+    /// open (with the user's input intact) until the recreate actually
+    /// succeeds, and re: the reload-based refresh.</summary>
+    private void OnEditSessionRequested(object? sender, string name)
+    {
+        if (_sessionEditingService is null || _statusWindow is null || _logger is null)
+            return;
+
+        var definition = _sessionDefinitions.FirstOrDefault(d => d.Name == name);
+        if (definition is null)
+        {
+            _logger.LogWarning("Edit requested for unknown session '{Name}' (already removed?)", name);
+            return;
+        }
+
+        var model = SessionCommandLineParser.Parse(definition.RawCreateCommand);
+        var window = new SessionEditWindow(model, _sessionNames, _logger) { Owner = _statusWindow };
+        window.SaveRequested += async (_, _) =>
+        {
+            window.SetBusy(true);
+            try
+            {
+                await _sessionEditingService.EditAsync(window.OriginalName!, window.Result!, CancellationToken.None);
+                _logger.LogInformation("Session edited: {OldName} -> {NewName}", window.OriginalName, window.Result!.Name);
+                window.CompleteSave();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to save changes to session '{Name}'", name);
+                window.SetBusy(false);
+                MessageBox.Show(
+                    window, $"MutagenMon could not save changes to session '{name}':\n\n{ex.Message}",
+                    "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        };
+
+        if (window.ShowDialog() == true)
+            ReloadConfig();
+    }
+
+    /// <summary>Handles a row's Delete icon (FR-17.3/FR-17.4). If removing
+    /// the line fails (FR-17.5), <see cref="ReloadConfig"/> is deliberately
+    /// NOT called — the grid keeps showing the session exactly as it was,
+    /// rather than risk it looking deleted when the file removal didn't
+    /// actually happen.</summary>
+    private async void OnDeleteSessionRequested(object? sender, string name)
+    {
+        if (_sessionEditingService is null || _statusWindow is null || _logger is null)
+            return;
+
+        if (!GenericMessageDialog.ShowConfirm(
+                _statusWindow, _logger, "Mutagen delete session", $"Delete session {name} ?", okLabel: "Yes", cancelLabel: "No"))
+            return;
+
+        try
+        {
+            await _sessionEditingService.DeleteAsync(name, CancellationToken.None);
+            _logger.LogInformation("Session deleted: {Name}", name);
+            ReloadConfig();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete session '{Name}'", name);
+            MessageBox.Show(
+                _statusWindow, $"MutagenMon could not delete session '{name}':\n\n{ex.Message}",
+                "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     /// <summary>Handles the "Reload config & restart mutagen" action (FR-7.1):
@@ -464,7 +593,7 @@ public partial class App : Application
         // does anything irreversible, so a "No" leaves everything running
         // exactly as it was.
         if (MessageBox.Show(
-                "Are you sure you want to exit MutagenMon? Background synchronization will stop.",
+                "Are you sure you want to exit MutagenMon? \nBackground synchronization will continue.",
                 "MutagenMon — confirm exit",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question) != MessageBoxResult.Yes)
