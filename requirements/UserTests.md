@@ -277,8 +277,8 @@ Covered above by UT-T.10 and UT-T.11.
   config" followed by "Configuration reloaded: ..." and "Reload complete —
   monitoring resumed with the new configuration" — no restart entry.
 * Right-click the tray icon once reloading finishes.
-* The full menu (Reload / Stop-Start / Show status / Exit) is displayed
-  again.
+* The full menu (Reload / Stop-Start / Show status / Move to main screen /
+  Exit) is displayed again.
 
 **UT-7.1b — Reload with an invalid config falls back safely (FR-7.1)** ✅
 
@@ -339,6 +339,29 @@ Covered above by UT-7.1.
   visible.
 * `log/mutagenMon.log` contains `User action: exit cancelled at
   confirmation`.
+
+**UT-7.7 — "Move to main screen" repositions every open window
+(FR-7.6)** ✅
+
+* With a multi-monitor setup, open the status view and drag it onto a
+  secondary monitor. Also open a sync status popup (FR-28: click a row's
+  eye icon) and drag it onto a secondary monitor too, offset from the
+  status view.
+* Right-click the tray icon.
+* Click "Move to main screen".
+* Both windows jump onto the primary monitor's work area (excluding the
+  taskbar), centered on it, each keeping its own size — neither window
+  closes or reopens, and neither one's content changes.
+* Drag the status view (only) onto a secondary monitor again, then click
+  "Close" so it hides (FR-8's "closing" behavior). Right-click the tray
+  icon and click "Move to main screen" again, then reopen the status view
+  ("Show status"). It reappears already positioned on the primary
+  monitor — repositioning applied even while it was hidden.
+* Disconnect (or, in a VM, simulate removing) the secondary monitor while
+  a window is still positioned on it, then reconnect only the primary
+  monitor. That window is now off-screen/inaccessible. Click "Move to
+  main screen" from the tray menu — the window reappears on the primary
+  monitor, reachable again.
 
 ## FR-8 — Detailed status view
 
@@ -414,30 +437,121 @@ Covered above by UT-7.1.
 * Once staging finishes, the Status column reverts to the normal status
   text (e.g. "Watching for changes").
 
-**UT-8.5 — Status view exposes Reload/Stop-Start/Exit (FR-8.5)** ✅
+**UT-8.5 — Status view exposes Reload/Stop-Start/Exit (FR-8.5, FR-16.1/
+16.5)** ✅
 
 * Left-click the tray icon to open the status view.
-* "Reload config", "Stop Mutagen sessions" (or "Start Mutagen sessions"
-  if monitoring is currently off), and "Exit" buttons are anchored to the
-  left edge of the window; "Close" (and "Cancel"/"Resolve conflicts" when
-  conflicts are unresolved) are anchored to the right edge, separated
-  from the left-hand group.
-* Click "Stop Mutagen sessions" in the status window. Every running
-  session is terminated (same effect as the tray menu's FR-7.2 toggle);
-  the button's label flips to "Start Mutagen sessions" on the next
-  refresh. `log/mutagenMon.log` records `User action: status window
-  Stop/Start sessions clicked` followed by `User action: toggling
-  monitoring to False`.
-* Click "Reload config" in the status window. The status window stays
-  open throughout (see UT-7.1 for the full reload behavior) —
-  it keeps refreshing live, and "Reload config"/"Stop Mutagen
-  sessions"/"Exit" grey out while `log/mutagenMon.log`'s "Reloading..."
-  state is active, then re-enable once reload completes.
+* "Add" and "Stop Mutagen sessions" (or "Start Mutagen sessions" if
+  monitoring is currently off) are in the toolbar above the grid, anchored
+  to its left edge, in that order; "Reload config" is in the same toolbar,
+  anchored to its right edge.
+* In the bottom action row (below the grid/conflicts section), "Exit" is
+  anchored to the left edge; "Close" (and "Cancel"/"Resolve conflicts"
+  when conflicts are unresolved) are anchored to the right edge.
+* Click "Stop Mutagen sessions" in the toolbar. Every running session is
+  terminated (same effect as the tray menu's FR-7.2 toggle); the button's
+  label flips to "Start Mutagen sessions" on the next refresh.
+  `log/mutagenMon.log` records `User action: status window Stop/Start
+  sessions clicked` followed by `User action: toggling monitoring to
+  False`.
+* Click "Reload config" in the toolbar. The status window stays open
+  throughout (see UT-7.1 for the full reload behavior) — it keeps
+  refreshing live, and "Reload config"/"Stop Mutagen sessions"/"Exit" grey
+  out while `log/mutagenMon.log`'s "Reloading..." state is active, then
+  re-enable once reload completes.
 * Click "Exit" in the status window, then confirm in the resulting
   dialog. `log/mutagenMon.log` records `User action: status window Exit
   clicked`, and the application shuts down exactly as the tray menu's
   "Exit MutagenMon" would (FR-7.4) — see UT-7.4/UT-7.6 for the
   confirmation step itself.
+
+## FR-28 — Grid row action: view sync status
+
+**UT-28.1 — View sync status shows the raw CLI output (FR-28.1/FR-28.2)** ✅
+
+* Left-click the tray icon to open the status view.
+* In the grid's leftmost column, each row shows three small icons in this
+  order: an eye, a pencil, and a trash can.
+* Note the current time.
+* Click the eye icon on a healthy session's row.
+* A new, resizable window titled
+  "MutagenMon: sync status - `<name>` (`<CCYY-MM-DD>` - `<HH:mm:ss>`)"
+  appears — the timestamp matches the time you just noted (FR-28.8) —
+  showing the exact, unformatted output of `mutagen sync list -l <name>`
+  (Name/Identifier/Configuration/Alpha/Beta/Status blocks, including the
+  `---` divider lines) in a monospace, scrollable text box.
+* Resize the window (drag an edge/corner) — the text box grows/shrinks
+  with it, and a scrollbar appears if the content doesn't fit.
+* Select some of the displayed text and copy it (Ctrl+C) — it can be
+  pasted elsewhere, confirming the text is selectable, not just readable.
+* Click "Close". The popup closes; the status view underneath is
+  unaffected (still open, still refreshing).
+
+**UT-28.2 — The popup is non-modal (FR-28.5)** ✅
+
+* Click the eye icon on a session's row to open its sync status popup.
+* Without closing that popup, click back on the status view behind it
+  (e.g. resize it, or click "Reload config"). The status view responds
+  normally — the popup does not block interaction with it or with the
+  tray icon.
+* Click the eye icon on a *different* row. A second sync status popup
+  opens alongside the first — both stay open at once, independently (see
+  UT-28.5 for re-clicking the *same* row's eye icon instead).
+
+**UT-28.3 — Refresh re-runs the command in place and re-stamps the title
+(FR-28.6/FR-28.7/FR-28.8)** ✅
+
+* With a sync status popup open (UT-28.1), wait at least a minute (so the
+  refreshed timestamp visibly differs from the title's current one), then
+  change something about that session (e.g. edit a file so it starts
+  staging, or let it finish and return to "Watching for changes").
+* Click "Refresh", anchored to the popup's left edge (mirroring the
+  status view's own left/right button layout, "Close" stays on the
+  right).
+* The popup's content updates in place to the command's latest output,
+  and the title's `(<CCYYMMDD> - <HH:mm:ss>)` suffix updates to the
+  current time — the window itself does not close/reopen or lose its
+  size/position.
+* Now trigger a failure (e.g. rename/remove the configured `mutagen`
+  binary, or delete the session first, FR-17.4) and click "Refresh"
+  again.
+* An error dialog appears: "MutagenMon could not refresh sync status for
+  session '`<name>`':" followed by the underlying error message. Dismiss
+  it (OK) — the popup itself stays open, keeps showing its last
+  successful content, and the title's timestamp is unchanged from before
+  this failed refresh.
+
+**UT-28.4 — View sync status failure (first open) shows an error dialog,
+no popup (FR-28.3)** ✅
+
+* Trigger a failure, e.g. rename/remove the configured `mutagen` binary,
+  or click the eye icon immediately after deleting that same session
+  (FR-17.4) before the grid refreshes.
+* An error dialog appears instead of the status popup: "MutagenMon could
+  not retrieve sync status for session '`<name>`':" followed by the
+  underlying error message.
+* Dismiss the error dialog (OK). No sync-status popup was shown, and the
+  status view/grid are otherwise unaffected.
+
+**UT-28.5 — Re-clicking the same row's eye icon brings the existing
+popup to front instead of opening a duplicate (FR-28.9)** ✅
+
+* Click the eye icon on a session's row to open its sync status popup.
+  Note its title's timestamp.
+* Move that popup aside (don't close it) so it no longer overlaps the
+  status view, then click somewhere else (e.g. the status view) so the
+  popup is no longer the focused/topmost window.
+* Click the *same* row's eye icon again.
+* No new window opens — the existing popup for that session is brought
+  to the foreground/focused instead. Its title's timestamp is unchanged
+  from what you noted (the command was not re-run — only "Refresh",
+  UT-28.3, does that).
+* Minimize that popup, then click the same row's eye icon once more. The
+  popup restores from minimized and comes to the front, still without
+  opening a duplicate.
+* Close the popup, then click the same row's eye icon again. This time a
+  fresh popup opens normally (UT-28.1) — closing frees that session's
+  slot.
 
 ## FR-9 — Manual conflict resolution
 

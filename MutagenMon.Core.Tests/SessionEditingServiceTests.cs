@@ -15,6 +15,8 @@ public class SessionEditingServiceTests
 
         public Task<string> GetSyncListRawAsync(CancellationToken cancellationToken) => Task.FromResult("");
 
+        public Task<string> GetSyncStatusDetailAsync(string sessionName, CancellationToken cancellationToken) => Task.FromResult("");
+
         public Task TerminateSessionAsync(string sessionName, CancellationToken cancellationToken)
         {
             if (sessionName == FailTerminationFor)

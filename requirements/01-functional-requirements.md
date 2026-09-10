@@ -166,8 +166,18 @@ The full specification lives in
   button, FR-8.5) MUST ask the user to confirm before doing so;
   declining leaves the application running unchanged.
 - FR-7.5: While a reload is in progress, the menu MUST replace the
-  start/stop/reload/show-status items with a single disabled
-  "Reloading..." item, keeping only "Exit" available.
+  start/stop/reload/show-status/move-to-main-screen items with a single
+  disabled "Reloading..." item, keeping only "Exit" available.
+- FR-7.6: **(new)** The context menu MUST offer "Move to main screen",
+  directly below "Show status" (FR-7.3). It repositions every window the
+  application currently has open — the status view (FR-8), any open sync
+  status popups (FR-28), and any open edit/conflict-resolution dialogs —
+  onto the primary monitor's work area: centered on it, and shrunk to fit
+  if larger than it. It does not open, close, or otherwise change which
+  windows exist — a window that was hidden (e.g. the status view after
+  "Close", FR-8) is repositioned but stays hidden. This exists to recover
+  a window left stranded off-screen after a monitor is
+  disconnected/reconfigured.
 
 ## FR-8 — Detailed status view
 
@@ -210,10 +220,10 @@ The full specification lives in
   tray menu or the status view is in progress (mirrors FR-7.5).
   - **Rewrite change**: see
     [07-session-management-requirements.md](07-session-management-requirements.md)
-    FR-16 — the "Reload config & restart mutagen" button has been
+    FR-16 — the "Reload config & restart mutagen" button (FR-16.1/16.2)
+    and the "Stop/Start Mutagen sessions" toggle (FR-16.5) have both been
     relocated from this bottom action row into a new toolbar above the
-    grid (alongside "Add"). "Stop/Start Mutagen sessions" and "Exit"
-    stay in the bottom row.
+    grid (alongside "Add"). Only "Exit" stays in the bottom row.
 
 ## FR-9 — Manual conflict resolution
 

@@ -19,7 +19,7 @@ This folder documents the required behavior of MutagenMon.
 5. [07-session-management-requirements.md](07-session-management-requirements.md)
    — requirements and design for adding/editing/deleting sessions
    (toolbar, grid row actions, add/edit window) from the status view.
-   Implemented (FR-16 through FR-27); kept as its own file rather than
+   Implemented (FR-16 through FR-28); kept as its own file rather than
    folded into `01-functional-requirements.md` given its size.
 6. [UserTests.md](UserTests.md) — manual, click-by-click acceptance test
    script for verifying each requirement against the running application,

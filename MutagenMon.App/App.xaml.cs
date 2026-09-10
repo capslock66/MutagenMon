@@ -51,11 +51,19 @@ public partial class App : Application
     private TrayIconController? _trayIconController;
     private IconImageCache? _iconCache;
     private StatusWindow? _statusWindow;
+
+    /// <summary>Tracks the one open <see cref="SyncStatusDetailWindow"/>
+    /// per session, keyed by session name (FR-28.9) — since that popup is
+    /// non-modal (FR-28.5), re-clicking the eye icon for a session that
+    /// already has a popup open must bring the existing one to front
+    /// instead of stacking a duplicate.</summary>
+    private readonly Dictionary<string, SyncStatusDetailWindow> _syncStatusWindows = new();
     private SessionMonitorService? _monitorService;
     private ISessionStateStore? _stateStore;
     private ConflictResolutionService? _conflictResolutionService;
     private ILogger<ConflictResolutionController>? _conflictResolutionControllerLogger;
     private SessionEditingService? _sessionEditingService;
+    private IMutagenCliClient? _mutagenCliClient;
     private IReadOnlyList<SessionDefinition> _sessionDefinitions = Array.Empty<SessionDefinition>();
     private IReadOnlyList<string> _sessionNames = Array.Empty<string>();
     private MutagenMonOptions? _options;
@@ -194,6 +202,7 @@ public partial class App : Application
             _stateStore = stateStore;
             _conflictResolutionService = _host.Services.GetRequiredService<ConflictResolutionService>();
             _sessionEditingService = _host.Services.GetRequiredService<SessionEditingService>();
+            _mutagenCliClient = _host.Services.GetRequiredService<IMutagenCliClient>();
             _conflictResolutionControllerLogger = _host.Services.GetRequiredService<ILogger<ConflictResolutionController>>();
             _notificationQueue = _host.Services.GetRequiredService<INotificationQueue>();
 
@@ -314,6 +323,7 @@ public partial class App : Application
         _conflictResolutionService = newConflictResolutionService;
         _sessionEditingService = new SessionEditingService(
             newCliClient, sessionsPath, _host.Services.GetRequiredService<ILogger<SessionEditingService>>());
+        _mutagenCliClient = newCliClient;
         _trayIconController = BuildAndStartTrayIconController(newOptions, newSessionNames);
 
         _logger?.LogInformation("Reload complete — monitoring resumed with the new configuration");
@@ -323,6 +333,36 @@ public partial class App : Application
     {
         _logger?.LogDebug("User action: show status clicked");
         ShowStatusWindow();
+    }
+
+    /// <summary>Handles the tray menu's "Move to main screen" (FR-29):
+    /// repositions every window this process currently has open — the
+    /// status view, any open sync status popups (FR-28), edit/conflict
+    /// dialogs, etc. — onto the primary monitor's work area, centered and
+    /// clamped to fit. Useful after a monitor is disconnected/reconfigured
+    /// and a window is left stranded off-screen. <see cref="Application.Windows"/>
+    /// includes hidden windows too (<see cref="StatusWindow"/> hides rather
+    /// than closes, FR-8), which is harmless here — repositioning an
+    /// invisible window has no visible effect but keeps it correctly placed
+    /// for whenever it's shown again.</summary>
+    private void OnMoveToMainScreenClick(object sender, RoutedEventArgs e)
+    {
+        _logger?.LogInformation("User action: tray menu Move to main screen clicked");
+        foreach (Window window in Application.Current.Windows)
+            MoveWindowToPrimaryScreen(window);
+    }
+
+    private static void MoveWindowToPrimaryScreen(Window window)
+    {
+        if (window.WindowState == WindowState.Minimized)
+            window.WindowState = WindowState.Normal;
+
+        var workArea = SystemParameters.WorkArea;
+        var width = Math.Min(window.ActualWidth, workArea.Width);
+        var height = Math.Min(window.ActualHeight, workArea.Height);
+
+        window.Left = workArea.Left + (workArea.Width - width) / 2;
+        window.Top = workArea.Top + (workArea.Height - height) / 2;
     }
 
     private void ShowStatusWindow()
@@ -335,6 +375,7 @@ public partial class App : Application
             _statusWindow.ToggleMonitoringRequested += OnStatusWindowToggleMonitoringRequested;
             _statusWindow.ExitRequested += OnStatusWindowExitRequested;
             _statusWindow.AddSessionRequested += OnAddSessionRequested;
+            _statusWindow.ViewSyncStatusRequested += OnViewSyncStatusRequested;
             _statusWindow.EditSessionRequested += OnEditSessionRequested;
             _statusWindow.DeleteSessionRequested += OnDeleteSessionRequested;
         }
@@ -443,6 +484,74 @@ public partial class App : Application
 
         if (window.ShowDialog() == true)
             ReloadConfig();
+    }
+
+    /// <summary>Handles a row's View sync status icon (FR-28): runs
+    /// `mutagen sync list -l &lt;name&gt;` and shows its raw, unparsed output
+    /// in a non-modal <see cref="SyncStatusDetailWindow"/> (FR-28.5) that
+    /// the status view stays fully usable alongside. A failure on this
+    /// first call shows an error dialog and never opens the popup at all
+    /// (FR-28.3); once open, <see cref="RefreshSyncStatusAsync"/> handles
+    /// re-running the command instead (FR-28.6). If that session already
+    /// has a popup open, brings it to front instead of opening a second one
+    /// (FR-28.9) — restoring it first if it was minimized.</summary>
+    private async void OnViewSyncStatusRequested(object? sender, string name)
+    {
+        if (_mutagenCliClient is null || _statusWindow is null || _logger is null)
+            return;
+
+        if (_syncStatusWindows.TryGetValue(name, out var existingWindow))
+        {
+            _logger.LogInformation("Sync status popup already open for '{Name}'; bringing it to front", name);
+            if (existingWindow.WindowState == WindowState.Minimized)
+                existingWindow.WindowState = WindowState.Normal;
+            existingWindow.Activate();
+            return;
+        }
+
+        string detail;
+        try
+        {
+            detail = await _mutagenCliClient.GetSyncStatusDetailAsync(name, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve sync status for session '{Name}'", name);
+            MessageBox.Show(
+                _statusWindow, $"MutagenMon could not retrieve sync status for session '{name}':\n\n{ex.Message}",
+                "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        var window = new SyncStatusDetailWindow(_logger, name) { Owner = _statusWindow };
+        window.SetStatusText(detail);
+        window.RefreshRequested += async (_, _) => await RefreshSyncStatusAsync(window, name);
+        window.Closed += (_, _) => _syncStatusWindows.Remove(name);
+        _syncStatusWindows[name] = window;
+        window.Show();
+    }
+
+    /// <summary>Re-runs FR-28.2's command for an already-open sync status
+    /// popup (FR-28.6). On failure, the popup keeps its last successful
+    /// content — an error dialog is shown instead of clearing it, since a
+    /// stale-but-real result is more useful than nothing (FR-28.7).</summary>
+    private async Task RefreshSyncStatusAsync(SyncStatusDetailWindow window, string name)
+    {
+        if (_mutagenCliClient is null || _logger is null)
+            return;
+
+        try
+        {
+            var detail = await _mutagenCliClient.GetSyncStatusDetailAsync(name, CancellationToken.None);
+            window.SetStatusText(detail);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to refresh sync status for session '{Name}'", name);
+            MessageBox.Show(
+                window, $"MutagenMon could not refresh sync status for session '{name}':\n\n{ex.Message}",
+                "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     /// <summary>Handles a row's Edit icon (FR-17.2 -&gt; FR-27.4). Parses the
@@ -566,8 +675,9 @@ public partial class App : Application
         var toggleItem = (MenuItem)menu.Items[1];
         var topSeparator = (UIElement)menu.Items[2];
         var showStatusItem = (MenuItem)menu.Items[3];
-        var bottomSeparator = (UIElement)menu.Items[4];
-        var reloadingItem = (MenuItem)menu.Items[5];
+        var moveToMainScreenItem = (MenuItem)menu.Items[4];
+        var bottomSeparator = (UIElement)menu.Items[5];
+        var reloadingItem = (MenuItem)menu.Items[6];
 
         var reloading = _trayIconController?.IsReloadInProgress ?? false;
 
@@ -575,6 +685,7 @@ public partial class App : Application
         toggleItem.Visibility = reloading ? Visibility.Collapsed : Visibility.Visible;
         topSeparator.Visibility = reloading ? Visibility.Collapsed : Visibility.Visible;
         showStatusItem.Visibility = reloading ? Visibility.Collapsed : Visibility.Visible;
+        moveToMainScreenItem.Visibility = reloading ? Visibility.Collapsed : Visibility.Visible;
         bottomSeparator.Visibility = reloading ? Visibility.Collapsed : Visibility.Visible;
         reloadingItem.Visibility = reloading ? Visibility.Visible : Visibility.Collapsed;
 

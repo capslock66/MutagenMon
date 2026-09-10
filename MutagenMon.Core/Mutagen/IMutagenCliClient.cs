@@ -10,6 +10,12 @@ public interface IMutagenCliClient
 {
     Task<string> GetSyncListRawAsync(CancellationToken cancellationToken);
 
+    /// <summary>Runs `mutagen sync list -l &lt;name&gt;` (FR-28) and returns
+    /// its raw output, unparsed — used to show one session's full detail on
+    /// demand, as opposed to <see cref="GetSyncListRawAsync"/>'s
+    /// all-sessions poll consumed by <see cref="MutagenSyncListParser"/>.</summary>
+    Task<string> GetSyncStatusDetailAsync(string sessionName, CancellationToken cancellationToken);
+
     /// <summary>Runs
     /// `mutagen sync terminate &lt;name&gt;`.</summary>
     Task TerminateSessionAsync(string sessionName, CancellationToken cancellationToken);

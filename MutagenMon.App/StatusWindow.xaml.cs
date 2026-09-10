@@ -40,6 +40,10 @@ public partial class StatusWindow : Window
     /// <c>SessionEditingService</c> and the session definitions.</summary>
     public event EventHandler? AddSessionRequested;
 
+    /// <summary>Raised when the user clicks a row's View sync status icon
+    /// (FR-28), with that session's name.</summary>
+    public event EventHandler<string>? ViewSyncStatusRequested;
+
     /// <summary>Raised when the user clicks a row's Edit icon (FR-17.2),
     /// with that session's name.</summary>
     public event EventHandler<string>? EditSessionRequested;
@@ -136,6 +140,14 @@ public partial class StatusWindow : Window
     {
         _logger.LogInformation("User action: status window Add session clicked");
         AddSessionRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnViewSyncStatusClick(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).DataContext is not SessionSummaryRow row)
+            return;
+        _logger.LogInformation("User action: status window View sync status clicked ({Name})", row.Name);
+        ViewSyncStatusRequested?.Invoke(this, row.Name);
     }
 
     private void OnEditSessionClick(object sender, RoutedEventArgs e)

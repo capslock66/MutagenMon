@@ -1,0 +1,34 @@
+<Window x:Class="MutagenMon.App.SyncStatusDetailWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="MutagenMon" Width="720" Height="560"
+        MinWidth="420" MinHeight="280"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanResize"
+        ShowInTaskbar="False">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBox x:Name="BodyText" Grid.Row="0"
+                 IsReadOnly="True" IsReadOnlyCaretVisible="True"
+                 FontFamily="Consolas"
+                 TextWrapping="NoWrap" AcceptsReturn="True"
+                 VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                 BorderThickness="1" Padding="6" />
+
+        <Grid Grid.Row="1" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Button x:Name="RefreshButton" Grid.Column="0" HorizontalAlignment="Left"
+                    Content="Refresh" Width="90" Click="OnRefreshClick" />
+
+            <Button x:Name="OkButton" Grid.Column="1" HorizontalAlignment="Right"
+                    Content="Close" Width="90" IsDefault="True" Click="OnOkClick" />
+        </Grid>
+    </Grid>
+</Window>

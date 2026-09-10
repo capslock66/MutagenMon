@@ -35,6 +35,8 @@ public class SessionMonitorServiceTests
         public Task<string> GetSyncListRawAsync(CancellationToken cancellationToken) =>
             Task.FromResult(_responses.Count > 0 ? _responses.Dequeue()() : "");
 
+        public Task<string> GetSyncStatusDetailAsync(string sessionName, CancellationToken cancellationToken) => Task.FromResult("");
+
         public Task TerminateSessionAsync(string sessionName, CancellationToken cancellationToken)
         {
             if (sessionName == FailTerminationFor)

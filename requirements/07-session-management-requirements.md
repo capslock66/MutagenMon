@@ -23,7 +23,7 @@ the design discussion that produced this document.
   uniqueness), FR-7.1 (reload/recreate), FR-8 (status view grid), and
   FR-13.5 (terminate + recreate mechanics, which the Edit/Delete actions
   below reuse).
-- Adds new functional requirements FR-16 through FR-27, continuing the
+- Adds new functional requirements FR-16 through FR-28, continuing the
   numbering from `01-functional-requirements.md`'s FR-15. They are kept in
   this separate file rather than appended to `01-functional-requirements.md`
   because of their size and because they describe a not-yet-built feature
@@ -58,6 +58,13 @@ the design discussion that produced this document.
 - FR-16.4: "Edit" and "Delete" are NOT toolbar actions — they exist only
   as the per-row icons described in FR-17 below **(confirmed: row icons
   only, no toolbar duplication)**.
+- FR-16.5: **(new)** The **"Stop Mutagen sessions"**/**"Start Mutagen
+  sessions"** toggle (FR-7.2) is also relocated into this toolbar,
+  immediately to the right of "Add" — it no longer appears in the bottom
+  `Grid.Row="3"` action row of `StatusWindow.xaml` (only "Exit mutagen
+  monitor" remains there). Its label, click behavior, and
+  disabled-while-reloading state (FR-7.5/FR-8.5) are unchanged — only its
+  position changes.
 
 ## FR-17 — Grid row actions (Edit / Delete)
 
@@ -349,6 +356,56 @@ the design discussion that produced this document.
     incremental-update path on `SessionMonitorService` would be a real,
     separate piece of Core work, not yet done.
 
+## FR-28 — Grid row action: view sync status
+
+- FR-28.1: The sessions grid's leftmost column (FR-17.1) MUST gain a third
+  icon button, placed **before** Edit (order: **View sync status, Edit,
+  Delete**): `PackIconMaterial Kind="EyeOutline"` — matching the `...Outline`
+  style of the existing Edit/Delete icons (see FR-16.3 for the icon
+  package).
+- FR-28.2: Clicking it runs `mutagen sync list -l <name>` for that row's
+  session and displays the command's raw combined stdout/stderr output,
+  verbatim and unparsed, in a dedicated popup
+  (`SyncStatusDetailWindow`) — titled `MutagenMon: sync status - <name>`
+  (see FR-28.8 for the timestamp suffix added to this title).
+  Unlike `GenericMessageDialog` (fixed width, no scrolling, wrapping
+  `TextBlock`), this window is resizable and its body is a scrollable,
+  monospace, read-only (but text-selectable) box, since the CLI output is
+  a multi-line fixed-width dump that can exceed a small fixed dialog.
+- FR-28.3: If the command fails (non-zero exit, e.g. the session was just
+  deleted, or `mutagen`/the daemon is unreachable), an error dialog is
+  shown instead (same `MessageBox.Show` pattern as FR-17.5), and no popup
+  with partial/stale content is displayed.
+- FR-28.4: This is a read-only, on-demand action — it does not affect
+  polling, the grid's own status column, or any other session state.
+- FR-28.5: **(confirmed)** The popup MUST be non-modal (`Window.Show`, not
+  `ShowDialog`) — the status view, and any other window, remain fully
+  usable while it's open, and popups for different sessions can be open at
+  once, side by side (see FR-28.9 for the same-session case).
+- FR-28.6: **(confirmed)** The popup MUST include a **Refresh** button,
+  anchored to the left edge (mirroring the status view's own left/right
+  button grouping, FR-8.5) — its Close button stays anchored right.
+  Clicking Refresh re-runs the FR-28.2 command for the same session and
+  replaces the popup's content in place, without closing/reopening the
+  window.
+- FR-28.7: If a Refresh (FR-28.6) fails, the popup keeps showing its last
+  successful content and an error dialog is shown (same message pattern as
+  FR-28.3) — unlike the initial open, a failed refresh must not blank or
+  close the popup.
+- FR-28.8: **(confirmed)** The popup's title MUST show when its
+  currently-displayed content was last retrieved: after both the initial
+  fetch (FR-28.2) and every successful Refresh (FR-28.6), the title is
+  `MutagenMon: sync status - <name> (<CCYY-MM-DD> - <HH:mm:ss>)`, e.g.
+  `MutagenMon: sync status - t1 (2026-09-10 - 17:23:45)` — a failed
+  Refresh (FR-28.7) does not update this timestamp, since the displayed
+  content itself didn't change.
+- FR-28.9: **(confirmed)** At most one sync status popup exists per
+  session at a time. Clicking the eye icon for a session that already has
+  its popup open (tracked by `App` keyed by session name) MUST bring that
+  existing window to the front (restoring it first if minimized) instead
+  of opening a duplicate — it does not re-run FR-28.2's command or refresh
+  the title's timestamp; use the popup's own Refresh (FR-28.6) for that.
+
 ## Design: Add/Edit window layout
 
 ```
@@ -419,18 +476,19 @@ Notes:
 
 ```
 ┌─ MutagenMon ─────────────────────────────────────────────────────────┐
-│ [+ Add]                                            [⟲ Reload config] │
-├───┬──────┬─────────────────────┬──────────┬──────────┬──────────────┤
-│   │ Name │ Status              │ Alpha    │ Beta     │ Last changed │
-├───┼──────┼─────────────────────┼──────────┼──────────┼──────────────┤
-│✎🗑│ web  │ ● Watching for chg. │ /a/path  │ /b/path  │ 2h ago       │
-└───┴──────┴─────────────────────┴──────────┴──────────┴──────────────┘
+│ [+ Add] [■ Stop Mutagen sessions]                  [⟲ Reload config] │
+├────┬──────┬─────────────────────┬──────────┬──────────┬─────────────┤
+│    │ Name │ Status              │ Alpha    │ Beta     │ Last changed│
+├────┼──────┼─────────────────────┼──────────┼──────────┼─────────────┤
+│👁✎🗑│ web  │ ● Watching for chg. │ /a/path  │ /b/path  │ 2h ago      │
+└────┴──────┴─────────────────────┴──────────┴──────────┴─────────────┘
 ```
 
-`✎`/`🗑` stand in for the actual Edit/Delete icons
-(`PencilOutline`/`TrashCanOutline`); `⟲` stands in for the reload icon
-(`CogRefreshOutline`), explicitly **not** a plain circular refresh glyph
-per FR-16.3.
+`👁`/`✎`/`🗑` stand in for the actual View sync status/Edit/Delete icons
+(`EyeOutline`/`PencilOutline`/`TrashCanOutline`, FR-28.1/FR-17.1); `⟲`
+stands in for the reload icon (`CogRefreshOutline`), explicitly **not** a
+plain circular refresh glyph per FR-16.3; `■` stands in for the plain-text
+Stop/Start Mutagen sessions toggle button (FR-16.5) — it has no icon.
 
 ## Implementation
 
@@ -442,3 +500,11 @@ Built across `MutagenMon.Core/Sessions/` (`SessionCommandLine.cs`,
 `MutagenMon.Core.Tests` (parser round-trip, file mutation, editing-service
 orchestration including the "must not touch the file on failure" cases).
 Manually verified on Windows (2026-09-10).
+
+FR-28 (view sync status) adds `IMutagenCliClient.GetSyncStatusDetailAsync`/
+`MutagenCliClient.GetSyncStatusDetailAsync` (Core) and
+`MutagenMon.App/SyncStatusDetailWindow.xaml`/`.xaml.cs`, wired up in
+`StatusWindow.xaml`/`.xaml.cs` and `App.xaml.cs` the same way as Edit/
+Delete. Not unit-tested, matching the rest of `IMutagenCliClient`'s
+process-spawning methods (see that interface's remarks) — verified via
+`UserTests.md` FR-28 instead.

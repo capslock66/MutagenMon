@@ -19,20 +19,26 @@
         </Grid.RowDefinitions>
 
         <!-- FR-16: toolbar above the grid — Add, and Reload config relocated
-             here from the bottom action row. -->
+             here from the bottom action row. Stop/Start Mutagen sessions
+             also relocated here, just right of Add. -->
         <Grid Grid.Row="0" Margin="0,0,0,8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <Button x:Name="AddSessionButton" Grid.Column="0" HorizontalAlignment="Left"
-                    Padding="8,4" Click="OnAddSessionClick" ToolTip="Add session">
-                <StackPanel Orientation="Horizontal">
-                    <iconPacks:PackIconMaterial Kind="PlusThick" Width="16" Height="16" VerticalAlignment="Center" />
-                    <TextBlock Text="Add" Margin="6,0,0,0" VerticalAlignment="Center" />
-                </StackPanel>
-            </Button>
+            <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left">
+                <Button x:Name="AddSessionButton"
+                        Padding="8,4" Click="OnAddSessionClick" ToolTip="Add session">
+                    <StackPanel Orientation="Horizontal">
+                        <iconPacks:PackIconMaterial Kind="PlusThick" Width="16" Height="16" VerticalAlignment="Center" />
+                        <TextBlock Text="Add" Margin="6,0,0,0" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+
+                <Button x:Name="ToggleMonitoringButton" Content="Stop Mutagen sessions" Width="150"
+                        Margin="8,0,0,0" Click="OnToggleMonitoringClick" />
+            </StackPanel>
 
             <Button x:Name="ReloadConfigButton" Grid.Column="1" HorizontalAlignment="Right"
                     Padding="8,4" Click="OnReloadConfigClick" ToolTip="Reload config &amp; restart mutagen">
@@ -49,12 +55,18 @@
                   GridLinesVisibility="Horizontal" HeadersVisibility="Column"
                   SelectionMode="Single" SelectionUnit="FullRow">
             <DataGrid.Columns>
-                <!-- FR-17.1: Edit/Delete row actions, leftmost, before Name. -->
+                <!-- FR-17.1: Edit/Delete row actions, leftmost, before Name.
+                     FR-28: View sync status, leftmost of the three. -->
                 <DataGridTemplateColumn Header="" Width="Auto" CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal">
+                                <Button Click="OnViewSyncStatusClick" ToolTip="View sync status"
+                                        Padding="2" Background="Transparent" BorderThickness="0">
+                                    <iconPacks:PackIconMaterial Kind="EyeOutline" Width="14" Height="14" />
+                                </Button>
                                 <Button Click="OnEditSessionClick" ToolTip="Edit session"
+                                        Margin="4,0,0,0"
                                         Padding="2" Background="Transparent" BorderThickness="0">
                                     <iconPacks:PackIconMaterial Kind="PencilOutline" Width="14" Height="14" />
                                 </Button>
@@ -93,8 +105,7 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left">
-                <Button x:Name="ToggleMonitoringButton" Content="Stop Mutagen sessions" Width="150" Click="OnToggleMonitoringClick" />
-                <Button x:Name="ExitButton" Content="Exit" Width="90" Margin="8,0,0,0" Click="OnExitClick" />
+                <Button x:Name="ExitButton" Content="Exit mutagen monitor" Width="130" Click="OnExitClick" />
             </StackPanel>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
