@@ -20,7 +20,8 @@
 
         <!-- FR-16: toolbar above the grid — Add, and Reload config relocated
              here from the bottom action row. Stop/Start Mutagen sessions
-             also relocated here, just right of Add. -->
+             also relocated here, just right of Add. FR-29: Edit mutagen
+             config sits between Add and Stop/Start Mutagen sessions. -->
         <Grid Grid.Row="0" Margin="0,0,0,8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
@@ -33,6 +34,14 @@
                     <StackPanel Orientation="Horizontal">
                         <iconPacks:PackIconMaterial Kind="PlusThick" Width="16" Height="16" VerticalAlignment="Center" />
                         <TextBlock Text="Add" Margin="6,0,0,0" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+
+                <Button x:Name="EditMutagenConfigButton"
+                        Padding="8,4" Margin="8,0,0,0" Click="OnEditMutagenConfigClick" ToolTip="Edit mutagen config">
+                    <StackPanel Orientation="Horizontal">
+                        <iconPacks:PackIconMaterial Kind="FileDocumentEditOutline" Width="16" Height="16" VerticalAlignment="Center" />
+                        <TextBlock Text="Edit mutagen config" Margin="6,0,0,0" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
 

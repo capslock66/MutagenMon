@@ -375,6 +375,7 @@ public partial class App : Application
             _statusWindow.ToggleMonitoringRequested += OnStatusWindowToggleMonitoringRequested;
             _statusWindow.ExitRequested += OnStatusWindowExitRequested;
             _statusWindow.AddSessionRequested += OnAddSessionRequested;
+            _statusWindow.EditMutagenConfigRequested += OnEditMutagenConfigRequested;
             _statusWindow.ViewSyncStatusRequested += OnViewSyncStatusRequested;
             _statusWindow.EditSessionRequested += OnEditSessionRequested;
             _statusWindow.DeleteSessionRequested += OnDeleteSessionRequested;
@@ -484,6 +485,33 @@ public partial class App : Application
 
         if (window.ShowDialog() == true)
             ReloadConfig();
+    }
+
+    /// <summary>Handles the toolbar's "Edit mutagen config" action (FR-29.2
+    /// -&gt; FR-33). Unlike <see cref="OnAddSessionRequested"/>, the window
+    /// itself performs the read/validate/write and shows its own save
+    /// result/FR-32.4 note (FR-30 through FR-32) — a plain local file write
+    /// has no live CLI call that can fail independently of it, so there's no
+    /// reload/live-effect step this handler needs to trigger afterwards on
+    /// its own. FR-33's "Reload config &amp; restart" button reuses the
+    /// exact same <see cref="ReloadConfig"/> pathway as the status view's
+    /// own toolbar button (FR-7.1) — manual testing found that restarting
+    /// the `mutagen` daemon process itself (an earlier version of FR-33)
+    /// has no effect on already-running sessions: `~/.mutagen.yml`'s
+    /// defaults are only applied when a session is *created*, and
+    /// <see cref="ReloadConfig"/> is precisely what terminates and
+    /// recreates every session (<c>SessionMonitorService.SetEnabled</c> ->
+    /// <c>CreateSessionAsync</c>), which is what actually picks up the new
+    /// config. That also means no separate success/error reporting is
+    /// needed here — <see cref="OnReloadReady"/> already has its own.</summary>
+    private void OnEditMutagenConfigRequested(object? sender, EventArgs e)
+    {
+        if (_statusWindow is null || _logger is null)
+            return;
+
+        var window = new MutagenConfigEditorWindow(_logger) { Owner = _statusWindow };
+        window.ReloadConfigRequested += (_, _) => ReloadConfig();
+        window.ShowDialog();
     }
 
     /// <summary>Handles a row's View sync status icon (FR-28): runs

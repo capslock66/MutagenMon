@@ -553,6 +553,131 @@ popup to front instead of opening a duplicate (FR-28.9)** ✅
   fresh popup opens normally (UT-28.1) — closing frees that session's
   slot.
 
+## FR-29 — Mutagen config editor
+
+**UT-29.1 — Toolbar button opens the editor showing the file's current
+content (FR-29.1/FR-29.2/FR-30.1/FR-30.2/FR-30.3)** ✅
+
+* Ensure `%USERPROFILE%\.mutagen.yml` exists with some content (create it
+  by hand first if needed, e.g. `synchronization:\n  defaults:\n
+  ignoreVCSDirectories: true\n`).
+* Left-click the tray icon to open the status view.
+* In the toolbar, a new **"Edit mutagen config"** button appears
+  immediately to the right of "Add".
+* Click it. A window titled "MutagenMon: Edit mutagen config" opens,
+  showing the exact content of `%USERPROFILE%\.mutagen.yml` in a
+  monospace, multi-line, editable text box. No "file does not exist"
+  notice is shown.
+
+**UT-29.2 — Missing file opens an empty editor with a notice, and Save
+creates it (FR-30.4/FR-32.2)** ✅
+
+* Ensure `%USERPROFILE%\.mutagen.yml` does **not** exist (rename/delete it
+  if it does — back it up first if you care about its content).
+* Open "Edit mutagen config" (UT-29.1).
+* The text box is empty, and an italic notice reads "File does not exist
+  yet — it will be created on Save."
+* Type some valid YAML, e.g. `synchronization:\n  defaults:\n
+  ignoreVCSDirectories: true\n`, then click "Save".
+* The window stays open (Save does not close it, FR-32.5) and the "File
+  does not exist yet" notice disappears. `%USERPROFILE%\.mutagen.yml` now
+  exists with exactly that content.
+* No "not applied live" note is shown after this particular save (see
+  UT-29.6 for when it is).
+* Click "Close" to close the window.
+
+**UT-29.3 — Check validates YAML and shows/clears the red error label
+(FR-31.1/FR-31.2)** ✅
+
+* Open "Edit mutagen config" (UT-29.1).
+* Replace the content with something syntactically invalid, e.g.
+  `a: [1, 2` (an unterminated flow sequence).
+* Click "Check". A red error message appears below the text box
+  describing the parse failure.
+* Fix the content back to valid YAML and click "Check" again. The red
+  error message disappears.
+
+**UT-29.4 — Save is blocked on invalid YAML and shows the same red error
+(FR-31.3)** ✅
+
+* Open "Edit mutagen config" (UT-29.1) and enter invalid YAML (as in
+  UT-29.3), without clicking "Check" first.
+* Click "Save".
+* The window stays open, the same red error message from UT-29.3 appears,
+  and the file on disk is unchanged.
+
+**UT-29.5 — Save preserves the file's original encoding
+(FR-30.3/FR-32.2)** ✅
+
+* Save a UTF-8-with-BOM `.mutagen.yml` (most text editors' "UTF-8" option
+  on Windows includes a BOM by default) containing a non-ASCII character,
+  e.g. `a: café\n`.
+* Open "Edit mutagen config" (UT-29.1); the accented character displays
+  correctly.
+* Make a small edit and click "Save".
+* Reopen the file in a hex viewer (or re-open the editor and re-save,
+  then inspect with `Format-Hex` in PowerShell): the file still starts
+  with the UTF-8 BOM (`EF BB BF`) and the accented character is intact.
+
+**UT-29.6 — Saving over an existing file shows the "not applied live"
+note; creating a new file does not (FR-32.4)** ✅
+
+* With `%USERPROFILE%\.mutagen.yml` already existing (any valid content),
+  open "Edit mutagen config" (UT-29.1), make a change, and click "Save".
+* An informational dialog appears: "The mutagen config file was saved.
+  This does not affect already-running sessions — use "Reload config &
+  restart" (below) to apply the change to them." Dismiss it (OK). The
+  editor window itself is still open underneath it.
+* Compare against UT-29.2 (file didn't exist before that save): no such
+  dialog appeared there.
+* Make another change and click "Save" again (file now exists from the
+  first save). The same note appears again — it's shown on every save
+  that overwrites an already-existing file, not just the first one.
+
+## FR-33 — Reload config & restart (apply the change to running sessions)
+
+**Note**: an earlier version of this feature had a "Restart mutagen
+daemon" button here that ran `mutagen daemon stop`/`start`. Manual testing
+found that restarting the daemon process alone does **not** make
+already-running sessions pick up a `~/.mutagen.yml` change — mutagen only
+applies that file's defaults when a session is *created*. The button was
+changed to trigger the existing "Reload config & restart" action instead
+(FR-7.1/UT-7.1), which terminates and recreates every session — see the
+note under FR-33's Status in
+[08-mutagen-config-editor-requirements.md](08-mutagen-config-editor-requirements.md).
+
+**UT-33.1 — The button starts disabled and stays disabled until a change
+is actually saved (FR-33.1/FR-33.2)** ✅
+
+* Open "Edit mutagen config" (UT-29.1) on an existing, valid
+  `.mutagen.yml`.
+* The bottom-left button group shows, in order, **"Check", "Save",
+  "Reload config & restart"** ("Close" is alone on the right). "Reload
+  config & restart" is visible and disabled (greyed out).
+* Click "Save" without changing anything. The button stays disabled — no
+  change was actually persisted.
+* Now edit the text, then click "Save". The button becomes enabled.
+
+**UT-33.2 — Clicking it applies the change to already-running sessions
+(FR-33.3/FR-33.4)** ✅
+
+* With at least one session running and configured to use a
+  `synchronization.defaults` value from `.mutagen.yml` (e.g.
+  `ignoreVCSDirectories`), open "Edit mutagen config" (UT-29.1), change
+  that value, and click "Save" (the button becomes enabled, UT-33.1).
+* Click "Reload config & restart". The button becomes disabled and stays
+  disabled for the rest of this window's lifetime.
+* This is the same action as the status view's own "Reload config" toolbar
+  button (UT-7.1) — no separate dialog appears here. In the status view
+  (open it if it wasn't already), the grid briefly shows the reload state
+  (FR-7.5/FR-8.5) and every session is terminated and recreated.
+* Once the grid settles back to normal, inspect the affected session's
+  actual sync behavior (or `mutagen sync list -l <name>`, e.g. via the
+  grid's eye icon, UT-28.1) — the new `.mutagen.yml` default is now in
+  effect for that session, unlike before this change (when only a plain
+  daemon restart was tried).
+* Close the config editor window ("Close").
+
 ## FR-9 — Manual conflict resolution
 
 **Setup used by every test below**: to produce a real conflict, right-click

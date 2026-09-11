@@ -21,7 +21,13 @@ This folder documents the required behavior of MutagenMon.
    (toolbar, grid row actions, add/edit window) from the status view.
    Implemented (FR-16 through FR-28); kept as its own file rather than
    folded into `01-functional-requirements.md` given its size.
-6. [UserTests.md](UserTests.md) — manual, click-by-click acceptance test
+6. [08-mutagen-config-editor-requirements.md](08-mutagen-config-editor-requirements.md)
+   — requirements and design for viewing/editing mutagen's own global
+   config file (`%USERPROFILE%\.mutagen.yml`, distinct from MutagenMon's
+   own `config_mutagenmon.json`) from a new toolbar button, plus a
+   "Reload config & restart" action to apply a saved change to
+   already-running sessions. Implemented (FR-29 through FR-33).
+7. [UserTests.md](UserTests.md) — manual, click-by-click acceptance test
    script for verifying each requirement against the running application,
    kept in step with implementation progress.
 
