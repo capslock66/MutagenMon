@@ -309,3 +309,4 @@ NoGit/
 *.dll
 *.tlb
 MutagenMon.App/StartMutagenMon.lnk
+copyToProdBuild.bat
