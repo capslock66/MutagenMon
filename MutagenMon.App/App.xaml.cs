@@ -721,7 +721,11 @@ public partial class App : Application
             toggleItem.Header = _monitorService.IsEnabled ? "Stop Mutagen sessions" : "Start Mutagen sessions";
     }
 
-    private async void OnExitClick(object sender, RoutedEventArgs e) => await ExitAsync();
+    /// <summary>Deferred via Dispatcher.BeginInvoke so it runs after
+    /// H.NotifyIcon's native context menu has actually finished closing,
+    /// rather than from inside its Click callback.</summary>
+    private void OnExitClick(object sender, RoutedEventArgs e) =>
+        Dispatcher.BeginInvoke(async () => await ExitAsync());
 
     private async void OnStatusWindowExitRequested(object? sender, EventArgs e) => await ExitAsync();
 
@@ -731,11 +735,59 @@ public partial class App : Application
         // status window's "Exit" button) — asked here, before either one
         // does anything irreversible, so a "No" leaves everything running
         // exactly as it was.
-        if (MessageBox.Show(
-                "Are you sure you want to exit MutagenMon? \nBackground synchronization will continue.",
+        //
+        // The confirmation is always shown with a real owner window
+        // (GenericMessageDialog, like every other dialog in the app), never
+        // via a bare, ownerless MessageBox.Show: clicking "Exit" straight
+        // from the tray icon (no status window ever opened, _statusWindow
+        // still null) left the confirmation with no owner at all, and an
+        // unowned dialog shown right as the tray's native context menu
+        // finishes closing loses Windows' foreground activation to the
+        // shell and closes itself almost instantly — logged as "cancelled"
+        // even though the user never got to answer. A transient invisible
+        // window, closed right after, gives the dialog a real owner when
+        // the status window isn't open yet.
+        Window? owner = _statusWindow;
+        Window? tempOwner = null;
+        if (owner is null)
+        {
+            // Placed on the primary screen's work area (not off-screen) even
+            // though it's invisible (0x0, no chrome): GenericMessageDialog's
+            // WindowStartupLocation="CenterScreen" centers relative to its
+            // owner's monitor, so an off-screen owner sent the confirmation
+            // to whatever monitor Windows resolved that position to instead
+            // of the main screen.
+            var workArea = SystemParameters.WorkArea;
+            tempOwner = new Window
+            {
+                Width = 0,
+                Height = 0,
+                WindowStyle = WindowStyle.None,
+                ShowInTaskbar = false,
+                Left = workArea.Left + workArea.Width / 2,
+                Top = workArea.Top + workArea.Height / 2,
+            };
+            tempOwner.Show();
+            owner = tempOwner;
+        }
+
+        bool confirmed;
+        try
+        {
+            confirmed = GenericMessageDialog.ShowConfirm(
+                owner,
+                _logger!,
                 "MutagenMon — confirm exit",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question) != MessageBoxResult.Yes)
+                "Are you sure you want to exit MutagenMon? \nBackground synchronization will continue.",
+                okLabel: "Yes",
+                cancelLabel: "No");
+        }
+        finally
+        {
+            tempOwner?.Close();
+        }
+
+        if (!confirmed)
         {
             _logger?.LogInformation("User action: exit cancelled at confirmation");
             return;
