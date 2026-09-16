@@ -9,5 +9,11 @@
     <NeutralLanguage>en</NeutralLanguage>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- No SourceLink/repo-metadata usage in this repo (no PackageReference to
+         any Microsoft.SourceLink.* package, no SourceRevisionId/RepositoryUrl
+         consumption) — this only stops MSBuild's own SCM info-gathering task
+         from querying the local git repository (incl. reading .gitmodules)
+         at every build for no benefit. -->
+    <EnableSourceControlManagerQueries>false</EnableSourceControlManagerQueries>
   </PropertyGroup>
 </Project>
