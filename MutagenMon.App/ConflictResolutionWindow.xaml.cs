@@ -9,7 +9,7 @@ namespace MutagenMon.App;
 /// (FR-9.1/FR-9.2/FR-9.3) — one conflict at a time,
 /// numbered "N of total", with the file path, an A/B comparison, and a
 /// Visual merge / A wins / B wins choice pre-selected by
-/// <see cref="ConflictBatchPlanner.DefaultChoice"/>.
+/// <c>ConflictResolutionController.DefaultChoice</c>.
 /// </summary>
 public partial class ConflictResolutionWindow : Window
 {

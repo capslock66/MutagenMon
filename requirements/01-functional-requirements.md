@@ -143,21 +143,27 @@ The full specification lives in
 
 ## FR-7 — Tray context menu & session control
 
-- FR-7.1: The context menu MUST offer "Reload config & restart mutagen",
-  which stops all sessions, waits for confirmation they are stopped, then
-  re-reads configuration and session definitions from disk and recreates
-  the mutagen sessions from them, in place — the MutagenMon application
-  process itself does NOT restart (distinct from the FR-6.3 self-restart,
-  which remains a full process restart). If the reloaded configuration or
-  session file is invalid, the application MUST show an error and resume
-  monitoring with the previous, still-valid configuration instead of
-  losing sync coverage.
-- FR-7.2: The context menu MUST offer a toggle action: "Stop Mutagen
-  sessions" when monitoring is currently enabled, or "Start Mutagen
-  sessions" when it is currently disabled.
+- FR-7.1: "Reload config & restart mutagen" stops all sessions, waits for
+  confirmation they are stopped, then re-reads configuration and session
+  definitions from disk and recreates the mutagen sessions from them, in
+  place — the MutagenMon application process itself does NOT restart
+  (distinct from the FR-6.3 self-restart, which remains a full process
+  restart). If the reloaded configuration or session file is invalid, the
+  application MUST show an error and resume monitoring with the previous,
+  still-valid configuration instead of losing sync coverage.
+  - **(changed 2026-09-17)** No longer offered from the tray context
+    menu — it was a plain duplicate of the status view toolbar's action
+    (07-session-management-requirements.md FR-16.1/16.2), which remains
+    the only entry point.
+- FR-7.2: The toggle action "Stop Mutagen sessions" (when monitoring is
+  currently enabled) / "Start Mutagen sessions" (when currently disabled):
   - Disabling MUST stop (terminate) every running session.
   - Enabling MUST resume monitoring (sessions that are missing/stopped are
     (re)started by the normal restart logic, FR-9).
+  - **(changed 2026-09-17)** No longer offered from the tray context
+    menu — it was a plain duplicate of the status view toolbar's toggle
+    (07-session-management-requirements.md FR-16.5), which remains the
+    only entry point.
 - FR-7.3: The context menu MUST offer "Show status", equivalent to a
   left-click (FR-8).
 - FR-7.4: The context menu MUST offer "Exit MutagenMon", which stops the
@@ -166,8 +172,11 @@ The full specification lives in
   button, FR-8.5) MUST ask the user to confirm before doing so;
   declining leaves the application running unchanged.
 - FR-7.5: While a reload is in progress, the menu MUST replace the
-  start/stop/reload/show-status/move-to-main-screen items with a single
-  disabled "Reloading..." item, keeping only "Exit" available.
+  show-status/move-to-main-screen items with a single disabled
+  "Reloading..." item, keeping only "Exit" available. **(changed
+  2026-09-17)**: previously also replaced the tray menu's own
+  start/stop/reload items, before FR-7.1/FR-7.2 removed those from the
+  tray menu entirely.
 - FR-7.6: **(new)** The context menu MUST offer "Move to main screen",
   directly below "Show status" (FR-7.3). It repositions every window the
   application currently has open — the status view (FR-8), any open sync
@@ -211,13 +220,17 @@ The full specification lives in
   the snapshot at the moment it was opened — a background status change,
   e.g. a new conflict appearing, was silently invisible until the next
   open.)
-- FR-8.5: The status view MUST also offer direct access to the tray
-  context menu's "Reload config & restart mutagen" (FR-7.1), "Stop/Start
-  Mutagen sessions" (FR-7.2), and "Exit MutagenMon" (FR-7.4) actions as
-  buttons, without requiring the user to right-click the tray icon
-  separately. The dismiss action's button is labeled "Close". The three
-  action buttons MUST be disabled while a reload triggered from either the
-  tray menu or the status view is in progress (mirrors FR-7.5).
+- FR-8.5: The status view MUST offer "Reload config & restart mutagen"
+  (FR-7.1), "Stop/Start Mutagen sessions" (FR-7.2), and "Exit MutagenMon"
+  (FR-7.4) as buttons, without requiring the user to right-click the tray
+  icon separately. The dismiss action's button is labeled "Close". The
+  three action buttons MUST be disabled while a reload triggered from the
+  status view is in progress (mirrors FR-7.5).
+  - **(changed 2026-09-17)** "Reload config & restart mutagen" and
+    "Stop/Start Mutagen sessions" are no longer also offered from the tray
+    context menu (FR-7.1/FR-7.2) — the status view is now their only entry
+    point, not merely a convenience duplicate of it. "Exit MutagenMon"
+    remains available from both places.
   - **Rewrite change**: see
     [07-session-management-requirements.md](07-session-management-requirements.md)
     FR-16 — the "Reload config & restart mutagen" button (FR-16.1/16.2)

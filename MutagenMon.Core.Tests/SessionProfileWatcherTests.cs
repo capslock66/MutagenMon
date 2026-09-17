@@ -6,10 +6,10 @@ namespace MutagenMon.Core.Tests;
 
 public class SessionProfileWatcherTests
 {
-    private sealed class FakeTimestampProvider : IFileTimestampProvider
+    private sealed class FakeTimestampProvider : FileTimestampProvider
     {
         public Dictionary<string, DateTimeOffset?> Timestamps { get; } = new();
-        public DateTimeOffset? GetLastWriteTimeUtc(string path) => Timestamps.GetValueOrDefault(path);
+        public override DateTimeOffset? GetLastWriteTimeUtc(string path) => Timestamps.GetValueOrDefault(path);
     }
 
     private static ParsedSessionStatus StatusWithId(string id) =>

@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using MutagenMon.Core.Configuration;
 using MutagenMon.Core.Mutagen;
 using MutagenMon.Core.Resolution;
@@ -8,26 +10,27 @@ namespace MutagenMon.Core.Tests;
 /// <summary>Auto-resolve engine test coverage (FR-10).</summary>
 public class AutoResolveEngineTests
 {
-    private sealed class FakeConflictFileClient : IConflictFileClient
+    private sealed class FakeConflictFileClient()
+        : ConflictFileClient(Options.Create(new MutagenMonOptions()), NullLogger<ConflictFileClient>.Instance)
     {
         public readonly List<(SessionEndpoint Source, SessionEndpoint Destination, string RelativePath)> Copies = new();
 
-        public Task<FileStat> StatAsync(SessionEndpoint endpoint, string relativePath, CancellationToken cancellationToken) =>
+        public override Task<FileStat> StatAsync(SessionEndpoint endpoint, string relativePath, CancellationToken cancellationToken) =>
             Task.FromResult(new FileStat(1, DateTimeOffset.UtcNow));
 
-        public Task CopyBetweenEndpointsAsync(SessionEndpoint source, SessionEndpoint destination, string relativePath, CancellationToken cancellationToken)
+        public override Task CopyBetweenEndpointsAsync(SessionEndpoint source, SessionEndpoint destination, string relativePath, CancellationToken cancellationToken)
         {
             Copies.Add((source, destination, relativePath));
             return Task.CompletedTask;
         }
 
-        public Task<string> FetchLocalCopyAsync(SessionEndpoint endpoint, string relativePath, int side, CancellationToken cancellationToken) =>
+        public override Task<string> FetchLocalCopyAsync(SessionEndpoint endpoint, string relativePath, int side, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task PushLocalFileAsync(string localPath, SessionEndpoint destination, string relativePath, CancellationToken cancellationToken) =>
+        public override Task PushLocalFileAsync(string localPath, SessionEndpoint destination, string relativePath, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task RunMergeToolAsync(string localPath1, string localPath2, CancellationToken cancellationToken) =>
+        public override Task RunMergeToolAsync(string localPath1, string localPath2, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
     }
 

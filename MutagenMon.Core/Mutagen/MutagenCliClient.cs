@@ -7,18 +7,24 @@ namespace MutagenMon.Core.Mutagen;
 
 /// <summary>Invokes the `mutagen sync list` process (the output text-cleanup
 /// half lives in
-/// <see cref="MutagenSyncListParser"/> — see its Normalize step).
+/// <c>SessionMonitorService.Parse</c> — see its Normalize step).
 ///
 /// Deliberate deviation from the legacy behavior: invokes `sync list
 /// --long`, not plain `sync list`. The legacy called the latter, but on
 /// real mutagen builds that only prints a `Conflicts: N` summary count —
 /// the per-file `(alpha) .../(beta) ...` detail lines
-/// <see cref="MutagenSyncListParser"/> depends on (and that FR-8's
+/// <c>SessionMonitorService.Parse</c> depends on (and that FR-8's
 /// conflicts section / FR-9's resolution workflow both need) only appear
 /// with `--long`. Confirmed against a real conflict in production use:
 /// without the flag, HasConflicts was correctly true but the conflict
-/// list stayed empty, so no "Resolve conflicts" UI ever appeared.</summary>
-public sealed class MutagenCliClient : IMutagenCliClient
+/// list stayed empty, so no "Resolve conflicts" UI ever appeared.
+///
+/// Deliberately not sealed, and each method is virtual, so tests can
+/// substitute an override-based fake without spawning the real `mutagen`
+/// process (NFR-11) — <c>SessionMonitorService.Parse</c> is the tested
+/// parsing boundary; this class itself is not unit-tested (it just spawns
+/// a process).</summary>
+public class MutagenCliClient
 {
     private readonly string _mutagenPath;
     private readonly ILogger<MutagenCliClient> _logger;
@@ -29,7 +35,7 @@ public sealed class MutagenCliClient : IMutagenCliClient
         _logger = logger;
     }
 
-    public async Task<string> GetSyncListRawAsync(CancellationToken cancellationToken)
+    public virtual async Task<string> GetSyncListRawAsync(CancellationToken cancellationToken)
     {
         var psi = new ProcessStartInfo
         {
@@ -63,7 +69,11 @@ public sealed class MutagenCliClient : IMutagenCliClient
         return stdout + stderr;
     }
 
-    public async Task<string> GetSyncStatusDetailAsync(string sessionName, CancellationToken cancellationToken)
+    /// <summary>Runs `mutagen sync list -l &lt;name&gt;` (FR-28) and returns
+    /// its raw output, unparsed — used to show one session's full detail on
+    /// demand, as opposed to <see cref="GetSyncListRawAsync"/>'s
+    /// all-sessions poll consumed by <c>SessionMonitorService.Parse</c>.</summary>
+    public virtual async Task<string> GetSyncStatusDetailAsync(string sessionName, CancellationToken cancellationToken)
     {
         var psi = new ProcessStartInfo
         {
@@ -98,7 +108,9 @@ public sealed class MutagenCliClient : IMutagenCliClient
         return stdout + stderr;
     }
 
-    public async Task TerminateSessionAsync(string sessionName, CancellationToken cancellationToken)
+    /// <summary>Runs
+    /// `mutagen sync terminate &lt;name&gt;`.</summary>
+    public virtual async Task TerminateSessionAsync(string sessionName, CancellationToken cancellationToken)
     {
         var psi = new ProcessStartInfo
         {
@@ -128,7 +140,11 @@ public sealed class MutagenCliClient : IMutagenCliClient
                 $"'{_mutagenPath} sync terminate {sessionName}' exited with code {process.ExitCode}: {stdout}{stderr}");
     }
 
-    public async Task CreateSessionAsync(string rawCreateCommand, CancellationToken cancellationToken)
+    /// <summary>Implements session recreation (FR-13.5) —
+    /// re-runs the session's original `mutagen sync create ...` command line
+    /// (<see cref="Sessions.SessionDefinition.RawCreateCommand"/>), with its
+    /// first token replaced by the configured mutagen path.</summary>
+    public virtual async Task CreateSessionAsync(string rawCreateCommand, CancellationToken cancellationToken)
     {
         // The stored line (mutagen-create.bat, FR-1.1) is a `mutagen`-prefixed
         // Windows command line, and may itself contain double-quoted

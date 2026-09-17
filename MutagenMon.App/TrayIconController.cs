@@ -4,6 +4,7 @@ using System.Windows.Threading;
 using H.NotifyIcon;
 using Microsoft.Extensions.Logging;
 using MutagenMon.Core.Monitoring;
+using MutagenMon.Core.Mutagen;
 using MutagenMon.Core.Notifications;
 using MutagenMon.Core.Status;
 
@@ -21,7 +22,7 @@ namespace MutagenMon.App;
 /// poller and shows it via <c>TaskbarIcon.ShowNotification</c>; queued
 /// messages are only ever consumed here, on the UI thread, matching the
 /// pull-based thread-safety pattern already used for
-/// <see cref="ISessionStateStore"/>.
+/// <see cref="SessionStateStore"/>.
 /// </summary>
 public sealed class TrayIconController
 {
@@ -41,12 +42,12 @@ public sealed class TrayIconController
     public TrayIconState? CurrentState => _lastState;
 
     private readonly TaskbarIcon _taskbarIcon;
-    private readonly ISessionStateStore _stateStore;
+    private readonly SessionStateStore _stateStore;
     private readonly IconImageCache _iconCache;
     private readonly string _appName;
     private readonly LagThresholds _lagThresholds;
     private readonly IReadOnlyList<string> _sessionNames;
-    private readonly INotificationQueue _notificationQueue;
+    private readonly NotificationQueue _notificationQueue;
     private readonly Action _onSelfRestartNeeded;
     private readonly Action _onReloadReady;
     private readonly ILogger<TrayIconController> _logger;
@@ -64,12 +65,12 @@ public sealed class TrayIconController
 
     public TrayIconController(
         TaskbarIcon taskbarIcon,
-        ISessionStateStore stateStore,
+        SessionStateStore stateStore,
         IconImageCache iconCache,
         string appName,
         LagThresholds lagThresholds,
         IReadOnlyList<string> sessionNames,
-        INotificationQueue notificationQueue,
+        NotificationQueue notificationQueue,
         Action onSelfRestartNeeded,
         Action onReloadReady,
         ILogger<TrayIconController> logger)
@@ -178,7 +179,7 @@ public sealed class TrayIconController
         var snapshot = _stateStore.Get();
         var now = DateTimeOffset.UtcNow;
 
-        if (!_restartTriggered && StalenessCalculator.IsBeyondRestartThreshold(snapshot.LastSuccessfulPollUtc, now, _lagThresholds))
+        if (!_restartTriggered && IsBeyondRestartThreshold(snapshot.LastSuccessfulPollUtc, now, _lagThresholds))
         {
             _logger.LogWarning("Status stale past the Restart threshold; triggering self-restart");
             _restartTriggered = true;
@@ -187,7 +188,7 @@ public sealed class TrayIconController
             return;
         }
 
-        if (_reloadRequested && RestartReadiness.AllSessionsStopped(snapshot.SessionStatuses, _sessionNames))
+        if (_reloadRequested && AllSessionsStopped(snapshot.SessionStatuses, _sessionNames))
         {
             _logger.LogInformation("Every session has stopped; reloading config");
             _reloadRequested = false;
@@ -196,7 +197,7 @@ public sealed class TrayIconController
             return;
         }
 
-        var staleness = StalenessCalculator.GetTier(snapshot.LastSuccessfulPollUtc, now, _lagThresholds);
+        var staleness = GetStalenessTier(snapshot.LastSuccessfulPollUtc, now, _lagThresholds);
         var input = new TrayIconInput(snapshot.WorstCode, snapshot.Enabled, snapshot.ProfileJustUpdated, staleness);
         var state = TrayIconStateResolver.Resolve(input, _appName);
 
@@ -230,5 +231,37 @@ public sealed class TrayIconController
         }
 
         _lastState = state;
+    }
+
+    /// <summary>Implements the staleness checks (FR-6.1/6.2/6.3) as
+    /// pure functions of (last successful poll, now, thresholds).</summary>
+    private static StalenessTier GetStalenessTier(DateTimeOffset lastSuccessfulPollUtc, DateTimeOffset nowUtc, LagThresholds thresholds)
+    {
+        var age = nowUtc - lastSuccessfulPollUtc;
+        if (age > thresholds.Error)
+            return StalenessTier.Error;
+        if (age > thresholds.Warning)
+            return StalenessTier.Warning;
+        if (age > thresholds.Info)
+            return StalenessTier.Info;
+        return StalenessTier.None;
+    }
+
+    private static bool IsBeyondRestartThreshold(DateTimeOffset lastSuccessfulPollUtc, DateTimeOffset nowUtc, LagThresholds thresholds)
+        => (nowUtc - lastSuccessfulPollUtc) > thresholds.Restart;
+
+    /// <summary>After a user-requested "Reload config & restart mutagen"
+    /// (FR-7.1), the app waits until every configured session has actually
+    /// stopped reporting a status before spawning the replacement process,
+    /// so the restart doesn't race a still-running `mutagen`
+    /// session.</summary>
+    private static bool AllSessionsStopped(
+        IReadOnlyDictionary<string, ParsedSessionStatus?> statuses, IReadOnlyCollection<string> sessionNames)
+    {
+        foreach (var name in sessionNames)
+            if (statuses.TryGetValue(name, out var status) && status is not null && !string.IsNullOrEmpty(status.Status))
+                return false;
+
+        return true;
     }
 }

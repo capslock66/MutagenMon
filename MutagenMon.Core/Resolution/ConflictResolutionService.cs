@@ -4,17 +4,17 @@ using MutagenMon.Core.Mutagen;
 namespace MutagenMon.Core.Resolution;
 
 /// <summary>
-/// Implements the per-conflict resolution actions FR-9.2 offers. Batch assembly/guards live
-/// in <see cref="ConflictBatchPlanner"/>; the UI loop (numbering, cancel,
-/// re-presenting a conflict after a no-op merge) is a presentation concern
-/// and lives in the App layer.
+/// Implements the per-conflict resolution actions FR-9.2 offers. Batch
+/// assembly/guards, and the UI loop (numbering, cancel, re-presenting a
+/// conflict after a no-op merge), live in <c>ConflictResolutionController</c>
+/// in the App layer.
 /// </summary>
 public sealed class ConflictResolutionService
 {
-    private readonly IConflictFileClient _fileClient;
+    private readonly ConflictFileClient _fileClient;
     private readonly ILogger<ConflictResolutionService> _logger;
 
-    public ConflictResolutionService(IConflictFileClient fileClient, ILogger<ConflictResolutionService> logger)
+    public ConflictResolutionService(ConflictFileClient fileClient, ILogger<ConflictResolutionService> logger)
     {
         _fileClient = fileClient;
         _logger = logger;

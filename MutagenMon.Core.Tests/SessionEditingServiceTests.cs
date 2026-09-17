@@ -1,3 +1,6 @@
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using MutagenMon.Core.Configuration;
 using MutagenMon.Core.Mutagen;
 using MutagenMon.Core.Sessions;
 using Xunit;
@@ -6,18 +9,19 @@ namespace MutagenMon.Core.Tests;
 
 public class SessionEditingServiceTests
 {
-    private sealed class FakeMutagenCliClient : IMutagenCliClient
+    private sealed class FakeMutagenCliClient()
+        : MutagenCliClient(Options.Create(new MutagenMonOptions()), NullLogger<MutagenCliClient>.Instance)
     {
         public readonly List<string> TerminatedSessions = new();
         public readonly List<string> CreatedRawCommands = new();
         public string? FailTerminationFor;
         public string? FailCreationContaining;
 
-        public Task<string> GetSyncListRawAsync(CancellationToken cancellationToken) => Task.FromResult("");
+        public override Task<string> GetSyncListRawAsync(CancellationToken cancellationToken) => Task.FromResult("");
 
-        public Task<string> GetSyncStatusDetailAsync(string sessionName, CancellationToken cancellationToken) => Task.FromResult("");
+        public override Task<string> GetSyncStatusDetailAsync(string sessionName, CancellationToken cancellationToken) => Task.FromResult("");
 
-        public Task TerminateSessionAsync(string sessionName, CancellationToken cancellationToken)
+        public override Task TerminateSessionAsync(string sessionName, CancellationToken cancellationToken)
         {
             if (sessionName == FailTerminationFor)
                 throw new InvalidOperationException($"cannot terminate '{sessionName}'");
@@ -25,7 +29,7 @@ public class SessionEditingServiceTests
             return Task.CompletedTask;
         }
 
-        public Task CreateSessionAsync(string rawCreateCommand, CancellationToken cancellationToken)
+        public override Task CreateSessionAsync(string rawCreateCommand, CancellationToken cancellationToken)
         {
             if (FailCreationContaining is { } needle && rawCreateCommand.Contains(needle))
                 throw new InvalidOperationException($"cannot create '{rawCreateCommand}'");

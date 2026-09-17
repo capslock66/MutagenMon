@@ -1,7 +1,8 @@
+using System.IO;
 using System.Text;
 using System.Windows;
 using Microsoft.Extensions.Logging;
-using MutagenMon.Core.Configuration;
+using YamlDotNet.RepresentationModel;
 
 namespace MutagenMon.App;
 
@@ -11,8 +12,12 @@ namespace MutagenMon.App;
 /// requirements/08-mutagen-config-editor-requirements.md) — a plain
 /// text/YAML editor, unlike <see cref="SessionEditWindow"/>'s field-by-field
 /// form, since this file's structure isn't owned by MutagenMon at all.
-/// Reads and writes the file directly (<see cref="MutagenConfigFile"/>)
-/// instead of raising a save-request event for the caller to fulfil (unlike
+/// Reads and writes the file directly (its own <see cref="LoadConfigFile"/>/
+/// <see cref="SaveConfigFile"/> — distinct from MutagenMon's own
+/// <see cref="App.LoadConfig"/>-loaded
+/// <c>config_mutagenmon.json</c>, and from mutagen's
+/// <c>%USERPROFILE%\.mutagen</c> data directory) instead of raising a
+/// save-request event for the caller to fulfil (unlike
 /// <see cref="SessionEditWindow.SaveRequested"/>): saving here is a plain,
 /// synchronous local file write with no external `mutagen` CLI call that
 /// could fail independently of it, so there is no async operation for a
@@ -24,12 +29,14 @@ namespace MutagenMon.App;
 /// </summary>
 public partial class MutagenConfigEditorWindow : Window
 {
+    private static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+
     private readonly ILogger _logger;
     private readonly string _path;
     private readonly Encoding _encoding;
 
     /// <summary>Whether the file existed on disk as of the last successful
-    /// load/save — starts at whatever <see cref="MutagenConfigFile.Load"/>
+    /// load/save — starts at whatever <see cref="LoadConfigFile"/>
     /// found (FR-30.4), and becomes true after the first successful Save
     /// creates it. Drives the FR-32.4 "not applied live" note: shown after
     /// a Save that overwrote a file that was already there, not after the
@@ -55,9 +62,9 @@ public partial class MutagenConfigEditorWindow : Window
     {
         InitializeComponent();
         _logger = logger;
-        _path = MutagenConfigFile.ResolvePath();
+        _path = ResolveConfigPath();
 
-        var loaded = MutagenConfigFile.Load(_path);
+        var loaded = LoadConfigFile(_path);
         EditorBox.Text = loaded.Content;
         _encoding = loaded.Encoding;
         _fileExisted = loaded.FileExisted;
@@ -68,14 +75,14 @@ public partial class MutagenConfigEditorWindow : Window
     private void OnCheckClick(object sender, RoutedEventArgs e)
     {
         _logger.LogInformation("User action: mutagen config editor Check clicked");
-        ShowValidationResult(MutagenYamlValidator.Validate(EditorBox.Text));
+        ShowValidationResult(ValidateYaml(EditorBox.Text));
     }
 
     private void OnSaveClick(object sender, RoutedEventArgs e)
     {
         _logger.LogInformation("User action: mutagen config editor Save clicked");
 
-        var errors = MutagenYamlValidator.Validate(EditorBox.Text);
+        var errors = ValidateYaml(EditorBox.Text);
         if (errors.Count > 0)
         {
             ShowValidationResult(errors);
@@ -87,7 +94,7 @@ public partial class MutagenConfigEditorWindow : Window
 
         try
         {
-            MutagenConfigFile.Save(_path, EditorBox.Text, _encoding);
+            SaveConfigFile(_path, EditorBox.Text, _encoding);
         }
         catch (Exception ex)
         {
@@ -136,5 +143,94 @@ public partial class MutagenConfigEditorWindow : Window
     {
         _logger.LogInformation("User action: mutagen config editor Close clicked");
         DialogResult = false;
+    }
+
+    /// <summary>Empty on valid YAML; otherwise the parser's error message,
+    /// including line/column when available. A single document can only
+    /// surface one syntax error at a time (parsing stops there), so this is
+    /// at most a one-element list — kept as a list so a caller iterating it
+    /// doesn't need to change if that ever stops being true.
+    /// Catches any exception, not just YamlDotNet's own
+    /// <c>YamlException</c>: some malformed inputs (e.g. an unterminated
+    /// flow sequence) trip an internal scanner assumption and surface as a
+    /// plain <see cref="InvalidOperationException"/> instead — this is
+    /// user-typed free text being actively edited, so any parse failure
+    /// must turn into an FR-31 error message, never an unhandled
+    /// exception.</summary>
+    private static IReadOnlyList<string> ValidateYaml(string yamlText)
+    {
+        try
+        {
+            new YamlStream().Load(new StringReader(yamlText));
+            return Array.Empty<string>();
+        }
+        catch (Exception ex)
+        {
+            return new[] { ex.Message };
+        }
+    }
+
+    /// <summary>Fixed path this feature always targets (FR-30.2) — not
+    /// user-configurable.</summary>
+    private static string ResolveConfigPath() =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".mutagen.yml");
+
+    /// <summary><see cref="ConfigFileLoadResult.Content"/> is empty and
+    /// <see cref="ConfigFileLoadResult.FileExisted"/> is false when the file
+    /// wasn't there yet (FR-30.4). <see cref="ConfigFileLoadResult.Encoding"/>
+    /// is the file's own detected encoding (FR-30.3), or UTF-8 without BOM
+    /// for a not-yet-existing file (FR-32.2).</summary>
+    private readonly record struct ConfigFileLoadResult(string Content, Encoding Encoding, bool FileExisted);
+
+    private static ConfigFileLoadResult LoadConfigFile(string path)
+    {
+        if (!File.Exists(path))
+            return new ConfigFileLoadResult("", Utf8NoBom, FileExisted: false);
+
+        var bytes = File.ReadAllBytes(path);
+        var encoding = DetectEncoding(bytes, out var preambleLength);
+        var content = encoding.GetString(bytes, preambleLength, bytes.Length - preambleLength);
+        return new ConfigFileLoadResult(content, encoding, FileExisted: true);
+    }
+
+    /// <summary>Overwrites (or creates) <paramref name="path"/> with
+    /// <paramref name="content"/>, using <paramref name="encoding"/> —
+    /// normally the one <see cref="LoadConfigFile"/> detected, so a re-save
+    /// preserves the file's original encoding (including BOM
+    /// presence/absence) rather than silently normalizing it (FR-32.2). No
+    /// locking or external-change detection: last write wins
+    /// (FR-32.3).</summary>
+    private static void SaveConfigFile(string path, string content, Encoding encoding) =>
+        File.WriteAllText(path, content, encoding);
+
+    /// <summary>Detects the encoding from a leading byte-order mark, falling
+    /// back to UTF-8 without BOM when none is present. Deliberately not
+    /// using <c>StreamReader</c>'s own BOM detection here: its
+    /// <c>CurrentEncoding</c> can't reliably distinguish "no BOM was found,
+    /// fell back to the caller-supplied default" from "the BOM found happens
+    /// to match that same default", which matters here because
+    /// <see cref="Encoding.UTF8"/>'s preamble (used for the BOM case) is
+    /// non-empty while the no-BOM fallback must have none, and getting that
+    /// wrong would add or drop a BOM the original file didn't have.</summary>
+    private static Encoding DetectEncoding(byte[] bytes, out int preambleLength)
+    {
+        if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+        {
+            preambleLength = 3;
+            return Encoding.UTF8;
+        }
+        if (bytes.Length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE)
+        {
+            preambleLength = 2;
+            return Encoding.Unicode;
+        }
+        if (bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF)
+        {
+            preambleLength = 2;
+            return Encoding.BigEndianUnicode;
+        }
+
+        preambleLength = 0;
+        return Utf8NoBom;
     }
 }

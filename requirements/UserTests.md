@@ -147,9 +147,8 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
 
 **UT-T.5 — Scanning state** ✅
 
-* Right-click the tray icon.
-* Click "Reload config & restart mutagen" so sessions rescan from
-  scratch.
+* Left-click the tray icon to open the status view.
+* Click "Reload config" in its toolbar so sessions rescan from scratch.
 * Watch the tray icon while mutagen reports "Scanning files".
 * The icon shows the `green-scan` placeholder icon (a generated stand-in,
   not a final design asset — see
@@ -173,12 +172,11 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
 
 **UT-T.8 — Stopping monitoring changes the icon (FR-7.2 interaction)** ✅
 
-* With a session Ready, right-click the tray icon.
-* Click "Stop Mutagen sessions".
+* With a session Ready, open the status view and click "Stop Mutagen
+  sessions" in its toolbar.
 * The icon shows `green-stop`.
 * The tooltip reads "MutagenMon: mutagen is stopping".
-* Right-click the tray icon.
-* Click "Start Mutagen sessions".
+* Click "Start Mutagen sessions" in the toolbar.
 * The icon eventually reflects the session's real state again (note: the
   underlying stopped session is not itself relaunched by this toggle —
   re-enabling monitoring alone does not restart it. Either "Reload config &
@@ -190,14 +188,13 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
 
 * Edit `mutagen-create.bat` and point one session's remote endpoint at an
   unreachable host.
-* Right-click the tray icon.
-* Click "Reload config & restart mutagen" to apply the change.
+* Open the status view and click "Reload config" in its toolbar to apply
+  the change.
 * Wait until mutagen reports "Connecting to ..." (or "Waiting to
   connect") for a few consecutive polls.
 * The icon shows `orange-restart`.
 * The tooltip reads "MutagenMon: error (starting)".
-* Right-click the tray icon.
-* Click "Stop Mutagen sessions".
+* Click "Stop Mutagen sessions" in the toolbar.
 * The icon switches to `orange`.
 * The tooltip reads "MutagenMon: error (disabled)".
 * Restore the working endpoint in `mutagen-create.bat` and reload again
@@ -238,10 +235,11 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
 **UT-T.13 — Right-click opens the context menu (TIC-8)** ✅
 
 * Right-click the tray icon.
-* A menu is displayed with these options, top to bottom: "Reload config &
-  restart mutagen", "Stop Mutagen sessions" (or "Start Mutagen sessions"
-  if monitoring is currently off), a separator, "Show status", a
-  separator, "Exit MutagenMon".
+* A menu is displayed with these options, top to bottom: "Show status",
+  "Move to main screen", a separator, "Exit MutagenMon" (see FR-7.1/FR-7.2's
+  2026-09-17 change note — "Reload config & restart mutagen" and
+  "Stop/Start Mutagen sessions" are status-view-toolbar-only now, not tray
+  menu items).
 
 **UT-T.14 — Resilient to a stale native tray icon (e.g. after resuming
 from sleep/hibernate)** ✅
@@ -264,9 +262,10 @@ Covered above by UT-T.10 and UT-T.11.
 
 **UT-7.1 — "Reload config & restart mutagen" reloads in place (FR-7.1)** ✅
 
-* Right-click the tray icon.
-* Click "Reload config & restart mutagen".
-* Right-click the tray icon again immediately.
+* Left-click the tray icon to open the status view.
+* Click "Reload config" in its toolbar (FR-16.1/16.2 — no longer a tray
+  menu item, see the FR-7.1 change note).
+* Right-click the tray icon immediately.
 * A menu is displayed with a single disabled "Reloading..." item and
   "Exit MutagenMon" only — the other items are gone.
 * Wait a few seconds.
@@ -277,14 +276,14 @@ Covered above by UT-T.10 and UT-T.11.
   config" followed by "Configuration reloaded: ..." and "Reload complete —
   monitoring resumed with the new configuration" — no restart entry.
 * Right-click the tray icon once reloading finishes.
-* The full menu (Reload / Stop-Start / Show status / Move to main screen /
-  Exit) is displayed again.
+* The full menu (Show status / Move to main screen / Exit) is displayed
+  again.
 
 **UT-7.1b — Reload with an invalid config falls back safely (FR-7.1)** ✅
 
 * Temporarily break `config/config_mutagenmon.json` (e.g. remove a closing
   brace) or point `MutagenSessionsBatFile` at a missing file.
-* Click "Reload config & restart mutagen".
+* Click "Reload config" in the status view's toolbar.
 * Once sessions have drained, an error message box appears naming the
   problem; `log/mutagenMon.log` records a "Reload failed" error.
 * Monitoring resumes automatically with the previous, still-valid
@@ -294,17 +293,8 @@ Covered above by UT-T.10 and UT-T.11.
 
 **UT-7.2 — "Stop Mutagen sessions" / "Start Mutagen sessions" (FR-7.2)** ✅
 
-* Right-click the tray icon.
-* Click "Stop Mutagen sessions".
-* Every running session is terminated (verify with `mutagen sync list` in
-  a terminal, or via "Show status").
-* Right-click the tray icon.
-* The item now reads "Start Mutagen sessions".
-* Click "Start Mutagen sessions".
-* Right-click the tray icon.
-* The item reads "Stop Mutagen sessions" again (note: the previously
-  stopped session is not itself relaunched by this action alone — see
-  UT-T.8).
+No longer a tray menu item (see the FR-7.2 change note) — covered by
+UT-8.5 via the status view's toolbar toggle.
 
 **UT-7.3 — "Show status" (FR-7.3)** ✅
 
@@ -449,8 +439,8 @@ Covered above by UT-7.1.
   anchored to the left edge; "Close" (and "Cancel"/"Resolve conflicts"
   when conflicts are unresolved) are anchored to the right edge.
 * Click "Stop Mutagen sessions" in the toolbar. Every running session is
-  terminated (same effect as the tray menu's FR-7.2 toggle); the button's
-  label flips to "Start Mutagen sessions" on the next refresh.
+  terminated (FR-7.2); the button's label flips to "Start Mutagen
+  sessions" on the next refresh.
   `log/mutagenMon.log` records `User action: status window Stop/Start
   sessions clicked` followed by `User action: toggling monitoring to
   False`.
@@ -680,11 +670,12 @@ is actually saved (FR-33.1/FR-33.2)** ✅
 
 ## FR-9 — Manual conflict resolution
 
-**Setup used by every test below**: to produce a real conflict, right-click
-the tray icon and click "Stop Mutagen sessions"; edit the *same* file with
-different content directly in the alpha folder and in the beta folder (or
-its remote equivalent); then click "Start Mutagen sessions" again. Mutagen
-detects this as a two-sided edit and reports a conflict on its next poll.
+**Setup used by every test below**: to produce a real conflict, open the
+status view and click "Stop Mutagen sessions" in its toolbar; edit the
+*same* file with different content directly in the alpha folder and in
+the beta folder (or its remote equivalent); then click "Start Mutagen
+sessions" again. Mutagen detects this as a two-sided edit and reports a
+conflict on its next poll.
 
 **UT-9.1 — Conflict batch entry and A/B comparison (FR-9.1)** ✅
 
@@ -1036,7 +1027,7 @@ FR-11.4)** ✅
 
 **UT-13.5 — Disabled monitoring never auto-restarts (FR-13.6)** ✅
 
-* From the tray menu, choose "Stop Mutagen sessions" (FR-7.2).
+* In the status view's toolbar, click "Stop Mutagen sessions" (FR-7.2).
 * Leave a session in an abnormal state (or let it disappear) well past its
   configured threshold.
 * No automatic restart happens — the session stays terminated, matching
@@ -1127,20 +1118,12 @@ dedicated file and no longer do.
 * Left-click the tray icon (or use "Show status" from the context menu) to
   open the status window.
 * `log/mutagenMon.log` contains `User action: show status clicked`.
-* From the tray context menu, click "Reload config & restart mutagen".
-* The log contains `User action: reload config & restart mutagen
-  requested`.
-* From the tray context menu, click "Stop Mutagen sessions" (or "Start
-  Mutagen sessions").
-* The log contains `User action: toggling monitoring to True` (or
-  `False`).
 * In the status window, click "Close" or "Cancel" — the log contains `User
   action: status window Close clicked` or `User action: status window
   Cancel clicked` respectively.
 * In the status window, click "Reload config" — the log contains `User
-  action: status window Reload config clicked` followed by the same
-  `User action: reload config & restart mutagen requested` line the tray
-  menu item produces (see UT-7.1).
+  action: status window Reload config clicked` followed by `User action:
+  reload config & restart mutagen requested` (see UT-7.1).
 * In the status window, click "Stop Mutagen sessions" (or "Start Mutagen
   sessions") — the log contains `User action: status window Stop/Start
   sessions clicked` followed by `User action: toggling monitoring to True`

@@ -1,5 +1,8 @@
 using System.Diagnostics;
 using System.IO;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
@@ -59,15 +62,15 @@ public partial class App : Application
     /// instead of stacking a duplicate.</summary>
     private readonly Dictionary<string, SyncStatusDetailWindow> _syncStatusWindows = new();
     private SessionMonitorService? _monitorService;
-    private ISessionStateStore? _stateStore;
+    private SessionStateStore? _stateStore;
     private ConflictResolutionService? _conflictResolutionService;
     private ILogger<ConflictResolutionController>? _conflictResolutionControllerLogger;
     private SessionEditingService? _sessionEditingService;
-    private IMutagenCliClient? _mutagenCliClient;
+    private MutagenCliClient? _mutagenCliClient;
     private IReadOnlyList<SessionDefinition> _sessionDefinitions = Array.Empty<SessionDefinition>();
     private IReadOnlyList<string> _sessionNames = Array.Empty<string>();
     private MutagenMonOptions? _options;
-    private INotificationQueue? _notificationQueue;
+    private NotificationQueue? _notificationQueue;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -130,7 +133,7 @@ public partial class App : Application
             // exit.
             var configPath = Path.Combine(baseDir, "config", "config_mutagenmon.json");
             _logger.LogInformation("Loading configuration from {ConfigPath}", configPath);
-            var options = ConfigLoader.Load(configPath);
+            var options = LoadConfig(configPath);
             _options = options;
             _loggerProvider.SetPrimaryLogPath(ResolveLogFilePath(baseDir, options.LogPath));
             _loggerProvider.SetMinLevel(options.MinLogLevel);
@@ -179,16 +182,16 @@ public partial class App : Application
             builder.Logging.AddProvider(_loggerProvider);
             builder.Services.AddSingleton(Options.Create(options));
             builder.Services.AddSingleton<IReadOnlyList<SessionDefinition>>(sessionResult.Sessions);
-            builder.Services.AddSingleton<IMutagenCliClient, MutagenCliClient>();
-            builder.Services.AddSingleton<ISessionStateStore, SessionStateStore>();
-            builder.Services.AddSingleton<IFileTimestampProvider, FileTimestampProvider>();
-            builder.Services.AddSingleton<INotificationQueue, NotificationQueue>();
+            builder.Services.AddSingleton<MutagenCliClient>();
+            builder.Services.AddSingleton<SessionStateStore>();
+            builder.Services.AddSingleton<FileTimestampProvider>();
+            builder.Services.AddSingleton<NotificationQueue>();
             builder.Services.AddSingleton<SessionMonitorService>();
             builder.Services.AddHostedService(sp => sp.GetRequiredService<SessionMonitorService>());
-            builder.Services.AddSingleton<IConflictFileClient, ConflictFileClient>();
+            builder.Services.AddSingleton<ConflictFileClient>();
             builder.Services.AddSingleton<ConflictResolutionService>();
             builder.Services.AddSingleton(sp => new SessionEditingService(
-                sp.GetRequiredService<IMutagenCliClient>(), sessionsPath, sp.GetRequiredService<ILogger<SessionEditingService>>()));
+                sp.GetRequiredService<MutagenCliClient>(), sessionsPath, sp.GetRequiredService<ILogger<SessionEditingService>>()));
 
             _host = builder.Build();
             _logger.LogInformation("Starting background session monitor");
@@ -198,13 +201,13 @@ public partial class App : Application
             _sessionDefinitions = sessionResult.Sessions;
             _sessionNames = sessionResult.Sessions.Select(s => s.Name).ToArray();
             _monitorService = _host.Services.GetRequiredService<SessionMonitorService>();
-            var stateStore = _host.Services.GetRequiredService<ISessionStateStore>();
+            var stateStore = _host.Services.GetRequiredService<SessionStateStore>();
             _stateStore = stateStore;
             _conflictResolutionService = _host.Services.GetRequiredService<ConflictResolutionService>();
             _sessionEditingService = _host.Services.GetRequiredService<SessionEditingService>();
-            _mutagenCliClient = _host.Services.GetRequiredService<IMutagenCliClient>();
+            _mutagenCliClient = _host.Services.GetRequiredService<MutagenCliClient>();
             _conflictResolutionControllerLogger = _host.Services.GetRequiredService<ILogger<ConflictResolutionController>>();
-            _notificationQueue = _host.Services.GetRequiredService<INotificationQueue>();
+            _notificationQueue = _host.Services.GetRequiredService<NotificationQueue>();
 
             _trayIconController = BuildAndStartTrayIconController(options, _sessionNames);
             _logger.LogInformation("MutagenMon startup complete — tray icon is live");
@@ -273,7 +276,7 @@ public partial class App : Application
         try
         {
             var configPath = Path.Combine(baseDir, "config", "config_mutagenmon.json");
-            newOptions = ConfigLoader.Load(configPath);
+            newOptions = LoadConfig(configPath);
             sessionsPath = Path.Combine(baseDir, newOptions.MutagenSessionsBatFile.Replace('/', Path.DirectorySeparatorChar));
             newSessionResult = SessionDefinitionLoader.ParseFile(sessionsPath);
             foreach (var duplicate in newSessionResult.DuplicateNames)
@@ -306,12 +309,12 @@ public partial class App : Application
 
         var newSessionNames = newSessionResult.Sessions.Select(s => s.Name).ToArray();
         var optionsWrapper = Options.Create(newOptions);
-        IMutagenCliClient newCliClient = new MutagenCliClient(optionsWrapper, _host!.Services.GetRequiredService<ILogger<MutagenCliClient>>());
-        IConflictFileClient newConflictFileClient = new ConflictFileClient(optionsWrapper, _host.Services.GetRequiredService<ILogger<ConflictFileClient>>());
+        MutagenCliClient newCliClient = new MutagenCliClient(optionsWrapper, _host!.Services.GetRequiredService<ILogger<MutagenCliClient>>());
+        ConflictFileClient newConflictFileClient = new ConflictFileClient(optionsWrapper, _host.Services.GetRequiredService<ILogger<ConflictFileClient>>());
         var newConflictResolutionService = new ConflictResolutionService(newConflictFileClient, _host.Services.GetRequiredService<ILogger<ConflictResolutionService>>());
         var newMonitorService = new SessionMonitorService(
             newCliClient, _stateStore!, optionsWrapper, newSessionResult.Sessions,
-            _host.Services.GetRequiredService<IFileTimestampProvider>(),
+            _host.Services.GetRequiredService<FileTimestampProvider>(),
             newConflictResolutionService, _notificationQueue!,
             _host.Services.GetRequiredService<ILogger<SessionMonitorService>>());
         await newMonitorService.StartAsync(CancellationToken.None);
@@ -658,10 +661,8 @@ public partial class App : Application
     /// disable monitoring (terminating every session on the next poll) and
     /// arm the tray icon controller's reload-readiness check —
     /// <see cref="OnReloadReady"/> does the actual in-place reload once every
-    /// session has stopped. Shared by the tray context menu and the status
-    /// window's "Reload config" button.</summary>
-    private void OnReloadClick(object sender, RoutedEventArgs e) => ReloadConfig();
-
+    /// session has stopped. Only reachable from the status window's toolbar
+    /// (FR-16.1/16.2) — no longer duplicated in the tray context menu.</summary>
     private void OnStatusWindowReloadConfigRequested(object? sender, EventArgs e) => ReloadConfig();
 
     private void ReloadConfig()
@@ -671,11 +672,9 @@ public partial class App : Application
         _trayIconController?.RequestReload();
     }
 
-    /// <summary>Handles the enable/disable monitoring toggle (FR-7.2). Shared
-    /// by the tray context menu and the status window's "Stop/Start Mutagen
-    /// sessions" button.</summary>
-    private void OnToggleMonitoringClick(object sender, RoutedEventArgs e) => ToggleMonitoring();
-
+    /// <summary>Handles the enable/disable monitoring toggle (FR-7.2). Only
+    /// reachable from the status window's toolbar (FR-16.5) — no longer
+    /// duplicated in the tray context menu.</summary>
     private void OnStatusWindowToggleMonitoringRequested(object? sender, EventArgs e) => ToggleMonitoring();
 
     private void ToggleMonitoring()
@@ -687,38 +686,29 @@ public partial class App : Application
         _monitorService.SetEnabled(newEnabled);
     }
 
-    /// <summary>Implements the tray context menu's dynamic state
-    /// (FR-7.2/FR-7.5) — refreshes the toggle item's label and collapses
-    /// everything but "Reloading.../Exit" while a reload is in progress,
-    /// right before the menu is actually shown. Items are addressed by
-    /// position (matching the fixed order in App.xaml) rather than by name:
-    /// x:Name on elements nested inside Application.Resources is not
-    /// connected to a code-behind field the way it would be for a Window.</summary>
+    /// <summary>Implements the tray context menu's dynamic state (FR-7.5) —
+    /// collapses everything but "Reloading.../Exit" while a reload is in
+    /// progress, right before the menu is actually shown. Items are
+    /// addressed by position (matching the fixed order in App.xaml) rather
+    /// than by name: x:Name on elements nested inside Application.Resources
+    /// is not connected to a code-behind field the way it would be for a
+    /// Window.</summary>
     private void OnTrayContextMenuOpened(object sender, RoutedEventArgs e)
     {
         if (sender is not ContextMenu menu)
             return;
 
-        var reloadItem = (MenuItem)menu.Items[0];
-        var toggleItem = (MenuItem)menu.Items[1];
-        var topSeparator = (UIElement)menu.Items[2];
-        var showStatusItem = (MenuItem)menu.Items[3];
-        var moveToMainScreenItem = (MenuItem)menu.Items[4];
-        var bottomSeparator = (UIElement)menu.Items[5];
-        var reloadingItem = (MenuItem)menu.Items[6];
+        var showStatusItem = (MenuItem)menu.Items[0];
+        var moveToMainScreenItem = (MenuItem)menu.Items[1];
+        var bottomSeparator = (UIElement)menu.Items[2];
+        var reloadingItem = (MenuItem)menu.Items[3];
 
         var reloading = _trayIconController?.IsReloadInProgress ?? false;
 
-        reloadItem.Visibility = reloading ? Visibility.Collapsed : Visibility.Visible;
-        toggleItem.Visibility = reloading ? Visibility.Collapsed : Visibility.Visible;
-        topSeparator.Visibility = reloading ? Visibility.Collapsed : Visibility.Visible;
         showStatusItem.Visibility = reloading ? Visibility.Collapsed : Visibility.Visible;
         moveToMainScreenItem.Visibility = reloading ? Visibility.Collapsed : Visibility.Visible;
         bottomSeparator.Visibility = reloading ? Visibility.Collapsed : Visibility.Visible;
         reloadingItem.Visibility = reloading ? Visibility.Visible : Visibility.Collapsed;
-
-        if (!reloading && _monitorService is not null)
-            toggleItem.Header = _monitorService.IsEnabled ? "Stop Mutagen sessions" : "Start Mutagen sessions";
     }
 
     /// <summary>Deferred via Dispatcher.BeginInvoke so it runs after
@@ -846,5 +836,42 @@ public partial class App : Application
         var logDir = Path.IsPathRooted(logPath) ? logPath : Path.Combine(baseDir, logPath);
         Directory.CreateDirectory(logDir);
         return logDir;
+    }
+
+    private static readonly JsonSerializerOptions ConfigJsonOptions = new()
+    {
+        AllowTrailingCommas = true,
+        Converters = { new JsonStringEnumConverter() },
+    };
+
+    /// <summary>Loads the app's configuration. The shipped config file is
+    /// JSON with whole-line '#' comments (never inline trailing ones),
+    /// stripped before parsing.</summary>
+    private static MutagenMonOptions LoadConfig(string path) => ParseConfigText(File.ReadAllText(path));
+
+    private static MutagenMonOptions ParseConfigText(string rawTextWithComments)
+    {
+        var cleaned = StripConfigCommentLines(rawTextWithComments);
+        var options = JsonSerializer.Deserialize<MutagenMonOptions>(cleaned, ConfigJsonOptions)
+            ?? throw new InvalidDataException("Config file parsed to a null document.");
+
+        // Explicit %USERPROFILE% expansion for
+        // MutagenProfileDir; ExpandEnvironmentVariables is a no-op for text with
+        // no %...% placeholders, so this is safe to always apply.
+        options.MutagenProfileDir = Environment.ExpandEnvironmentVariables(options.MutagenProfileDir);
+
+        return options;
+    }
+
+    private static string StripConfigCommentLines(string text)
+    {
+        var sb = new StringBuilder(text.Length);
+        foreach (var line in text.Replace("\r\n", "\n").Split('\n'))
+        {
+            if (line.TrimStart().StartsWith('#'))
+                continue;
+            sb.Append(line).Append('\n');
+        }
+        return sb.ToString();
     }
 }

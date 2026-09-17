@@ -12,14 +12,14 @@ namespace MutagenMon.Core.ProfileWatch;
 /// </summary>
 public sealed class SessionProfileWatcher
 {
-    private readonly IFileTimestampProvider _timestamps;
+    private readonly FileTimestampProvider _timestamps;
     private readonly string _profileDir;
     private readonly TimeSpan _grace;
     private readonly Dictionary<string, DateTimeOffset?> _lastSeenMtime = new();
     private readonly Dictionary<string, DateTimeOffset?> _lastGraceMtime = new();
     private List<string> _confirmedUpdates = new();
 
-    public SessionProfileWatcher(IFileTimestampProvider timestamps, string profileDir, int graceSeconds = 4)
+    public SessionProfileWatcher(FileTimestampProvider timestamps, string profileDir, int graceSeconds = 4)
     {
         _timestamps = timestamps;
         _profileDir = profileDir;

@@ -7,9 +7,6 @@
         <tb:TaskbarIcon x:Key="TrayIcon" ToolTipText="MutagenMon: waiting for status..." TrayLeftMouseUp="OnShowStatusClick">
             <tb:TaskbarIcon.ContextMenu>
                 <ContextMenu Opened="OnTrayContextMenuOpened">
-                    <MenuItem Header="Reload config &amp; restart mutagen" Click="OnReloadClick" />
-                    <MenuItem Header="Stop Mutagen sessions" Click="OnToggleMonitoringClick" />
-                    <Separator />
                     <MenuItem Header="Show status" Click="OnShowStatusClick" />
                     <MenuItem Header="Move to main screen" Click="OnMoveToMainScreenClick" />
                     <Separator />

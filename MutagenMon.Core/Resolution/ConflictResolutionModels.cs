@@ -19,7 +19,7 @@ public sealed record FileStat(long SizeBytes, DateTimeOffset ModifiedUtc, bool I
 
 /// <summary>One conflict flattened out of a <see cref="MonitorSnapshot"/> for
 /// the manual resolution batch (FR-9), carrying everything
-/// <see cref="IConflictFileClient"/> needs without looking anything back up.</summary>
+/// <see cref="ConflictFileClient"/> needs without looking anything back up.</summary>
 public sealed record PendingConflict(
     string SessionName,
     string FileName,

@@ -15,13 +15,14 @@ namespace MutagenMon.Core.Tests;
 
 /// <summary>
 /// Drives the whole Core pipeline (CLI client -> parser -> tracker ->
-/// aggregator -> state store) through a fake <see cref="IMutagenCliClient"/> —
+/// aggregator -> state store) through a fake <see cref="MutagenCliClient"/> —
 /// the concrete proof that none of this needs a real `mutagen` binary or a
 /// real tray icon to verify (NFR-11), runnable on Linux.
 /// </summary>
 public class SessionMonitorServiceTests
 {
-    private sealed class FakeMutagenCliClient : IMutagenCliClient
+    private sealed class FakeMutagenCliClient()
+        : MutagenCliClient(Options.Create(new MutagenMonOptions()), NullLogger<MutagenCliClient>.Instance)
     {
         private readonly Queue<Func<string>> _responses = new();
         public readonly List<string> TerminatedSessions = new();
@@ -32,12 +33,12 @@ public class SessionMonitorServiceTests
         public void Enqueue(string response) => _responses.Enqueue(() => response);
         public void EnqueueFailure(string message) => _responses.Enqueue(() => throw new InvalidOperationException(message));
 
-        public Task<string> GetSyncListRawAsync(CancellationToken cancellationToken) =>
+        public override Task<string> GetSyncListRawAsync(CancellationToken cancellationToken) =>
             Task.FromResult(_responses.Count > 0 ? _responses.Dequeue()() : "");
 
-        public Task<string> GetSyncStatusDetailAsync(string sessionName, CancellationToken cancellationToken) => Task.FromResult("");
+        public override Task<string> GetSyncStatusDetailAsync(string sessionName, CancellationToken cancellationToken) => Task.FromResult("");
 
-        public Task TerminateSessionAsync(string sessionName, CancellationToken cancellationToken)
+        public override Task TerminateSessionAsync(string sessionName, CancellationToken cancellationToken)
         {
             if (sessionName == FailTerminationFor)
                 throw new InvalidOperationException($"cannot terminate '{sessionName}'");
@@ -46,7 +47,7 @@ public class SessionMonitorServiceTests
             return Task.CompletedTask;
         }
 
-        public Task CreateSessionAsync(string rawCreateCommand, CancellationToken cancellationToken)
+        public override Task CreateSessionAsync(string rawCreateCommand, CancellationToken cancellationToken)
         {
             var name = rawCreateCommand;
             if (name == FailCreationFor)
@@ -57,26 +58,27 @@ public class SessionMonitorServiceTests
         }
     }
 
-    private sealed class RecordingConflictFileClient : IConflictFileClient
+    private sealed class RecordingConflictFileClient()
+        : ConflictFileClient(Options.Create(new MutagenMonOptions()), NullLogger<ConflictFileClient>.Instance)
     {
         public readonly List<(SessionEndpoint Source, SessionEndpoint Destination, string RelativePath)> Copies = new();
 
-        public Task<FileStat> StatAsync(SessionEndpoint endpoint, string relativePath, CancellationToken cancellationToken) =>
+        public override Task<FileStat> StatAsync(SessionEndpoint endpoint, string relativePath, CancellationToken cancellationToken) =>
             Task.FromResult(new FileStat(1, DateTimeOffset.UtcNow));
 
-        public Task CopyBetweenEndpointsAsync(SessionEndpoint source, SessionEndpoint destination, string relativePath, CancellationToken cancellationToken)
+        public override Task CopyBetweenEndpointsAsync(SessionEndpoint source, SessionEndpoint destination, string relativePath, CancellationToken cancellationToken)
         {
             Copies.Add((source, destination, relativePath));
             return Task.CompletedTask;
         }
 
-        public Task<string> FetchLocalCopyAsync(SessionEndpoint endpoint, string relativePath, int side, CancellationToken cancellationToken) =>
+        public override Task<string> FetchLocalCopyAsync(SessionEndpoint endpoint, string relativePath, int side, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task PushLocalFileAsync(string localPath, SessionEndpoint destination, string relativePath, CancellationToken cancellationToken) =>
+        public override Task PushLocalFileAsync(string localPath, SessionEndpoint destination, string relativePath, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task RunMergeToolAsync(string localPath1, string localPath2, CancellationToken cancellationToken) =>
+        public override Task RunMergeToolAsync(string localPath1, string localPath2, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
     }
 
@@ -105,7 +107,7 @@ public class SessionMonitorServiceTests
         """;
 
     private static SessionMonitorService BuildService(
-        FakeMutagenCliClient cli, ISessionStateStore store, out IReadOnlyList<SessionDefinition> sessions)
+        FakeMutagenCliClient cli, SessionStateStore store, out IReadOnlyList<SessionDefinition> sessions)
     {
         sessions = new[]
         {
@@ -116,9 +118,9 @@ public class SessionMonitorServiceTests
     }
 
     private static SessionMonitorService BuildService(
-        FakeMutagenCliClient cli, ISessionStateStore store, IReadOnlyList<SessionDefinition> sessions,
-        IReadOnlyList<AutoResolveRule>? autoResolveRules = null, IConflictFileClient? conflictFileClient = null,
-        INotificationQueue? notificationQueue = null,
+        FakeMutagenCliClient cli, SessionStateStore store, IReadOnlyList<SessionDefinition> sessions,
+        IReadOnlyList<AutoResolveRule>? autoResolveRules = null, ConflictFileClient? conflictFileClient = null,
+        NotificationQueue? notificationQueue = null,
         bool notifyConflicts = true, bool notifyAutoresolve = true,
         bool startEnabled = true, bool notifyRestartConnection = false,
         int sessionMaxNoSession = 200, int sessionMaxDuplicate = 10000, int sessionMaxErrors = 30000,

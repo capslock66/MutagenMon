@@ -4,13 +4,7 @@ namespace MutagenMon.Core.Monitoring;
 /// tray icon's UI timer. A whole-snapshot reference swap gives atomic,
 /// lock-free reads — simpler than the legacy's per-field
 /// <c>threading.Lock</c>-guarded getters/setters.</summary>
-public interface ISessionStateStore
-{
-    MonitorSnapshot Get();
-    void Publish(MonitorSnapshot snapshot);
-}
-
-public sealed class SessionStateStore : ISessionStateStore
+public sealed class SessionStateStore
 {
     private volatile MonitorSnapshot _snapshot;
 

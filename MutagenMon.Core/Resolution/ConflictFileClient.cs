@@ -7,13 +7,20 @@ using MutagenMon.Core.Mutagen;
 namespace MutagenMon.Core.Resolution;
 
 /// <summary>
-/// Process/file-IO implementation of <see cref="IConflictFileClient"/>.
-/// Passes arguments via <see cref="ProcessStartInfo.ArgumentList"/> instead
-/// of building a shell command line — manually escaping spaces/parens/
-/// ampersands for a shell string is a
-/// class of bug avoided entirely once no local shell is involved.
+/// Local/SSH file operations FR-9 needs — stat, copy between two
+/// endpoints, fetch/push a local working copy for the visual merge tool,
+/// and invoking the merge tool itself. Passes arguments via
+/// <see cref="ProcessStartInfo.ArgumentList"/> instead of building a shell
+/// command line — manually escaping spaces/parens/ampersands for a shell
+/// string is a class of bug avoided entirely once no local shell is
+/// involved.
+///
+/// Deliberately not sealed, with each public method virtual, so
+/// <see cref="ConflictResolutionService"/> and
+/// <see cref="AutoResolveEngine"/> are testable with an override-based
+/// fake, without a real ssh/scp/merge-tool on the test machine.
 /// </summary>
-public sealed class ConflictFileClient : IConflictFileClient
+public class ConflictFileClient
 {
     private readonly string _scpPath;
     private readonly string _sshPath;
@@ -31,7 +38,9 @@ public sealed class ConflictFileClient : IConflictFileClient
         Directory.CreateDirectory(_tempDir);
     }
 
-    public async Task<FileStat> StatAsync(SessionEndpoint endpoint, string relativePath, CancellationToken cancellationToken)
+    /// <summary>Stats a file — via SSH for a remote endpoint, or directly via
+    /// the filesystem for a local one.</summary>
+    public virtual async Task<FileStat> StatAsync(SessionEndpoint endpoint, string relativePath, CancellationToken cancellationToken)
     {
         if (endpoint.Transport == TransportKind.Local)
         {
@@ -64,7 +73,11 @@ public sealed class ConflictFileClient : IConflictFileClient
         };
     }
 
-    public async Task CopyBetweenEndpointsAsync(
+    /// <summary>Copies <paramref name="relativePath"/> from
+    /// <paramref name="source"/> to <paramref name="destination"/> — a direct
+    /// local copy, a single scp hop if exactly one side is local, or a
+    /// round-trip through a local temp file if both sides are SSH.</summary>
+    public virtual async Task CopyBetweenEndpointsAsync(
         SessionEndpoint source, SessionEndpoint destination, string relativePath, CancellationToken cancellationToken)
     {
         var sourceKind = await GetKindAsync(source, relativePath, cancellationToken);
@@ -182,7 +195,11 @@ public sealed class ConflictFileClient : IConflictFileClient
             File.Delete(path);
     }
 
-    public async Task<string> FetchLocalCopyAsync(SessionEndpoint endpoint, string relativePath, int side, CancellationToken cancellationToken)
+    /// <summary>For a local endpoint, returns the real
+    /// file path directly (the merge tool edits it in place); for an SSH
+    /// endpoint, scp's it down to a local temp file (named after
+    /// <paramref name="side"/>, 1 or 2) and returns that path.</summary>
+    public virtual async Task<string> FetchLocalCopyAsync(SessionEndpoint endpoint, string relativePath, int side, CancellationToken cancellationToken)
     {
         if (endpoint.Transport == TransportKind.Local)
             return JoinPath(endpoint.Url, relativePath);
@@ -194,7 +211,10 @@ public sealed class ConflictFileClient : IConflictFileClient
         return localPath;
     }
 
-    public async Task PushLocalFileAsync(string localPath, SessionEndpoint destination, string relativePath, CancellationToken cancellationToken)
+    /// <summary>Pushes
+    /// <paramref name="localPath"/> to <paramref name="destination"/> — scp if
+    /// SSH, a plain local copy otherwise.</summary>
+    public virtual async Task PushLocalFileAsync(string localPath, SessionEndpoint destination, string relativePath, CancellationToken cancellationToken)
     {
         if (destination.Transport == TransportKind.Ssh)
         {
@@ -209,7 +229,9 @@ public sealed class ConflictFileClient : IConflictFileClient
         }
     }
 
-    public async Task RunMergeToolAsync(string localPath1, string localPath2, CancellationToken cancellationToken)
+    /// <summary>Launches the configured MergePath tool
+    /// with both local paths and waits for it to exit.</summary>
+    public virtual async Task RunMergeToolAsync(string localPath1, string localPath2, CancellationToken cancellationToken)
     {
         var psi = new ProcessStartInfo
         {

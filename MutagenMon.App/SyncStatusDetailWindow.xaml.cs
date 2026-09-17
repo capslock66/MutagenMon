@@ -15,7 +15,7 @@ namespace MutagenMon.App;
 /// windows stay usable while it's open — the Close button therefore
 /// doesn't set <c>IsCancel</c>, which would try to set
 /// <see cref="Window.DialogResult"/> and throw on a non-dialog window.
-/// The caller (App.xaml.cs, which owns <c>IMutagenCliClient</c>) re-runs
+/// The caller (App.xaml.cs, which owns <c>MutagenCliClient</c>) re-runs
 /// the command on <see cref="RefreshRequested"/> and pushes the new text
 /// back in via <see cref="SetStatusText"/>, rather than this window calling
 /// the CLI itself.

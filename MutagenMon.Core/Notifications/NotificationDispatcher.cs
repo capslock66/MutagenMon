@@ -15,14 +15,14 @@ namespace MutagenMon.Core.Notifications;
 /// </summary>
 public sealed class NotificationDispatcher
 {
-    private readonly INotificationQueue _queue;
+    private readonly NotificationQueue _queue;
     private readonly bool _notifyConflicts;
     private readonly bool _notifyAutoresolve;
     private readonly bool _notifyProfileUpdate;
     private readonly bool _notifyRestartConnection;
 
     public NotificationDispatcher(
-        INotificationQueue queue, bool notifyConflicts, bool notifyAutoresolve, bool notifyProfileUpdate,
+        NotificationQueue queue, bool notifyConflicts, bool notifyAutoresolve, bool notifyProfileUpdate,
         bool notifyRestartConnection = false)
     {
         _queue = queue;

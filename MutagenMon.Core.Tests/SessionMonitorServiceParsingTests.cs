@@ -1,9 +1,10 @@
+using MutagenMon.Core.Monitoring;
 using MutagenMon.Core.Mutagen;
 using Xunit;
 
 namespace MutagenMon.Core.Tests;
 
-public class MutagenSyncListParserTests
+public class SessionMonitorServiceParsingTests
 {
     private const string Raw = """
         Attempting to start Mutagen daemon...
@@ -48,7 +49,7 @@ public class MutagenSyncListParserTests
     [Fact]
     public void StripsBannerNoiseAndDaemonStartupText()
     {
-        var result = MutagenSyncListParser.Parse(Raw, KnownSessions);
+        var result = SessionMonitorService.Parse(Raw, KnownSessions);
         Assert.DoesNotContain("Attempting to start Mutagen daemon", result.RawLog);
         Assert.DoesNotContain("Started Mutagen daemon", result.RawLog);
         Assert.DoesNotContain("Labels:", result.RawLog);
@@ -57,7 +58,7 @@ public class MutagenSyncListParserTests
     [Fact]
     public void ParsesReadySessionWithLocalAndSshEndpoints()
     {
-        var result = MutagenSyncListParser.Parse(Raw, KnownSessions);
+        var result = SessionMonitorService.Parse(Raw, KnownSessions);
         var status = result.SessionStatuses["photos-sync"];
 
         Assert.NotNull(status);
@@ -90,7 +91,7 @@ public class MutagenSyncListParserTests
             	URL: tparent@pc-ub1:sources/appman
             """;
 
-        var result = MutagenSyncListParser.Parse(raw, new[] { "relative-sync" });
+        var result = SessionMonitorService.Parse(raw, new[] { "relative-sync" });
         var status = result.SessionStatuses["relative-sync"];
 
         Assert.NotNull(status);
@@ -102,7 +103,7 @@ public class MutagenSyncListParserTests
     [Fact]
     public void ParsesSyncingSessionWithTwoLocalEndpoints()
     {
-        var result = MutagenSyncListParser.Parse(Raw, KnownSessions);
+        var result = SessionMonitorService.Parse(Raw, KnownSessions);
         var status = result.SessionStatuses["docs-sync"];
 
         Assert.NotNull(status);
@@ -114,7 +115,7 @@ public class MutagenSyncListParserTests
     [Fact]
     public void ParsesConflictsAndProblemsFlagsAndConflictRecords()
     {
-        var result = MutagenSyncListParser.Parse(Raw, KnownSessions);
+        var result = SessionMonitorService.Parse(Raw, KnownSessions);
         var status = result.SessionStatuses["shared-sync"];
 
         Assert.NotNull(status);
@@ -131,17 +132,17 @@ public class MutagenSyncListParserTests
     [Fact]
     public void MissingSessionYieldsNullStatusNotAnException()
     {
-        var result = MutagenSyncListParser.Parse(Raw, new[] { "photos-sync", "never-created-sync" });
+        var result = SessionMonitorService.Parse(Raw, new[] { "photos-sync", "never-created-sync" });
         Assert.Null(result.SessionStatuses["never-created-sync"]);
     }
 
     [Fact]
     public void UnknownSessionInOutputIsToleratedNotThrown()
     {
-        // Robustness fix over the legacy behavior (see class doc comment on
-        // MutagenSyncListParser): a stray session not in the known list must not
-        // blow up parsing for every other session.
-        var result = MutagenSyncListParser.Parse(Raw, new[] { "docs-sync" });
+        // Robustness fix over the legacy behavior (see the doc comment on
+        // SessionMonitorService.Parse): a stray session not in the known list
+        // must not blow up parsing for every other session.
+        var result = SessionMonitorService.Parse(Raw, new[] { "docs-sync" });
         Assert.NotNull(result.SessionStatuses["docs-sync"]);
         Assert.True(result.SessionStatuses.ContainsKey("photos-sync"));
         Assert.NotNull(result.SessionStatuses["photos-sync"]);
@@ -167,7 +168,7 @@ public class MutagenSyncListParserTests
             	URL: C:/B
             """;
 
-        var result = MutagenSyncListParser.Parse(dup, new[] { "dup-sync" });
+        var result = SessionMonitorService.Parse(dup, new[] { "dup-sync" });
         var status = result.SessionStatuses["dup-sync"];
 
         Assert.NotNull(status);
@@ -182,7 +183,7 @@ public class MutagenSyncListParserTests
     [InlineData("(a)(b)", 5, 3)]
     public void FindMatchingOpenParenMatchesFromTheEnd(string s, int closeIndex, int expectedOpenIndex)
     {
-        var result = MutagenSyncListParser.FindMatchingOpenParen(s, closeIndex);
+        var result = SessionMonitorService.FindMatchingOpenParen(s, closeIndex);
         Assert.Equal(expectedOpenIndex, result);
     }
 
@@ -204,7 +205,7 @@ public class MutagenSyncListParserTests
     [Fact]
     public void ParsesStagingProgressAndCurrentFile()
     {
-        var result = MutagenSyncListParser.Parse(StagingRaw, new[] { "robbie-mutagenmon" });
+        var result = SessionMonitorService.Parse(StagingRaw, new[] { "robbie-mutagenmon" });
         var staging = result.SessionStatuses["robbie-mutagenmon"]!.Staging;
 
         Assert.NotNull(staging);
@@ -233,7 +234,7 @@ public class MutagenSyncListParserTests
             	URL: robbie:sources/mutagenMon
             """;
 
-        var result = MutagenSyncListParser.Parse(raw, new[] { "robbie-mutagenmon" });
+        var result = SessionMonitorService.Parse(raw, new[] { "robbie-mutagenmon" });
 
         Assert.Null(result.SessionStatuses["robbie-mutagenmon"]!.Staging);
     }
@@ -241,7 +242,7 @@ public class MutagenSyncListParserTests
     [Fact]
     public void StagingIsNullWhenWatchingForChanges()
     {
-        var result = MutagenSyncListParser.Parse(Raw, KnownSessions);
+        var result = SessionMonitorService.Parse(Raw, KnownSessions);
 
         Assert.Null(result.SessionStatuses["photos-sync"]!.Staging);
     }

@@ -35,7 +35,7 @@ public static partial class SessionDefinitionLoader
 
     public static SessionDefinitionLoadResult ParseFile(string path) => ParseLines(File.ReadAllLines(path));
 
-    /// <summary>Shared with <see cref="SessionFileMutator"/> so "which line
+    /// <summary>Shared with <c>SessionEditingService</c> so "which line
     /// is session X" is decided in exactly one place. Returns false (a
     /// `rem `-prefixed line, or one with no/empty `--name=`) for anything
     /// that isn't an active session line — <paramref name="trimmedLine"/>
