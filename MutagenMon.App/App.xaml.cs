@@ -381,6 +381,7 @@ public partial class App //: Application
             _statusWindow.ToggleMonitoringRequested += OnStatusWindowToggleMonitoringRequested;
             _statusWindow.ExitRequested += OnStatusWindowExitRequested;
             _statusWindow.AddSessionRequested += OnAddSessionRequested;
+            _statusWindow.DuplicateSessionRequested += OnDuplicateSessionRequested;
             _statusWindow.ViewSyncStatusRequested += OnViewSyncStatusRequested;
             _statusWindow.EditSessionRequested += OnEditSessionRequested;
             _statusWindow.DeleteSessionRequested += OnDeleteSessionRequested;
@@ -481,6 +482,52 @@ public partial class App //: Application
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to add session '{Name}'", window.Result!.Name);
+                window.SetBusy(false);
+                MessageBox.Show(
+                    window, $"MutagenMon could not create the session:\n\n{ex.Message}",
+                    "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        };
+
+        if (window.ShowDialog() == true)
+            ReloadConfig();
+    }
+
+    /// <summary>Handles the toolbar's "Duplicate" action: same as
+    /// <see cref="OnAddSessionRequested"/> (a new session, created via
+    /// <c>SessionEditingService.AddAsync</c>, not an edit of the source
+    /// session), but the form starts pre-populated from the selected
+    /// session's parsed definition instead of blank. The name is cleared so
+    /// the FR-18.2 uniqueness check forces the user to pick a new one before
+    /// Save enables — saving with the source's own name would collide with
+    /// it.</summary>
+    private void OnDuplicateSessionRequested(object? sender, string name)
+    {
+        if (_sessionEditingService is null || _statusWindow is null || _logger is null)
+            return;
+
+        var definition = _sessionDefinitions.FirstOrDefault(d => d.Name == name);
+        if (definition is null)
+        {
+            _logger.LogWarning("Duplicate requested for unknown session '{Name}' (already removed?)", name);
+            return;
+        }
+
+        var model = SessionCommandLineParser.Parse(definition.RawCreateCommand);
+        model.Name = "";
+        var window = new SessionEditWindow(model, _sessionNames, _logger) { Owner = _statusWindow, Title = $"MutagenMon: Duplicate session {name}" };
+        window.SaveRequested += async (_, _) =>
+        {
+            window.SetBusy(true);
+            try
+            {
+                await _sessionEditingService.AddAsync(window.Result!, CancellationToken.None);
+                _logger.LogInformation("Session '{Source}' duplicated as: {Name}", name, window.Result!.Name);
+                window.CompleteSave();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to duplicate session '{Source}' as '{Name}'", name, window.Result!.Name);
                 window.SetBusy(false);
                 MessageBox.Show(
                     window, $"MutagenMon could not create the session:\n\n{ex.Message}",

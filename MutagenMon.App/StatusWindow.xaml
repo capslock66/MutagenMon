@@ -37,6 +37,14 @@
                             </StackPanel>
                         </Button>
 
+                        <Button x:Name="DuplicateSessionButton" IsEnabled="False"
+                                Margin="8,0,0,0" Padding="8,4" Click="OnDuplicateSessionClick" ToolTip="Duplicate session">
+                            <StackPanel Orientation="Horizontal">
+                                <iconPacks:PackIconMaterial Kind="ContentCopy" Width="16" Height="16" VerticalAlignment="Center" />
+                                <TextBlock Text="Duplicate" Margin="6,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+
                         <Button x:Name="ToggleMonitoringButton" Content="Stop Mutagen sessions" Width="150"
                                 Margin="8,0,0,0" Click="OnToggleMonitoringClick" />
                     </StackPanel>
@@ -45,7 +53,9 @@
                               AutoGenerateColumns="False" IsReadOnly="True"
                               CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
                               GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                              SelectionMode="Single" SelectionUnit="FullRow">
+                              SelectionMode="Single" SelectionUnit="FullRow"
+                              SelectionChanged="OnSessionsGridSelectionChanged"
+                              MouseDoubleClick="OnSessionsGridMouseDoubleClick">
                         <DataGrid.Columns>
                             <!-- FR-17.1: Edit/Delete row actions, leftmost, before Name.
                                  FR-28: View sync status, leftmost of the three. -->

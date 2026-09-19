@@ -2,6 +2,10 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Text;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
+using System.Windows.Media;
 using Microsoft.Extensions.Logging;
 using MutagenMon.Core.Monitoring;
 using MutagenMon.Core.Mutagen;
@@ -41,6 +45,11 @@ public partial class StatusWindow : Window
     /// (FR-16.1) — handled by App.xaml.cs, which owns
     /// <c>SessionEditingService</c> and the session definitions.</summary>
     public event EventHandler? AddSessionRequested;
+
+    /// <summary>Raised when the user clicks the toolbar's "Duplicate" action,
+    /// with the selected session's name — handled by App.xaml.cs, which owns
+    /// <c>SessionEditingService</c> and the session definitions.</summary>
+    public event EventHandler<string>? DuplicateSessionRequested;
 
     /// <summary>Raised when the user clicks a row's View sync status icon
     /// (FR-28), with that session's name.</summary>
@@ -145,6 +154,51 @@ public partial class StatusWindow : Window
     {
         _logger.LogInformation("User action: status window Add session clicked");
         AddSessionRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnDuplicateSessionClick(object sender, RoutedEventArgs e)
+    {
+        if (SessionsGrid.SelectedItem is not SessionSummaryRow row)
+            return;
+        _logger.LogInformation("User action: status window Duplicate session clicked ({Name})", row.Name);
+        DuplicateSessionRequested?.Invoke(this, row.Name);
+    }
+
+    /// <summary>The toolbar's "Duplicate" button (FR-16.1-style, but unlike
+    /// Add it needs a source session) only makes sense once a row is
+    /// selected.</summary>
+    private void OnSessionsGridSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        DuplicateSessionButton.IsEnabled = SessionsGrid.SelectedItem is SessionSummaryRow;
+    }
+
+    /// <summary>Double-clicking a status row opens the same Edit flow as the
+    /// row's Edit icon (FR-17.2). Ignored when the double-click landed on one
+    /// of the row's own action buttons (View/Edit/Delete) — those already
+    /// handle their own clicks, so this only fires for a double-click
+    /// anywhere else on the row.</summary>
+    private void OnSessionsGridMouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        var source = e.OriginalSource as DependencyObject;
+        if (FindAncestorOrSelf<ButtonBase>(source) is not null)
+            return;
+        if (FindAncestorOrSelf<DataGridRow>(source) is not { Item: SessionSummaryRow row })
+            return;
+
+        _logger.LogInformation("User action: status window session row double-clicked ({Name})", row.Name);
+        EditSessionRequested?.Invoke(this, row.Name);
+    }
+
+    private static T? FindAncestorOrSelf<T>(DependencyObject? source) where T : DependencyObject
+    {
+        while (source is not null)
+        {
+            if (source is T match)
+                return match;
+            source = VisualTreeHelper.GetParent(source);
+        }
+
+        return null;
     }
 
     private void OnViewSyncStatusClick(object sender, RoutedEventArgs e)
