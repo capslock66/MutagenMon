@@ -69,6 +69,7 @@ public partial class StatusWindow : Window
         SessionsGrid.ItemsSource = _sessionRows;
         ((IconKeyToImageSourceConverter)Resources["IconKeyToImageSourceConverter"]).Cache = iconCache;
         _logger = logger;
+        MutagenConfigEditorViewControl.Initialize(logger);
     }
 
     public void UpdateContent(MonitorSnapshot snapshot, IReadOnlyList<string> sessionNames, bool reloadInProgress)

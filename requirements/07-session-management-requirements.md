@@ -13,6 +13,20 @@ file mutation (`SessionFileMutator.cs`), the live orchestration
 the status view's toolbar and grid column in `StatusWindow.xaml`). Manually
 verified on Windows (2026-09-10).
 
+**FR-16 was revised (2026-09-19) when the status view became a tabbed
+control panel** — see `TABS_UI_PLAN.md` at the repository root for the full
+plan. `StatusWindow` now hosts a `TabControl` (Sync is its first tab, with
+more added tab by tab) plus a toolbar shared by every tab, below the
+`TabControl`. As part of that change, "Reload config & restart" moved again
+— out of the toolbar FR-16 describes below and into that new shared
+toolbar, positioned left of "Exit mutagen monitor" (also relocated there
+from the bottom action row). The toolbar FR-16 describes is now specific to
+the Sync tab (Add + Stop/Start Mutagen sessions only); other tabs have
+their own, separate toolbars. FR-16.1's and FR-16.2's specifics about the
+reload action's toolbar position and the exact `Grid.Row` it lived in are
+superseded by this; FR-16.3 (icon choice)/FR-16.4/FR-16.5 (Stop/Start
+placement, still right of Add) are unaffected.
+
 Decisions below marked **(confirmed)** were settled with the user during
 the design discussion that produced this document.
 
@@ -472,23 +486,32 @@ Notes:
   for declarative UI, and a generic templated control would have been
   more machinery than four small Grids warranted.
 
-## Status view toolbar sketch
+## Status view toolbar sketch (superseded — see the FR-16 revision note above)
+
+This sketch predates the tabbed status view; it shows the Sync tab's own
+toolbar, no longer the window's only toolbar (see `TABS_UI_PLAN.md`).
 
 ```
 ┌─ MutagenMon ─────────────────────────────────────────────────────────┐
-│ [+ Add] [■ Stop Mutagen sessions]                  [⟲ Reload config] │
+│ Sync │ Mutagen Configuration │ ...                                   │
+├────┬──────┬─────────────────────┬──────────┬──────────┬─────────────┤
+│ [+ Add] [■ Stop Mutagen sessions]                                   │
 ├────┬──────┬─────────────────────┬──────────┬──────────┬─────────────┤
 │    │ Name │ Status              │ Alpha    │ Beta     │ Last changed│
 ├────┼──────┼─────────────────────┼──────────┼──────────┼─────────────┤
 │👁✎🗑│ web  │ ● Watching for chg. │ /a/path  │ /b/path  │ 2h ago      │
-└────┴──────┴─────────────────────┴──────────┴──────────┴─────────────┘
+├────┴──────┴─────────────────────┴──────────┴──────────┴─────────────┤
+│ [⟲ Reload config & restart] [Exit mutagen monitor]         [Close]  │
+└───────────────────────────────────────────────────────────────────────┘
 ```
 
 `👁`/`✎`/`🗑` stand in for the actual View sync status/Edit/Delete icons
 (`EyeOutline`/`PencilOutline`/`TrashCanOutline`, FR-28.1/FR-17.1); `⟲`
 stands in for the reload icon (`CogRefreshOutline`), explicitly **not** a
 plain circular refresh glyph per FR-16.3; `■` stands in for the plain-text
-Stop/Start Mutagen sessions toggle button (FR-16.5) — it has no icon.
+Stop/Start Mutagen sessions toggle button (FR-16.5) — it has no icon. The
+bottom row (Reload config & restart / Exit / Close) is shared by every tab,
+not specific to Sync.
 
 ## Implementation
 

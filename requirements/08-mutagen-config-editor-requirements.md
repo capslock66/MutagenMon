@@ -13,6 +13,16 @@ view's toolbar (`StatusWindow.xaml`/`.xaml.cs`) and `App.xaml.cs`.
 Unit-tested in `MutagenMon.Core.Tests`
 (`MutagenConfigFileTests`/`MutagenYamlValidatorTests`).
 
+**Revised (2026-09-19) — hosted as a tab instead of a modal dialog.** As
+part of the status view becoming a tabbed control panel (`TABS_UI_PLAN.md`),
+`MutagenConfigEditorWindow` (a `Window`, shown via `ShowDialog`) was
+extracted into `MutagenConfigEditorView` (a `UserControl`), hosted as the
+status window's **"Mutagen Configuration"** tab instead of a separate modal
+opened from a toolbar button. FR-29 (the toolbar button) and the
+per-editor-instance "Reload config & restart" gating in FR-33 are
+superseded by this — see the revision notes under each below. FR-30 through
+FR-32 (load/Check/Save behavior) are unchanged.
+
 FR-33 went through a revision after manual testing on Windows
 (2026-09-11): the first implementation added `IMutagenCliClient.StopDaemonAsync`/
 `StartDaemonAsync` (`mutagen daemon stop`/`start`) behind a "Restart mutagen
@@ -53,17 +63,25 @@ design discussion that produced this document.
   other existing feature only reads config or shells out to the `mutagen`
   CLI.
 
-## FR-29 — Toolbar button
+## FR-29 — Toolbar button (superseded — now a tab)
 
-- FR-29.1: The status view toolbar
+- FR-29.1 (original): The status view toolbar
   ([07-session-management-requirements.md](07-session-management-requirements.md)
   §FR-16) gains a new **"Edit mutagen config"** action (icon + label,
   matching the existing Add button's style), placed immediately to the
   right of **Add** in the toolbar's left `StackPanel`.
-- FR-29.2: Clicking it opens the editor window (FR-30) as a modal dialog
-  (`ShowDialog`, `Owner` = the status window), following the same
+- FR-29.2 (original): Clicking it opens the editor window (FR-30) as a modal
+  dialog (`ShowDialog`, `Owner` = the status window), following the same
   event-delegation pattern as Add (`StatusWindow` raises a request event;
   `App.xaml.cs` owns constructing and showing the window).
+- **Superseded (2026-09-19):** there is no more toolbar button or modal
+  dialog. The editor is its own **"Mutagen Configuration"** tab in
+  `StatusWindow`, always present alongside "Sync" — opening it is just
+  selecting the tab. `StatusWindow` owns constructing the hosted
+  `MutagenConfigEditorView` once (in its constructor) and calling
+  `Initialize(logger)` on it; there is no per-open request event anymore
+  (`EditMutagenConfigRequested` and `App.xaml.cs`'s
+  `OnEditMutagenConfigRequested` were removed).
 
 ## FR-30 — Editor window: load
 
@@ -87,6 +105,13 @@ design discussion that produced this document.
   indicate this state (e.g. a subtitle/status text such as "File does not
   exist yet — it will be created on Save") so the user isn't confused by
   an empty editor.
+- **Behavior change from tab hosting (2026-09-19):** FR-30.3/FR-30.4's load
+  now happens exactly once, when `MutagenConfigEditorView` is constructed
+  (the first time the status window is shown), not every time the user
+  opens the editor — since it is a persistent tab rather than a
+  freshly-constructed modal per open. An external edit to
+  `~/.mutagen.yml` made after that point is not picked up until the app
+  restarts.
 
 ## FR-31 — YAML validation ("Check")
 
@@ -152,13 +177,13 @@ design discussion that produced this document.
   original design and matches `SessionEditWindow`'s own write-failure
   handling (07-...md §FR-27.4).
 
-## FR-33 — Reload config & restart (apply the change to running sessions)
+## FR-33 — Reload config & restart (apply the change to running sessions) — superseded
 
-- FR-33.1: **(confirmed)** The window gains a **"Reload config & restart"**
+- FR-33.1 (original): The window gains a **"Reload config & restart"**
   button in the bottom-left button group, ordered **Check, Save, Reload
   config & restart** (left) / **Close** (right, alone) — **disabled by
   default**, whether the file existed or not when the window opened.
-- FR-33.2: **(confirmed)** The button becomes enabled the first time a
+- FR-33.2 (original): The button becomes enabled the first time a
   Save (FR-32) actually **persists a change**: the text box's content at
   Save time differs from the content as of the last successful load/save.
   A Save that writes back byte-for-identical content (nothing was actually
@@ -166,69 +191,71 @@ design discussion that produced this document.
   enabled in a given window session, it stays enabled until clicked
   (FR-33.3 disables it permanently for the rest of that window's
   lifetime — see there for why).
-- FR-33.3: **(revised — see the note under Status above)** Clicking it
-  raises an event handled by `App.xaml.cs`, which calls the exact same
-  `ReloadConfig()` method as the status view's own "Reload config" toolbar
-  button (07-...md §FR-16.1/§FR-7.1) — **not** a new/separate code path.
-  That existing pathway is what's actually needed here: it disables
-  monitoring (terminating every configured session via `mutagen sync
-  terminate`) and, once every session has stopped, re-reads
-  `mutagen-create.bat` and recreates each one (`mutagen sync create`) —
-  and it's specifically that *recreation* which re-reads
-  `~/.mutagen.yml`'s defaults, not anything about the `mutagen` daemon
-  process's own uptime. The button is disabled immediately on click and
-  stays disabled for the rest of this window's lifetime: `ReloadConfig()`
-  is fire-and-forget (its completion is only observable via the status
-  view's own `IsReloadInProgress`-driven UI, which this window isn't wired
-  into), so there's no completion signal here to re-enable it on, and
-  triggering a second full session-terminate-and-recreate cycle while the
-  first is still running would serve no purpose.
-- FR-33.4: **(revised)** No new success/error dialog is shown by this
-  button — `OnReloadReady` (the existing FR-7.1 handler) already has its
-  own error handling (a `MessageBox.Show` if the new configuration fails
-  to load, keeping the previous configuration active) and its own
-  observable outcome (the status view's grid and tray icon reflect the
-  reloaded sessions once done). Duplicating that here, or inventing a
-  fixed "reloaded" string the way an earlier design showed "daemon
-  restarted", would just be a second, redundant, and easily
-  out-of-sync source of truth for the same event.
+- **Superseded (2026-09-19):** there is no longer a per-editor "Reload
+  config & restart" button. The action lives once, in the toolbar shared
+  by every tab of `StatusWindow` (below the `TabControl`, left of "Exit
+  mutagen monitor") — the same button the Sync tab used to have in its own
+  toolbar. It is a plain, always-available action (enabled whenever a
+  reload isn't already in progress, exactly like the Sync tab's own
+  reload button was), with no per-tab enable-once-a-change-is-saved gating
+  (FR-33.2's condition doesn't apply to a button shared across tabs — this
+  editor no longer tracks or needs to track "was a change actually
+  persisted since last load"). `MutagenConfigEditorView` no longer raises
+  a `ReloadConfigRequested` event at all.
+- FR-33.3 (original mechanism, still accurate): the shared button calls the
+  same `ReloadConfig()` method as before (07-...md §FR-16.1/§FR-7.1) —
+  disables monitoring (terminating every configured session via `mutagen
+  sync terminate`) and, once every session has stopped, re-reads
+  `mutagen-create.bat` and recreates each one (`mutagen sync create`),
+  which is what re-reads `~/.mutagen.yml`'s defaults. Only its *ownership*
+  changed (the window-level shared toolbar, not this tab), not what it
+  does.
+- FR-33.4: **(unchanged)** No success/error dialog is shown by this
+  button specifically — `OnReloadReady` (the existing FR-7.1 handler)
+  already has its own error handling (a `MessageBox.Show` if the new
+  configuration fails to load, keeping the previous configuration active)
+  and its own observable outcome (the status view's grid and tray icon
+  reflect the reloaded sessions once done).
 
-## Design: editor window layout
+## Design: editor tab layout (superseded the standalone window layout)
 
 ```
-┌─ MutagenMon: Edit mutagen config ───────────────────────────────────┐
-│ (subtitle shown only if file doesn't exist yet:                     │
-│  "File does not exist yet — it will be created on Save")            │
-│ ┌───────────────────────────────────────────────────────────────┐  │
-│ │ synchronization:                                               │  │
-│ │   defaults:                                                    │  │
-│ │     ignoreVCSDirectories: true                                 │  │
-│ │                                                                 │  │
-│ │                                                                 │  │
-│ └───────────────────────────────────────────────────────────────┘  │
-│ (red, hidden when empty) Invalid YAML at line 3: mapping values...   │
-│                                                                       │
-│ [ Check ] [ Save ] [ Reload config & restart ]            [ Close ]  │
+┌─ MutagenMon ─────────────────────────────────────────────────────────┐
+│ Sync │ Mutagen Configuration │ ...                                   │
+├───────────────────────────────────────────────────────────────────────┤
+│ [ Check ] [ Save ]                                                    │
+│ (subtitle shown only if file doesn't exist yet:                       │
+│  "File does not exist yet — it will be created on Save")              │
+│ ┌───────────────────────────────────────────────────────────────┐    │
+│ │ synchronization:                                               │    │
+│ │   defaults:                                                    │    │
+│ │     ignoreVCSDirectories: true                                 │    │
+│ │                                                                 │    │
+│ └───────────────────────────────────────────────────────────────┘    │
+│ (red, hidden when empty) Invalid YAML at line 3: mapping values...     │
+├─────────────────────────────────────────────────────────────────────┤
+│ [⟲ Reload config & restart] [Exit mutagen monitor]           [Close] │
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
-"Reload config & restart" starts disabled; it enables the first time Save
-persists an actual change (FR-33.2), and disables again for good once
-clicked (FR-33.3). Save does not close the window (FR-32.5) — "Close"
-does.
+"Check"/"Save" are this tab's own toolbar, at the top. "Reload config &
+restart"/"Exit mutagen monitor"/"Close" are the toolbar shared by every
+tab, below the `TabControl` — not specific to this tab, and not gated on
+whether this tab has unsaved/saved changes (see the FR-33 revision note).
+There is no "Close" for this tab specifically — closing the whole status
+window is the window-level "Close" in that shared toolbar.
 
-## Status view toolbar sketch (updated)
+## Status view toolbar sketch (superseded — see FR-29's revision note)
 
 ```
-┌─ MutagenMon ───────────────────────────────────────────────────────────────────┐
-│ [+ Add] [⚙ Edit mutagen config] [■ Stop Mutagen sessions]  [⟲ Reload config]   │
-├────┬──────┬─────────────────────┬──────────┬──────────┬─────────────────────────┤
+┌─ MutagenMon ─────────────────────────────────────────────────────────┐
+│ [+ Add] [■ Stop Mutagen sessions]                                    │
+├────┬──────┬─────────────────────┬──────────┬──────────┬─────────────┤
 ```
 
-`⚙` stands in for the actual "Edit mutagen config" icon: `PackIconMaterial
-Kind="FileDocumentEditOutline"`, confirmed present in the installed
-`MahApps.Metro.IconPacks.Material` 6.2.1 package the same way FR-16.3
-confirmed its own icons.
+This was the Sync tab's toolbar right after FR-29 added "Edit mutagen
+config" to it as a button; that button no longer exists — the feature is
+its own tab now (see `TABS_UI_PLAN.md`).
 
 ## Implementation
 
@@ -244,27 +271,25 @@ confirmed its own icons.
   scanner assumption and surface as a plain `InvalidOperationException`
   instead) so a parse failure always turns into an FR-31 error message,
   never an unhandled exception on user-typed free text.
-- `MutagenMon.App/MutagenConfigEditorWindow.xaml`/`.xaml.cs`: unlike
+- `MutagenMon.App/MutagenConfigEditorView.xaml`/`.xaml.cs` (a `UserControl`;
+  supersedes the earlier `MutagenConfigEditorWindow`, a `Window`): unlike
   `SessionEditWindow`, Save reads/validates/writes directly inside the
-  window instead of raising an event for the caller — a local file write
+  control instead of raising an event for the caller — a local file write
   has no external CLI call that can fail independently of it, so there's
   no async operation for a caller to own; a write failure is caught and
-  shown in-window, matching `SessionEditWindow`'s "stay open, keep
+  shown in-place, matching `SessionEditWindow`'s "stay open, keep
   everything typed" behavior on failure. Save also shows the FR-32.4 note
-  itself (via `GenericMessageDialog.ShowInfo`) instead of deferring to the
-  caller, since it no longer closes the window (FR-32.5). Wired into
-  `StatusWindow.xaml` (new toolbar button, FR-29.1) and `App.xaml.cs`'s
-  `OnEditMutagenConfigRequested`.
-- FR-33 (`Reload config & restart`): `MutagenConfigEditorWindow` raises
-  `ReloadConfigRequested`, handled by `App.xaml.cs`'s
-  `OnEditMutagenConfigRequested` with a one-line `window.ReloadConfigRequested
-  += (_, _) => ReloadConfig();` — reusing `App`'s existing private
-  `ReloadConfig()` (FR-7.1) as-is, with no new Core code and no new
-  `IMutagenCliClient` surface. An earlier implementation added
+  itself (via `GenericMessageDialog.ShowInfo`, owner resolved with
+  `Window.GetWindow(this)`). Hosted directly in `StatusWindow.xaml` as the
+  "Mutagen Configuration" `TabItem`; `StatusWindow`'s constructor calls
+  `Initialize(logger)` on it once (no per-open request event, no
+  `App.xaml.cs` involvement — see FR-29's revision note).
+- FR-33 (`Reload config & restart`): now owned entirely by `StatusWindow`'s
+  shared bottom toolbar, wired to `App.xaml.cs`'s existing private
+  `ReloadConfig()` (FR-7.1) exactly like the Sync tab's reload button used
+  to be — `MutagenConfigEditorView` has no `ReloadConfigRequested` event
+  and no reload-related state at all. An earlier implementation added
   `IMutagenCliClient.StopDaemonAsync`/`StartDaemonAsync` (`mutagen daemon
-  stop`/`start`) behind this button; both were removed (interface, the two
-  `MutagenCliClient` implementations, and the corresponding no-op members
-  in the `SessionEditingServiceTests`/`SessionMonitorServiceTests` fakes)
-  once manual testing showed daemon restart alone doesn't apply
-  `~/.mutagen.yml` changes to already-running sessions (see the note under
-  Status above).
+  stop`/`start`) behind a per-editor button; both were removed once manual
+  testing showed daemon restart alone doesn't apply `~/.mutagen.yml`
+  changes to already-running sessions (see the note under Status above).

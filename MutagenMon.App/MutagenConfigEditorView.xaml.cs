@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text;
 using System.Windows;
+using System.Windows.Controls;
 using Microsoft.Extensions.Logging;
 using YamlDotNet.RepresentationModel;
 
@@ -16,51 +17,41 @@ namespace MutagenMon.App;
 /// <see cref="SaveConfigFile"/> — distinct from MutagenMon's own
 /// <see cref="App.LoadConfig"/>-loaded
 /// <c>config_mutagenmon.json</c>, and from mutagen's
-/// <c>%USERPROFILE%\.mutagen</c> data directory) instead of raising a
-/// save-request event for the caller to fulfil (unlike
-/// <see cref="SessionEditWindow.SaveRequested"/>): saving here is a plain,
-/// synchronous local file write with no external `mutagen` CLI call that
-/// could fail independently of it, so there is no async operation for a
-/// caller to own — the window can validate, write, and show the result in
-/// one step, catching a write failure itself instead of delegating that
-/// back out. Unlike <see cref="SessionEditWindow"/>, Save does NOT close
-/// the window (FR-33 needs the window to stay open afterwards so "Reload
-/// config &amp; restart" is actually clickable) — only "Close" does.
+/// <c>%USERPROFILE%\.mutagen</c> data directory).
+///
+/// Hosted as a tab in <see cref="StatusWindow"/> rather than a standalone
+/// modal dialog: "Reload config &amp; restart" now lives once, in the
+/// window's shared bottom toolbar, so this view only owns Check/Save — it
+/// no longer gates that button's enabled state on whether Save persisted a
+/// real change (FR-33's original per-editor gating doesn't apply to a
+/// button shared by every tab). The file is read once, when this control is
+/// constructed (i.e. the first time the status window is shown) — unlike
+/// the old modal, which re-read it fresh every time it was opened, an
+/// external edit made while the status window is already open/hidden won't
+/// be picked up until the app restarts.
 /// </summary>
-public partial class MutagenConfigEditorWindow : Window
+public partial class MutagenConfigEditorView : UserControl
 {
     private static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
-    private readonly ILogger _logger;
-    private readonly string _path;
-    private readonly Encoding _encoding;
+    private ILogger _logger = null!;
+    private string _path = null!;
+    private Encoding _encoding = Utf8NoBom;
 
     /// <summary>Whether the file existed on disk as of the last successful
-    /// load/save — starts at whatever <see cref="LoadConfigFile"/>
-    /// found (FR-30.4), and becomes true after the first successful Save
-    /// creates it. Drives the FR-32.4 "not applied live" note: shown after
-    /// a Save that overwrote a file that was already there, not after the
-    /// one that created it (nothing "already running" to warn about yet).</summary>
+    /// load/save (FR-30.4) — becomes true after the first successful Save
+    /// creates it. Drives the FR-32.4 "not applied live" note: shown after a
+    /// Save that overwrote a file that was already there, not after the one
+    /// that created it (nothing "already running" to warn about yet).</summary>
     private bool _fileExisted;
 
-    /// <summary>The content as of the last load/save, to detect whether the
-    /// text actually changed by the time Save is clicked (FR-33: the
-    /// reload button only enables for a Save that persisted a real
-    /// change).</summary>
-    private string _lastSavedContent;
-
-    /// <summary>Raised when the user clicks "Reload config &amp; restart"
-    /// (FR-33) — handled by App.xaml.cs, which reuses the exact same
-    /// FR-7.1 reload pathway as the status view's own toolbar button
-    /// (terminates and recreates every session, which is what actually
-    /// applies a `~/.mutagen.yml` change — restarting the `mutagen` daemon
-    /// process itself, an earlier version of this button, was found by
-    /// manual testing to have no effect on already-running sessions).</summary>
-    public event EventHandler? ReloadConfigRequested;
-
-    public MutagenConfigEditorWindow(ILogger logger)
+    public MutagenConfigEditorView()
     {
         InitializeComponent();
+    }
+
+    public void Initialize(ILogger logger)
+    {
         _logger = logger;
         _path = ResolveConfigPath();
 
@@ -68,7 +59,6 @@ public partial class MutagenConfigEditorWindow : Window
         EditorBox.Text = loaded.Content;
         _encoding = loaded.Encoding;
         _fileExisted = loaded.FileExisted;
-        _lastSavedContent = loaded.Content;
         NewFileNoticeText.Visibility = _fileExisted ? Visibility.Collapsed : Visibility.Visible;
     }
 
@@ -89,7 +79,6 @@ public partial class MutagenConfigEditorWindow : Window
             return;
         }
 
-        var isModified = EditorBox.Text != _lastSavedContent;
         var overwritesExistingFile = _fileExisted;
 
         try
@@ -100,49 +89,26 @@ public partial class MutagenConfigEditorWindow : Window
         {
             _logger.LogError(ex, "Failed to save mutagen config file");
             MessageBox.Show(
-                this, $"MutagenMon could not save the mutagen config file:\n\n{ex.Message}",
+                Window.GetWindow(this), $"MutagenMon could not save the mutagen config file:\n\n{ex.Message}",
                 "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
 
         NewFileNoticeText.Visibility = Visibility.Collapsed;
         _fileExisted = true;
-        _lastSavedContent = EditorBox.Text;
-
-        if (isModified)
-            ReloadConfigButton.IsEnabled = true;
 
         if (overwritesExistingFile)
             GenericMessageDialog.ShowInfo(
-                this, _logger, "MutagenMon",
+                Window.GetWindow(this), _logger, "MutagenMon",
                 "The mutagen config file was saved. This does not affect already-running "
-                + "sessions — use \"Reload config & restart\" (below) to apply the change "
-                + "to them.");
-    }
-
-    private void OnReloadConfigClick(object sender, RoutedEventArgs e)
-    {
-        _logger.LogInformation("User action: mutagen config editor Reload config & restart clicked");
-        // No busy/re-enable toggling here (unlike the old daemon-restart
-        // button): this triggers the same fire-and-forget FR-7.1 pathway as
-        // the status view's own "Reload config" button, which has no
-        // synchronous completion signal to wait on — disabling once and
-        // leaving it disabled is enough to stop a double-click from
-        // queuing a second reload.
-        ReloadConfigButton.IsEnabled = false;
-        ReloadConfigRequested?.Invoke(this, EventArgs.Empty);
+                + "sessions — use \"Reload config & restart\" (at the bottom of the window) "
+                + "to apply the change to them.");
     }
 
     private void ShowValidationResult(IReadOnlyList<string> errors)
     {
         ValidationErrorText.Text = string.Join(Environment.NewLine, errors);
         ValidationErrorText.Visibility = errors.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    private void OnCloseClick(object sender, RoutedEventArgs e)
-    {
-        _logger.LogInformation("User action: mutagen config editor Close clicked");
-        DialogResult = false;
     }
 
     /// <summary>Empty on valid YAML; otherwise the parser's error message,

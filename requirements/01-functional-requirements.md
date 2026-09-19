@@ -233,10 +233,16 @@ The full specification lives in
     remains available from both places.
   - **Rewrite change**: see
     [07-session-management-requirements.md](07-session-management-requirements.md)
-    FR-16 — the "Reload config & restart mutagen" button (FR-16.1/16.2)
-    and the "Stop/Start Mutagen sessions" toggle (FR-16.5) have both been
+    FR-16 — the "Stop/Start Mutagen sessions" toggle (FR-16.5) was
     relocated from this bottom action row into a new toolbar above the
-    grid (alongside "Add"). Only "Exit" stays in the bottom row.
+    grid (alongside "Add"); "Reload config & restart mutagen" followed it
+    there too, temporarily.
+  - **(changed 2026-09-19)** Superseded again by the tabbed status view
+    (`TABS_UI_PLAN.md`): the status view is now `StatusWindow`'s "Sync"
+    tab among others, and "Reload config & restart mutagen"/"Exit
+    MutagenMon"/"Close" moved out of any single tab into a toolbar shared
+    by every tab, below the `TabControl` — see the FR-16 revision note in
+    07-session-management-requirements.md for the current layout.
 
 ## FR-9 — Manual conflict resolution
 

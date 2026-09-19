@@ -96,6 +96,10 @@
                     </StackPanel>
                 </Grid>
             </TabItem>
+
+            <TabItem Header="Mutagen Configuration">
+                <local:MutagenConfigEditorView x:Name="MutagenConfigEditorViewControl" />
+            </TabItem>
         </TabControl>
 
         <!-- Toolbar shared by every tab, below the TabControl: Reload
