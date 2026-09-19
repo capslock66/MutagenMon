@@ -3,7 +3,6 @@ using System.IO;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -41,7 +40,7 @@ namespace MutagenMon.App;
 /// LogPath is even known) instead reaches the Windows Application Event
 /// Log, a durable sink that doesn't depend on any path this app resolves.
 /// </summary>
-public partial class App : Application
+public partial class App //: Application
 {
     private const string SingleInstanceMutexName = "MutagenMon-SingleInstance";
     private const string ShowStatusEventName = "MutagenMon-ShowStatus";
@@ -698,17 +697,17 @@ public partial class App : Application
         if (sender is not ContextMenu menu)
             return;
 
-        var showStatusItem = (MenuItem)menu.Items[0];
-        var moveToMainScreenItem = (MenuItem)menu.Items[1];
-        var bottomSeparator = (UIElement)menu.Items[2];
-        var reloadingItem = (MenuItem)menu.Items[3];
+        var showStatusItem       = menu.Items[0] as MenuItem;
+        var moveToMainScreenItem = menu.Items[1] as MenuItem;
+        var bottomSeparator      = menu.Items[2] as UIElement;
+        var reloadingItem        = menu.Items[3] as MenuItem;
 
         var reloading = _trayIconController?.IsReloadInProgress ?? false;
 
-        showStatusItem.Visibility = reloading ? Visibility.Collapsed : Visibility.Visible;
-        moveToMainScreenItem.Visibility = reloading ? Visibility.Collapsed : Visibility.Visible;
-        bottomSeparator.Visibility = reloading ? Visibility.Collapsed : Visibility.Visible;
-        reloadingItem.Visibility = reloading ? Visibility.Visible : Visibility.Collapsed;
+        showStatusItem?.Visibility       = reloading ? Visibility.Collapsed : Visibility.Visible;
+        moveToMainScreenItem?.Visibility = reloading ? Visibility.Collapsed : Visibility.Visible;
+        bottomSeparator?.Visibility      = reloading ? Visibility.Collapsed : Visibility.Visible;
+        reloadingItem?.Visibility        = reloading ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>Deferred via Dispatcher.BeginInvoke so it runs after
