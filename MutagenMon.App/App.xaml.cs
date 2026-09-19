@@ -207,6 +207,13 @@ public partial class App //: Application
 
             _trayIconController = BuildAndStartTrayIconController(options, _sessionNames);
             _logger.LogInformation("MutagenMon startup complete — tray icon is live");
+
+            // FR-15.3: off-by-default opt-out of "no window shown at startup".
+            if (options.ShowMainScreenAtStartup)
+            {
+                _logger.LogInformation("ShowMainScreenAtStartup is enabled; showing status window at startup");
+                ShowStatusWindow();
+            }
         }
         catch (Exception ex)
         {

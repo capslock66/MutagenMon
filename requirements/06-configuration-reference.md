@@ -27,6 +27,7 @@ stated otherwise, and all "period"/"age" values are in the unit given.
 | `NotifyAutoresolve` | boolean | `true` | — | Enables the notification raised when a conflict is auto-resolved. | FR-10.4, FR-11.2 |
 | `NotifyMutagenProfileUpdate` | boolean | `false` | — | Enables the per-session notification when the sync archive changed on disk. | FR-11.4, FR-12.3 |
 | `StartEnabled` | boolean | `true` | — | If `true`, monitoring starts in the "enabled" state (auto-restart active) rather than paused. | FR-7.2, FR-15 |
+| `ShowMainScreenAtStartup` | boolean | `false` | — | If `true`, the status window (FR-8) is shown automatically every time MutagenMon starts, right after the tray icon goes live — instead of staying tray-icon-only until clicked. | FR-15.3 |
 | `MergePath` | string (path) | `C:\Program Files (x86)\WinMerge\WinMergeU` | — | Path to the external visual diff/merge tool executable. | FR-9.2 |
 | `ScpPath` | string (path) | `C:\Program Files\Git\usr\bin\scp` | — | Path to the `scp` binary used for remote (SSH) file transfer during conflict resolution. | FR-9.1, FR-9.2 |
 | `SshPath` | string (path) | `C:\Program Files\Git\usr\bin\ssh` | — | Path to the `ssh` binary used for remote `stat` calls (file size/mtime). | FR-9.1 |

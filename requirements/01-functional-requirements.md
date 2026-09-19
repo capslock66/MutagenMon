@@ -562,3 +562,8 @@ reproducing it verbatim:
 - FR-15.2: Graceful termination signals (SIGINT/SIGTERM) MUST result in a
   clean shutdown (stop background polling, remove tray icon) rather than
   an abrupt kill.
+- FR-15.3 (rewrite): if `ShowMainScreenAtStartup` (see
+  [06-configuration-reference.md](06-configuration-reference.md)) is
+  `true`, the status window (FR-8) is shown automatically once, right
+  after the tray icon goes live at startup — an explicit, off-by-default
+  (`false`) opt-out of FR-15.1's default.

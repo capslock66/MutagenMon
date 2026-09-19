@@ -47,6 +47,12 @@ public sealed class MutagenMonOptions
     /// running).</summary>
     public bool StartEnabled { get; set; } = true;
 
+    /// <summary>If true, the status window (FR-8) is shown automatically
+    /// once, right after the tray icon goes live at startup — an
+    /// off-by-default opt-out of FR-15.1's "no persistent window shown in
+    /// normal operation" default.</summary>
+    public bool ShowMainScreenAtStartup { get; set; }
+
     /// <summary>Path to the external visual merge tool binary.</summary>
     public string MergePath { get; set; } = "";
 

@@ -72,6 +72,7 @@ public partial class MutagenMonitorConfigEditorView : UserControl
     private void PopulateFromOptions(MutagenMonOptions options)
     {
         StartEnabledCheck.IsChecked = options.StartEnabled;
+        ShowMainScreenAtStartupCheck.IsChecked = options.ShowMainScreenAtStartup;
         TrayTooltipBox.Text = options.TrayTooltip;
 
         MinLogLevelCombo.SelectedItem = options.MinLogLevel;
@@ -187,6 +188,7 @@ public partial class MutagenMonitorConfigEditorView : UserControl
         {
             DebugLevel = _loadedOptions.DebugLevel,
             StartEnabled = StartEnabledCheck.IsChecked == true,
+            ShowMainScreenAtStartup = ShowMainScreenAtStartupCheck.IsChecked == true,
             TrayTooltip = TrayTooltipBox.Text,
             MinLogLevel = (LogLevel)(MinLogLevelCombo.SelectedItem ?? LogLevel.Trace),
             LogPath = LogPathBox.Text,

@@ -51,6 +51,15 @@
                                 <ColumnDefinition Width="220" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Show main screen at startup"
+                                   ToolTip="If true, the status window is shown automatically every time MutagenMon starts, instead of staying tray-icon-only until clicked." />
+                            <CheckBox x:Name="ShowMainScreenAtStartupCheck" Grid.Column="1" VerticalAlignment="Center" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
                             <Label Grid.Column="0" Content="Tray tooltip"
                                    ToolTip="Application name used as the prefix of every tray tooltip and dialog title." />
                             <TextBox x:Name="TrayTooltipBox" Grid.Column="1" />

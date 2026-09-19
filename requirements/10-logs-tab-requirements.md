@@ -131,6 +131,22 @@ for the tab immediately before this one. Continues the FR numbering from
   tabs, which likewise read their values once rather than reacting live to
   a config reload (FR-7.1).
 
+## FR-46 — Auto-scroll ("sticky bottom")
+
+- FR-46.1: As new entries arrive (FR-40.3), the grid automatically scrolls
+  so the newest row stays visible — the user never has to manually scroll
+  down to see the latest line.
+- FR-46.2: Selecting a row (FR-43.1) suspends auto-scroll: new entries
+  keep arriving in the grid (FR-41.2-style — nothing pauses the feed
+  itself) but the view no longer jumps to the bottom, so the row the user
+  is reading stays in place and in view.
+- FR-46.3: Auto-scroll resumes the moment the user manually scrolls the
+  grid back down to its bottom — no separate control for it; scrolling
+  away from the bottom (regardless of whether a row is selected) also
+  suspends it, the same as FR-46.2.
+- FR-46.4: "Clear" (FR-41) always resets auto-scroll back on, since the
+  grid it would apply to is now empty.
+
 ## Implementation
 
 - `MutagenMon.Core/Configuration/MutagenMonOptions.cs`: added
@@ -154,6 +170,14 @@ for the tab immediately before this one. Continues the FR numbering from
   and calls `Initialize(logger, loggerProvider, showGenerateException)` on
   this tab once, same pattern as the other two editor tabs. Master/detail
   split, red error rows, and the gated "Generate exception" button (FR-43
-  through FR-45) all live here.
+  through FR-45) all live here. Auto-scroll (FR-46) is a `_autoScroll`
+  flag: new entries call `ScrollIntoView` only while it's true; selecting
+  a row, or scrolling away from the bottom, clears it; scrolling back to
+  the bottom (detected via the grid's internal `ScrollViewer.ScrollChanged`,
+  found once via a `VisualTreeHelper` walk) sets it again. A
+  `_suppressScrollChanged` flag (cleared on a later dispatcher pass, since
+  the resulting layout/`ScrollChanged` can land after `ScrollIntoView`
+  returns) stops our own programmatic scroll from being misread as the
+  user scrolling away.
 - `MutagenMon.App/MutagenMonitorConfigEditorView.xaml`/`.xaml.cs`: added
   the "Show 'Generate exception' button" checkbox (FR-45.2).

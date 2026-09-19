@@ -1150,7 +1150,9 @@ dedicated file and no longer do.
 
 **UT-15.1 — No main window is ever shown (FR-15.1)** ✅
 
-* Start MutagenMon normally.
+* With `ShowMainScreenAtStartup` absent or `false` in
+  `config/config_mutagenmon.json` (the default), start MutagenMon
+  normally.
 * Do not click the tray icon.
 * Check the taskbar and Alt-Tab.
 * No application window is displayed anywhere — only the tray icon is
@@ -1177,7 +1179,22 @@ Covered above by UT-7.4.
 * `log/mutagenMon.log` (the first instance's log) contains `Show-status
   request received from a second instance; showing status window`.
 
-## FR-43/44/45 — Logs tab: master/detail, error highlighting, generate exception
+**UT-15.4 — ShowMainScreenAtStartup shows the status window automatically (FR-15.3)** ✅
+
+* Stop MutagenMon (if running). Set `"ShowMainScreenAtStartup": true` in
+  `config/config_mutagenmon.json` (or check "Show main screen at
+  startup" in the "Mutagen monitor Configuration" tab and Save, then
+  restart).
+* Start MutagenMon.
+* The status window appears on its own, with no click on the tray icon —
+  showing the current session list, right around the time the tray icon
+  leaves the "waiting for status" (lightgray-init) state.
+* `log/mutagenMon.log` contains `ShowMainScreenAtStartup is enabled;
+  showing status window at startup`.
+* Close the status window, set `ShowMainScreenAtStartup` back to
+  `false`, and restart — UT-15.1's behavior (no window shown) resumes.
+
+## FR-43/44/45/46 — Logs tab: master/detail, error highlighting, generate exception, auto-scroll
 
 **UT-43.1 — Master/detail split with splitter (FR-43)** ✅
 
@@ -1251,6 +1268,45 @@ Covered above by UT-7.4.
   full stack trace.
 * Set `ShowGenerateException` back to `false` and restart — the button
   is hidden again.
+
+**UT-46.1 — New entries auto-scroll into view (FR-46.1)** ✅
+
+* Open the "Logs" tab and leave nothing selected.
+* Let enough events accumulate (e.g. leave the app running through a few
+  poll cycles, or trigger a few "User action: ..." lines) that the grid
+  has more rows than fit on screen.
+* Without touching the scrollbar, the grid keeps showing the newest row
+  at the bottom as each new entry arrives — you never have to scroll down
+  manually to see the latest line.
+
+**UT-46.2 — Selecting a row suspends auto-scroll (FR-46.2)** ✅
+
+* With the grid scrolled to the bottom and new entries still arriving,
+  click an older row to select it (scroll up first if needed).
+* Trigger a few more log lines (e.g. "User action: ..." from another
+  toolbar button).
+* The grid does **not** jump to the bottom — the selected row stays
+  visible and selected, and its message stays shown in the detail panel,
+  even as new rows keep being added above/below the visible area.
+
+**UT-46.3 — Scrolling back to the bottom resumes auto-scroll (FR-46.3)** ✅
+
+* Continuing from UT-46.2 (a row selected, auto-scroll suspended), use
+  the scrollbar or mouse wheel to scroll all the way down to the last
+  row — do not click/select it, just scroll.
+* Trigger one more log line.
+* The grid resumes auto-scrolling: the new row appears and the view
+  follows it, exactly as in UT-46.1 — even though a row is technically
+  still selected.
+
+**UT-46.4 — Clear resets auto-scroll (FR-46.4)** ✅
+
+* With auto-scroll suspended (a row selected, scrolled away from the
+  bottom), click "Clear".
+* The grid and detail panel empty (UT-43.2).
+* Trigger a new log line.
+* It appears and is immediately visible without any manual scrolling —
+  auto-scroll is back on.
 
 ## Appendix — known, accepted gaps (do not report as bugs)
 
