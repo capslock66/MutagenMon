@@ -4,27 +4,57 @@
     <Grid Margin="8">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
+            <RowDefinition Height="*" MinHeight="80" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="40" MinHeight="24" />
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,8">
             <Button x:Name="ClearButton" Content="Clear" Width="90" Click="OnClearClick" />
             <Button x:Name="OpenLogFileButton" Content="Open log file" Width="110" Margin="8,0,0,0" Click="OnOpenLogFileClick" />
             <Button x:Name="ClearLogFileButton" Content="Clear log file" Width="110" Margin="8,0,0,0" Click="OnClearLogFileClick" />
+            <!-- FR-45: only shown when ShowGenerateException is enabled in
+                 the mutagen monitor configuration (default off). -->
+            <Button x:Name="GenerateExceptionButton" Content="Generate exception" Width="130" Margin="8,0,0,0"
+                    Click="OnGenerateExceptionClick" Visibility="Collapsed" />
         </StackPanel>
 
+        <!-- FR-43: master grid. -->
         <DataGrid x:Name="LogGrid" Grid.Row="1"
                   AutoGenerateColumns="False" IsReadOnly="True"
                   CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
                   GridLinesVisibility="Horizontal" HeadersVisibility="Column"
                   SelectionMode="Single" SelectionUnit="FullRow"
-                  FontFamily="Consolas">
+                  FontFamily="Consolas"
+                  SelectionChanged="OnLogGridSelectionChanged">
+            <!-- FR-44: Error and Critical rows in red. -->
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsErrorOrCritical}" Value="True">
+                            <Setter Property="Foreground" Value="Red" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </DataGrid.RowStyle>
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Time" Binding="{Binding Timestamp, StringFormat='yyyy-MM-dd HH:mm:ss.fff'}" Width="Auto" />
                 <DataGridTextColumn Header="Level" Binding="{Binding Level}" Width="Auto" />
                 <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="Auto" />
-                <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="*" />
+                <!-- FR-43.4: single-line summary — the full (possibly
+                     multi-line) message is shown in the detail panel below. -->
+                <DataGridTextColumn Header="Message" Binding="{Binding GridSummary}" Width="*" />
             </DataGrid.Columns>
         </DataGrid>
+
+        <GridSplitter Grid.Row="2" Height="5" HorizontalAlignment="Stretch"
+                       ResizeBehavior="PreviousAndNext" Background="LightGray" />
+
+        <!-- FR-43: detail panel for the selected row — word-wrapped, scrollable,
+             2 lines tall by default (resizable via the splitter above). -->
+        <TextBox x:Name="DetailText" Grid.Row="3"
+                 IsReadOnly="True" TextWrapping="Wrap"
+                 VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                 FontFamily="Consolas" />
     </Grid>
 </UserControl>

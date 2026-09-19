@@ -81,6 +81,7 @@ public partial class MutagenMonitorConfigEditorView : UserControl
         NotifyConflictsCheck.IsChecked = options.NotifyConflicts;
         NotifyAutoresolveCheck.IsChecked = options.NotifyAutoresolve;
         NotifyMutagenProfileUpdateCheck.IsChecked = options.NotifyMutagenProfileUpdate;
+        ShowGenerateExceptionCheck.IsChecked = options.ShowGenerateException;
 
         MutagenPathBox.Text = options.MutagenPath;
         MutagenSessionsBatFileBox.Text = options.MutagenSessionsBatFile;
@@ -194,6 +195,7 @@ public partial class MutagenMonitorConfigEditorView : UserControl
             NotifyConflicts = NotifyConflictsCheck.IsChecked == true,
             NotifyAutoresolve = NotifyAutoresolveCheck.IsChecked == true,
             NotifyMutagenProfileUpdate = NotifyMutagenProfileUpdateCheck.IsChecked == true,
+            ShowGenerateException = ShowGenerateExceptionCheck.IsChecked == true,
             MutagenPath = MutagenPathBox.Text,
             MutagenSessionsBatFile = MutagenSessionsBatFileBox.Text,
             MutagenProfileDir = MutagenProfileDirBox.Text,

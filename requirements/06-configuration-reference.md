@@ -21,6 +21,7 @@ stated otherwise, and all "period"/"age" values are in the unit given.
 | `DebugLevel` | integer | `0` | verbosity (0–100) | Legacy verbosity dial — no effect in the rewrite; use `MinLogLevel` instead. | FR-14.2 |
 | `MinLogLevel` | string (`LogLevel` name) | `"Trace"` | — | Minimum level written to `<LogPath>/mutagenMon.log`: `Trace`, `Debug`, `Information`, `Warning`, `Error`, `Critical`, or `None`. Irrelevant before this config file is loaded — the primary log file doesn't exist yet at that point regardless of this setting; see FR-14.1's rewrite note for what covers that window instead (the Windows Event Log). | FR-14.2 |
 | `DebugExceptionsToConsole` | boolean | `false` | — | If `true`, unhandled exceptions are printed to the console instead of shown in a blocking error dialog. | FR-14.1 |
+| `ShowGenerateException` | boolean | `false` | — | If `true`, shows a "Generate exception" button in the Logs tab's toolbar, which throws a deliberate unhandled exception to exercise the FR-14.1 error-handling path on demand. | FR-45 |
 | `NotifyRestartConnection` | boolean | `false` | — | Enables the desktop notification when a session is restarted because it was stuck in "connecting" (FR-13.3). Does **not** gate the "duplicate" or "no session" restart cases — see FR-11.3 note below. | FR-11.3, FR-13.3 |
 | `NotifyConflicts` | boolean | `true` | — | Enables the "new conflicts detected" notification. | FR-11.1 |
 | `NotifyAutoresolve` | boolean | `true` | — | Enables the notification raised when a conflict is auto-resolved. | FR-10.4, FR-11.2 |

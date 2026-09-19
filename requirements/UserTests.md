@@ -1177,6 +1177,81 @@ Covered above by UT-7.4.
 * `log/mutagenMon.log` (the first instance's log) contains `Show-status
   request received from a second instance; showing status window`.
 
+## FR-43/44/45 — Logs tab: master/detail, error highlighting, generate exception
+
+**UT-43.1 — Master/detail split with splitter (FR-43)** ✅
+
+* Open the status window, "Logs" tab.
+* Let a few events accumulate (or restart the app to generate startup
+  log lines).
+* Below the grid, a horizontal splitter and a detail panel are visible.
+  The detail panel is about 2 lines tall by default.
+* Click a row in the grid.
+* The detail panel shows that row's full message, word-wrapped (no
+  horizontal scrollbar even for a long line).
+* Drag the splitter up/down — both the grid and the detail panel resize
+  accordingly.
+* Shrink the detail panel back down and select a row with a long
+  message (e.g. an exception, see UT-45.1 below) — a vertical scrollbar
+  appears in the detail panel instead of the panel growing.
+
+**UT-43.2 — Detail clears on Clear (FR-43.3)** ✅
+
+* With a row selected (its message shown in the detail panel), click
+  "Clear".
+* The grid empties (FR-41.1) and the detail panel goes blank too.
+
+**UT-43.3 — Grid Message column collapses multi-line entries (FR-43.4)** ✅
+
+* Trigger a log line whose message spans multiple lines — easiest is
+  UT-45.1 below (an unhandled exception logs the message followed by the
+  full stack trace).
+* In the grid's Message column, that row shows only the first line,
+  followed by `[+N more line(s)]` — the row stays single-line height, no
+  taller than any other row.
+* Click that row. The detail panel (UT-43.1) shows the complete,
+  uncollapsed message (all lines, including the stack trace), unlike the
+  grid.
+* A single-line message (most log lines) is unaffected — shown in full in
+  the grid, with no `[+... ]` suffix.
+
+**UT-44.1 — Error and Critical rows shown in red (FR-44)** ✅
+
+* Trigger at least one `Error`-level log line (e.g. "Open log file" when
+  the log file doesn't exist yet logs at Information — instead, trigger
+  a real error path, such as FR-42.1/42.2's failure branches, or any
+  Error-level entry already visible from normal operation) and at least
+  one `Critical`-level line (e.g. UT-45.1 below).
+* In the grid, both rows' text is red. Rows at every other level
+  (Trace/Debug/Information/Warning) keep the default (black) text color.
+
+**UT-45.1 — "Generate exception" button, hidden by default (FR-45)** ✅
+
+* With `ShowGenerateException` absent or `false` in
+  `config/config_mutagenmon.json`, open the "Logs" tab.
+* No "Generate exception" button is present in the toolbar (only Clear,
+  Open log file, Clear log file).
+* Stop MutagenMon. In the "Mutagen monitor Configuration" tab (or
+  directly in the config file), set `ShowGenerateException` to `true`,
+  save, and restart MutagenMon.
+* Open the "Logs" tab — a fourth toolbar button, "Generate exception",
+  is now visible. In the "Mutagen monitor Configuration" tab, the "Show
+  'Generate exception' button" checkbox is checked, matching the config
+  value.
+* Click "Generate exception".
+* A window is displayed, titled "MutagenMon — error", with the content
+  "MutagenMon hit an unexpected error:" followed by exception details
+  mentioning the Logs tab's "Generate exception" button.
+* Click "OK". The application stays open (same as UT-14.1).
+* `log/mutagenMon.log` contains a Critical-level entry with the same
+  exception. The Logs tab's grid shows the "User action: logs tab
+  Generate exception clicked" Information line (not red), followed by
+  that Critical entry, shown in red (UT-44.1) and collapsed to its first
+  line with a `[+N more line(s)]` suffix (UT-43.3), since it includes the
+  full stack trace.
+* Set `ShowGenerateException` back to `false` and restart — the button
+  is hidden again.
+
 ## Appendix — known, accepted gaps (do not report as bugs)
 
 These are documented, intentional limitations of the current phase, not

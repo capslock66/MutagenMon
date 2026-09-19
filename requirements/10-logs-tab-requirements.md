@@ -83,8 +83,58 @@ for the tab immediately before this one. Continues the FR numbering from
   `FileLoggerProvider`'s in-memory backlog (FR-40.2) — only the on-disk
   primary file.
 
+## FR-43 — Master/detail split
+
+- FR-43.1: The grid (FR-40) is the master; a resizable detail panel below
+  it shows the currently-selected row's full `Message` (which already
+  includes any appended exception text — see `FileLoggerProvider`'s
+  `FormatMessage`), word-wrapped.
+- FR-43.2: A horizontal `GridSplitter` separates the two, so the user can
+  resize either pane. The detail panel is **2 lines tall by default**
+  (roughly 40px) and scrollable (`VerticalScrollBarVisibility="Auto"`) —
+  useful for a message/exception that's taller than the default height
+  without resizing the splitter every time.
+- FR-43.3: Selecting nothing (or a row that no longer exists, e.g. after
+  "Clear", FR-41) leaves the detail panel empty.
+- FR-43.4: The grid's own Message column never shows more than one line:
+  `LogEntry.GridSummary` collapses `Message` to its first line, appending
+  `" [+N more line(s)]"` when there were more — a multi-line message (e.g.
+  one with an appended exception) would otherwise blow out that row's
+  height in the grid. The uncollapsed `Message` is still what the detail
+  panel (FR-43.1) shows for the selected row.
+
+## FR-44 — Error and Critical rows highlighted in red
+
+- FR-44.1: Grid rows whose `Level` is `Error` or `Critical` are rendered
+  with red foreground text (`DataGridRow.Foreground`), via a `DataTrigger`
+  bound to `LogEntry.IsErrorOrCritical`. `Warning`/other levels are
+  unaffected.
+
+## FR-45 — "Generate exception" button (test aid)
+
+- FR-45.1: The tab's toolbar gains a fourth action, **"Generate
+  exception"**, hidden by default (`Visibility="Collapsed"`).
+- FR-45.2: Visible only when `ShowGenerateException` (see
+  [06-configuration-reference.md](06-configuration-reference.md)) is
+  `true` in `config_mutagenmon.json` — default `false`. Also exposed as a
+  checkbox ("Show 'Generate exception' button") in the "Mutagen monitor
+  Configuration" tab's "Logging & notifications" group
+  (`MutagenMonitorConfigEditorView`).
+- FR-45.3: Clicking it throws a deliberate, unhandled `InvalidOperationException`
+  on the UI thread — the same repro the legacy "Boum" test button gave
+  (see `UserTests.md`'s UT-14.1 rewrite note), reusing the FR-14.1 path
+  end to end: `App.OnDispatcherUnhandledException` catches it, shows the
+  "MutagenMon — error" dialog, and logs a Critical entry (reaching both
+  `mutagenMon.log` and the Windows Event Log).
+- FR-45.4: The flag is read once, at `StatusWindow` construction
+  (`App.ShowStatusWindow`) — consistent with the other two config-editing
+  tabs, which likewise read their values once rather than reacting live to
+  a config reload (FR-7.1).
+
 ## Implementation
 
+- `MutagenMon.Core/Configuration/MutagenMonOptions.cs`: added
+  `ShowGenerateException` (bool, default `false`).
 - `MutagenMon.App/FileLoggerProvider.cs`: added a `Queue<LogEntry>` capped
   at 100 (`MaxRecentEntries`), populated inside the existing `Write`
   method under the same `_writeLock` used for the file/Event Log sinks;
@@ -95,10 +145,15 @@ for the tab immediately before this one. Continues the FR numbering from
   of caching a copy that a reload could invalidate.
 - `MutagenMon.App/LogEntry.cs`: the record shown (`Timestamp`, `Level`,
   `Category`, `Message`) — distinct from `FileLoggerProvider`'s own
-  free-text file-line formatting.
+  free-text file-line formatting. Added the computed `IsErrorOrCritical`
+  (FR-44) and `GridSummary` (FR-43.4) properties.
 - `MutagenMon.App/LogsView.xaml`/`.xaml.cs`: the tab itself, hosted
   directly in `StatusWindow.xaml`. `StatusWindow`'s constructor now also
   takes the app's single `FileLoggerProvider` instance (alongside the
-  logger/icon cache it already took) and calls `Initialize(logger,
-  loggerProvider)` on this tab once, same pattern as the other two
-  editor tabs.
+  logger/icon cache it already took) and a `showGenerateException` flag,
+  and calls `Initialize(logger, loggerProvider, showGenerateException)` on
+  this tab once, same pattern as the other two editor tabs. Master/detail
+  split, red error rows, and the gated "Generate exception" button (FR-43
+  through FR-45) all live here.
+- `MutagenMon.App/MutagenMonitorConfigEditorView.xaml`/`.xaml.cs`: added
+  the "Show 'Generate exception' button" checkbox (FR-45.2).

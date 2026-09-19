@@ -14,6 +14,11 @@ namespace MutagenMon.App;
 /// via <see cref="FileLoggerProvider.EntryLogged"/>. "Clear" only empties
 /// this tab's own collection, never the log file itself or the provider's
 /// backlog — new entries keep arriving afterwards exactly as before.
+/// Master/detail (FR-43): the grid is the master; selecting a row shows its
+/// full message, word-wrapped, in the resizable detail panel below the
+/// splitter. Error-level rows are highlighted in red (FR-44). "Generate
+/// exception" (FR-45) is only visible when <c>ShowGenerateException</c> is
+/// enabled in the mutagen monitor configuration.
 /// </summary>
 public partial class LogsView : UserControl
 {
@@ -29,10 +34,11 @@ public partial class LogsView : UserControl
         LogGrid.ItemsSource = _entries;
     }
 
-    public void Initialize(ILogger logger, FileLoggerProvider loggerProvider)
+    public void Initialize(ILogger logger, FileLoggerProvider loggerProvider, bool showGenerateException)
     {
         _logger = logger;
         _loggerProvider = loggerProvider;
+        GenerateExceptionButton.Visibility = showGenerateException ? Visibility.Visible : Visibility.Collapsed;
 
         foreach (var entry in loggerProvider.GetRecentEntries())
             _entries.Add(entry);
@@ -57,6 +63,27 @@ public partial class LogsView : UserControl
     {
         _logger.LogInformation("User action: logs tab Clear clicked");
         _entries.Clear();
+        DetailText.Text = "";
+    }
+
+    /// <summary>FR-43: shows the selected row's full message (including any
+    /// appended exception text — see <see cref="FileLoggerProvider"/>'s
+    /// <c>FormatMessage</c>) in the word-wrapped detail panel below the
+    /// grid.</summary>
+    private void OnLogGridSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        DetailText.Text = LogGrid.SelectedItem is LogEntry entry ? entry.Message : "";
+    }
+
+    /// <summary>FR-45: deliberately throws, unhandled, so it reaches
+    /// App.xaml.cs's <c>OnDispatcherUnhandledException</c> — the same path a
+    /// real UI-thread crash takes (FR-14.1) — to test that path on demand.
+    /// Only reachable when <c>ShowGenerateException</c> is enabled.</summary>
+    private void OnGenerateExceptionClick(object sender, RoutedEventArgs e)
+    {
+        _logger.LogInformation("User action: logs tab Generate exception clicked");
+        throw new InvalidOperationException(
+            "Test exception generated via the Logs tab \"Generate exception\" button (ShowGenerateException).");
     }
 
     private void OnOpenLogFileClick(object sender, RoutedEventArgs e)

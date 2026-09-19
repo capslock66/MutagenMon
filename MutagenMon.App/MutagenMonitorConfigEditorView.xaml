@@ -123,6 +123,15 @@
                                    ToolTip="Enables the per-session notification when the sync archive changed on disk." />
                             <CheckBox x:Name="NotifyMutagenProfileUpdateCheck" Grid.Column="1" VerticalAlignment="Center" />
                         </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Show 'Generate exception' button"
+                                   ToolTip="Shows a 'Generate exception' button in the Logs tab's toolbar, which throws a deliberate unhandled exception to test error handling." />
+                            <CheckBox x:Name="ShowGenerateExceptionCheck" Grid.Column="1" VerticalAlignment="Center" />
+                        </Grid>
                     </StackPanel>
                 </GroupBox>
 
