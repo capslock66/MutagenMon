@@ -1,8 +1,5 @@
 using System.Diagnostics;
 using System.IO;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -809,40 +806,9 @@ public partial class App //: Application
         return logDir;
     }
 
-    private static readonly JsonSerializerOptions ConfigJsonOptions = new()
-    {
-        AllowTrailingCommas = true,
-        Converters = { new JsonStringEnumConverter() },
-    };
-
-    /// <summary>Loads the app's configuration. The shipped config file is
-    /// JSON with whole-line '#' comments (never inline trailing ones),
-    /// stripped before parsing.</summary>
-    private static MutagenMonOptions LoadConfig(string path) => ParseConfigText(File.ReadAllText(path));
-
-    private static MutagenMonOptions ParseConfigText(string rawTextWithComments)
-    {
-        var cleaned = StripConfigCommentLines(rawTextWithComments);
-        var options = JsonSerializer.Deserialize<MutagenMonOptions>(cleaned, ConfigJsonOptions)
-            ?? throw new InvalidDataException("Config file parsed to a null document.");
-
-        // Explicit %USERPROFILE% expansion for
-        // MutagenProfileDir; ExpandEnvironmentVariables is a no-op for text with
-        // no %...% placeholders, so this is safe to always apply.
-        options.MutagenProfileDir = Environment.ExpandEnvironmentVariables(options.MutagenProfileDir);
-
-        return options;
-    }
-
-    private static string StripConfigCommentLines(string text)
-    {
-        var sb = new StringBuilder(text.Length);
-        foreach (var line in text.Replace("\r\n", "\n").Split('\n'))
-        {
-            if (line.TrimStart().StartsWith('#'))
-                continue;
-            sb.Append(line).Append('\n');
-        }
-        return sb.ToString();
-    }
+    /// <summary>Loads the app's configuration — thin wrapper kept so every
+    /// call site in this file reads the same as before;
+    /// <see cref="ConfigLoader"/> (in Core) is shared with the "Mutagen
+    /// monitor Configuration" tab's Check/Save (<see cref="MutagenMonitorConfigEditorView"/>).</summary>
+    private static MutagenMonOptions LoadConfig(string path) => ConfigLoader.Load(path);
 }

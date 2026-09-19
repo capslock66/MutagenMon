@@ -138,15 +138,29 @@ buffer, which is simpler than re-tailing a growing file.
 
 ## Phased plan
 
-1. **Foundation**: `TabControl` in `StatusWindow`, Sync tab with its
-   reduced top toolbar (Add + Stop), shared bottom toolbar (Reload config &
-   restart + Exit mutagen monitor) — everything else unchanged.
-2. **Mutagen Configuration tab**: extract `MutagenConfigEditorWindow` into
-   an embedded `UserControl`, remove the modal window and its button.
-3. **Mutagen monitor Configuration tab**: new `UserControl` with the
-   structured form described above, Check/Save.
-4. **Logs tab**: log ring buffer, grid `UserControl`, Clear / Open log file
-   / Clear log file.
+1. **Done.** **Foundation**: `TabControl` in `StatusWindow`, Sync tab with
+   its reduced top toolbar (Add + Stop), shared bottom toolbar (Reload
+   config & restart + Exit mutagen monitor + Close) — everything else
+   unchanged.
+2. **Done.** **Mutagen Configuration tab**: extracted
+   `MutagenConfigEditorWindow` into `MutagenConfigEditorView`, an embedded
+   `UserControl`; removed the modal window and its toolbar button. Docs:
+   `requirements/08-mutagen-config-editor-requirements.md` updated in
+   place (FR-29/FR-33 marked superseded).
+3. **Done.** **Mutagen monitor Configuration tab**: new
+   `MutagenMonitorConfigEditorView` `UserControl` with the structured form
+   described above, Check/Save. Config load/save logic extracted from
+   `App.xaml.cs` into `MutagenMon.Core/Configuration/ConfigLoader.cs`
+   (shared + unit-tested, `ConfigLoaderTests`). Docs: new
+   `requirements/09-mutagen-monitor-config-editor-requirements.md`
+   (FR-34 through FR-38), `README.md` reading order updated.
+4. **Not started.** **Logs tab**: log ring buffer, grid `UserControl`,
+   Clear / Open log file / Clear log file.
+
+Documentation is updated after each phase, not batched at the end (see
+[[feedback_analysis_to_plan_file]] in memory). `requirements/UserTests.md`'s
+step-by-step scripts are not yet part of this cadence — still stale for
+phases 1-3 as of this writing; pending a decision on whether to include it.
 
 Each phase is independent and shippable on its own. No phase starts without
 an explicit request — this plan is not auto-advanced.

@@ -1,0 +1,330 @@
+<UserControl x:Class="MutagenMon.App.MutagenMonitorConfigEditorView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib">
+    <UserControl.Resources>
+        <x:Array x:Key="ResolveOptions" Type="sys:String">
+            <sys:String>A wins</sys:String>
+            <sys:String>B wins</sys:String>
+        </x:Array>
+        <Style TargetType="Label">
+            <Setter Property="Padding" Value="0,4,8,4" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style TargetType="GroupBox">
+            <Setter Property="Margin" Value="0,0,0,10" />
+            <Setter Property="Padding" Value="8" />
+        </Style>
+        <Style x:Key="FieldRow" TargetType="Grid">
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,8">
+            <Button x:Name="CheckButton" Content="Check" Width="90" Click="OnCheckClick" />
+            <Button x:Name="SaveButton" Content="Save" Width="90" Margin="8,0,0,0" Click="OnSaveClick" />
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+
+                <GroupBox Header="General">
+                    <StackPanel>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Start enabled"
+                                   ToolTip="If true, monitoring starts in the 'enabled' state (auto-restart active) rather than paused." />
+                            <CheckBox x:Name="StartEnabledCheck" Grid.Column="1" VerticalAlignment="Center" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Tray tooltip"
+                                   ToolTip="Application name used as the prefix of every tray tooltip and dialog title." />
+                            <TextBox x:Name="TrayTooltipBox" Grid.Column="1" />
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Logging &amp; notifications">
+                    <StackPanel>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Minimum log level"
+                                   ToolTip="Minimum level written to &lt;LogPath&gt;/mutagenMon.log." />
+                            <ComboBox x:Name="MinLogLevelCombo" Grid.Column="1" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Log path"
+                                   ToolTip="Base directory for mutagenMon.log." />
+                            <TextBox x:Name="LogPathBox" Grid.Column="1" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Log exceptions to console"
+                                   ToolTip="If true, unhandled exceptions are printed to the console instead of shown in a blocking error dialog." />
+                            <CheckBox x:Name="DebugExceptionsToConsoleCheck" Grid.Column="1" VerticalAlignment="Center" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Notify on restart-while-connecting"
+                                   ToolTip="Enables the desktop notification when a session is restarted because it was stuck in 'connecting'." />
+                            <CheckBox x:Name="NotifyRestartConnectionCheck" Grid.Column="1" VerticalAlignment="Center" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Notify on conflicts"
+                                   ToolTip="Enables the 'new conflicts detected' notification." />
+                            <CheckBox x:Name="NotifyConflictsCheck" Grid.Column="1" VerticalAlignment="Center" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Notify on auto-resolve"
+                                   ToolTip="Enables the notification raised when a conflict is auto-resolved." />
+                            <CheckBox x:Name="NotifyAutoresolveCheck" Grid.Column="1" VerticalAlignment="Center" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Notify on profile update"
+                                   ToolTip="Enables the per-session notification when the sync archive changed on disk." />
+                            <CheckBox x:Name="NotifyMutagenProfileUpdateCheck" Grid.Column="1" VerticalAlignment="Center" />
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Paths">
+                    <StackPanel>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Mutagen path"
+                                   ToolTip="Path to the mutagen CLI executable." />
+                            <TextBox x:Name="MutagenPathBox" Grid.Column="1" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Mutagen sessions file"
+                                   ToolTip="Path to the batch file containing one 'mutagen sync create' line per session." />
+                            <TextBox x:Name="MutagenSessionsBatFileBox" Grid.Column="1" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Mutagen profile directory"
+                                   ToolTip="Root directory of the sync engine's own data (per-session archive files)." />
+                            <TextBox x:Name="MutagenProfileDirBox" Grid.Column="1" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Merge tool path"
+                                   ToolTip="Path to the external visual diff/merge tool executable." />
+                            <TextBox x:Name="MergePathBox" Grid.Column="1" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="scp path"
+                                   ToolTip="Path to the scp binary used for remote (SSH) file transfer during conflict resolution." />
+                            <TextBox x:Name="ScpPathBox" Grid.Column="1" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="ssh path"
+                                   ToolTip="Path to the ssh binary used for remote stat calls (file size/mtime)." />
+                            <TextBox x:Name="SshPathBox" Grid.Column="1" />
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Session thresholds &amp; polling">
+                    <StackPanel>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Poll period (ms)"
+                                   ToolTip="Interval between two 'mutagen sync list' calls on the background polling task." />
+                            <TextBox x:Name="MutagenPollPeriodMsBox" Grid.Column="1" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Max 'connecting' polls"
+                                   ToolTip="Consecutive polls a session may stay 'connecting' before it is restarted." />
+                            <TextBox x:Name="SessionMaxErrorsBox" Grid.Column="1" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Max 'no session' polls"
+                                   ToolTip="Consecutive polls a session may report no result at all before it is restarted." />
+                            <TextBox x:Name="SessionMaxNoSessionBox" Grid.Column="1" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Max 'duplicate' polls"
+                                   ToolTip="Consecutive polls a session may be flagged as a duplicate name before it is restarted." />
+                            <TextBox x:Name="SessionMaxDuplicateBox" Grid.Column="1" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Profile update grace (s)"
+                                   ToolTip="Debounce window: an archive modification is only reported once at least this many seconds have passed since the previous one." />
+                            <TextBox x:Name="MutagenProfileGraceSecondsBox" Grid.Column="1" />
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Status max lag (seconds)">
+                    <StackPanel>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Info threshold"
+                                   ToolTip="Age of the last successful poll result past which the tray icon degrades to the Info staleness tier." />
+                            <TextBox x:Name="StatusMaxLagInfoBox" Grid.Column="1" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Warning threshold"
+                                   ToolTip="Age of the last successful poll result past which the tray icon degrades to the Warning staleness tier." />
+                            <TextBox x:Name="StatusMaxLagWarningBox" Grid.Column="1" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Error threshold"
+                                   ToolTip="Age of the last successful poll result past which the tray icon degrades to the Error staleness tier." />
+                            <TextBox x:Name="StatusMaxLagErrorBox" Grid.Column="1" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Restart threshold"
+                                   ToolTip="Age of the last successful poll result past which the whole application self-restarts." />
+                            <TextBox x:Name="StatusMaxLagRestartBox" Grid.Column="1" />
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Auto-resolve rules">
+                    <StackPanel>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Auto-resolve history age (s)"
+                                   ToolTip="Once a (session, filename) pair has been auto-resolved, it is not reprocessed for this long." />
+                            <TextBox x:Name="AutoResolveHistoryAgeSecondsBox" Grid.Column="1" />
+                        </Grid>
+
+                        <TextBlock Text="Ordered list of rules matching conflicting file paths — the first matching rule wins."
+                                   TextWrapping="Wrap" Margin="0,0,0,6" />
+
+                        <DataGrid x:Name="AutoResolveGrid" AutoGenerateColumns="False"
+                                  CanUserAddRows="False" CanUserDeleteRows="False"
+                                  GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                                  SelectionMode="Single" SelectionUnit="FullRow"
+                                  MaxHeight="220" MinHeight="80">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Filepath (regex)" Binding="{Binding FilePath}" Width="3*" />
+                                <DataGridComboBoxColumn Header="Resolve" ItemsSource="{StaticResource ResolveOptions}"
+                                                         SelectedItemBinding="{Binding Resolve}" Width="120" />
+                                <DataGridTemplateColumn Header="" Width="Auto" CanUserResize="False">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button Content="Up" Padding="4,0" Margin="0,0,2,0" Click="OnMoveRuleUpClick" />
+                                                <Button Content="Down" Padding="4,0" Margin="0,0,2,0" Click="OnMoveRuleDownClick" />
+                                                <Button Content="Remove" Padding="4,0" Click="OnRemoveRuleClick" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <Button x:Name="AddRuleButton" Content="+ Add rule" Width="110"
+                                HorizontalAlignment="Left" Margin="0,8,0,0" Click="OnAddRuleClick" />
+                    </StackPanel>
+                </GroupBox>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- FR-31-style: red, hidden when there is nothing to report. -->
+        <TextBlock x:Name="ValidationErrorText" Grid.Row="2"
+                   Foreground="Red" TextWrapping="Wrap" Margin="0,8,0,0"
+                   Visibility="Collapsed" />
+    </Grid>
+</UserControl>

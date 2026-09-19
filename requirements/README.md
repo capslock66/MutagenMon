@@ -27,7 +27,12 @@ This folder documents the required behavior of MutagenMon.
    own `config_mutagenmon.json`) from a new toolbar button, plus a
    "Reload config & restart" action to apply a saved change to
    already-running sessions. Implemented (FR-29 through FR-33).
-7. [UserTests.md](UserTests.md) — manual, click-by-click acceptance test
+7. [09-mutagen-monitor-config-editor-requirements.md](09-mutagen-monitor-config-editor-requirements.md)
+   — requirements and design for editing MutagenMon's own
+   `config_mutagenmon.json` as a structured form, from a third status-window
+   tab. Implemented (FR-34 through FR-38). Part of the tabbed status-view
+   rewrite tracked in `TABS_UI_PLAN.md` at the repository root.
+8. [UserTests.md](UserTests.md) — manual, click-by-click acceptance test
    script for verifying each requirement against the running application,
    kept in step with implementation progress.
 

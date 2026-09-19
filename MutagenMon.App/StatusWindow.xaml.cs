@@ -70,6 +70,7 @@ public partial class StatusWindow : Window
         ((IconKeyToImageSourceConverter)Resources["IconKeyToImageSourceConverter"]).Cache = iconCache;
         _logger = logger;
         MutagenConfigEditorViewControl.Initialize(logger);
+        MutagenMonitorConfigEditorViewControl.Initialize(logger);
     }
 
     public void UpdateContent(MonitorSnapshot snapshot, IReadOnlyList<string> sessionNames, bool reloadInProgress)
