@@ -32,7 +32,11 @@ This folder documents the required behavior of MutagenMon.
    `config_mutagenmon.json` as a structured form, from a third status-window
    tab. Implemented (FR-34 through FR-38). Part of the tabbed status-view
    rewrite tracked in `TABS_UI_PLAN.md` at the repository root.
-8. [UserTests.md](UserTests.md) — manual, click-by-click acceptance test
+8. [10-logs-tab-requirements.md](10-logs-tab-requirements.md) — requirements
+   and design for a real-time, 100-event log grid as a fourth status-window
+   tab. Implemented (FR-39 through FR-42). Last tab of the rewrite tracked
+   in `TABS_UI_PLAN.md`.
+9. [UserTests.md](UserTests.md) — manual, click-by-click acceptance test
    script for verifying each requirement against the running application,
    kept in step with implementation progress.
 

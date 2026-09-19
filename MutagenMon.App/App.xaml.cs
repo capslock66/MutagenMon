@@ -368,7 +368,7 @@ public partial class App //: Application
     {
         if (_statusWindow is null)
         {
-            _statusWindow = new StatusWindow(_logger!, _iconCache!);
+            _statusWindow = new StatusWindow(_logger!, _iconCache!, _loggerProvider!);
             _statusWindow.ResolveConflictsRequested += OnResolveConflictsRequested;
             _statusWindow.ReloadConfigRequested += OnStatusWindowReloadConfigRequested;
             _statusWindow.ToggleMonitoringRequested += OnStatusWindowToggleMonitoringRequested;

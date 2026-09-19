@@ -38,9 +38,30 @@ public sealed class FileLoggerProvider : ILoggerProvider
 {
     private const string EventLogSource = "MutagenMon";
 
+    /// <summary>Caps the in-memory backlog the "Logs" tab
+    /// (<see cref="LogsView"/>) shows on first display — an independent
+    /// concern from <see cref="_minLevel"/>/the primary file, which keep
+    /// every entry regardless.</summary>
+    private const int MaxRecentEntries = 100;
+
     private readonly object _writeLock = new();
+    private readonly Queue<LogEntry> _recentEntries = new();
     private string? _primaryLogPath;
     private LogLevel _minLevel = LogLevel.Trace;
+
+    /// <summary>Raised synchronously, on whatever thread logged the entry,
+    /// every time one is written — <see cref="LogsView"/> marshals to the UI
+    /// thread itself before touching its bound collection.</summary>
+    public event Action<LogEntry>? EntryLogged;
+
+    /// <summary>The primary log file's current path, or null before
+    /// <see cref="SetPrimaryLogPath"/> has ever been called — read live
+    /// (not cached) by <see cref="LogsView"/>'s "Open log file"/"Clear log
+    /// file" actions, since a config reload can change it.</summary>
+    public string? PrimaryLogPath
+    {
+        get { lock (_writeLock) return _primaryLogPath; }
+    }
 
     public void SetPrimaryLogPath(string path)
     {
@@ -48,6 +69,16 @@ public sealed class FileLoggerProvider : ILoggerProvider
         {
             _primaryLogPath = path;
         }
+    }
+
+    /// <summary>Snapshot of at most the last <see cref="MaxRecentEntries"/>
+    /// entries logged so far — what <see cref="LogsView"/> populates itself
+    /// with on first display, so it isn't empty just because the tab wasn't
+    /// open yet when earlier entries were logged.</summary>
+    public IReadOnlyList<LogEntry> GetRecentEntries()
+    {
+        lock (_writeLock)
+            return _recentEntries.ToArray();
     }
 
     public void SetMinLevel(LogLevel level)
@@ -70,7 +101,9 @@ public sealed class FileLoggerProvider : ILoggerProvider
 
     internal void Write(string categoryName, LogLevel level, string message, Exception? exception)
     {
-        var line = FormatLine(categoryName, level, message, exception);
+        var timestamp = DateTimeOffset.Now;
+        var line = FormatLine(timestamp, categoryName, level, message, exception);
+        var entry = new LogEntry(timestamp, level, categoryName, FormatMessage(message, exception));
         lock (_writeLock)
         {
             // Primary path is null before config is loaded (SetPrimaryLogPath
@@ -83,7 +116,12 @@ public sealed class FileLoggerProvider : ILoggerProvider
                 // The primary sink just failed for a non-Critical entry —
                 // still worth a durable trace of that fact.
                 WriteToWindowsEventLog($"Failed to write to primary log '{_primaryLogPath}'; see Debug output.", EventLogEntryType.Warning);
+
+            _recentEntries.Enqueue(entry);
+            while (_recentEntries.Count > MaxRecentEntries)
+                _recentEntries.Dequeue();
         }
+        EntryLogged?.Invoke(entry);
     }
 
     /// <summary>Best-effort trace to the Windows Application event log —
@@ -119,9 +157,8 @@ public sealed class FileLoggerProvider : ILoggerProvider
         }
     }
 
-    private static string FormatLine(string categoryName, LogLevel level, string message, Exception? exception)
+    private static string FormatLine(DateTimeOffset timestamp, string categoryName, LogLevel level, string message, Exception? exception)
     {
-        var timestamp = DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss.fff zzz");
         var levelTag = level switch
         {
             LogLevel.Trace => "TRC",
@@ -132,11 +169,14 @@ public sealed class FileLoggerProvider : ILoggerProvider
             LogLevel.Critical => "FTL",
             _ => "???",
         };
-        var line = $"{timestamp} [{levelTag}] {categoryName}: {message}{Environment.NewLine}";
+        var line = $"{timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{levelTag}] {categoryName}: {message}{Environment.NewLine}";
         if (exception is not null)
             line += exception + Environment.NewLine;
         return line;
     }
+
+    private static string FormatMessage(string message, Exception? exception) =>
+        exception is null ? message : $"{message}{Environment.NewLine}{exception}";
 
     public void Dispose()
     {

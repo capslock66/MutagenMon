@@ -63,7 +63,7 @@ public partial class StatusWindow : Window
     private readonly ObservableCollection<SessionSummaryRow> _sessionRows = new();
     private readonly ILogger _logger;
 
-    public StatusWindow(ILogger logger, IconImageCache iconCache)
+    public StatusWindow(ILogger logger, IconImageCache iconCache, FileLoggerProvider loggerProvider)
     {
         InitializeComponent();
         SessionsGrid.ItemsSource = _sessionRows;
@@ -71,6 +71,7 @@ public partial class StatusWindow : Window
         _logger = logger;
         MutagenConfigEditorViewControl.Initialize(logger);
         MutagenMonitorConfigEditorViewControl.Initialize(logger);
+        LogsViewControl.Initialize(logger, loggerProvider);
     }
 
     public void UpdateContent(MonitorSnapshot snapshot, IReadOnlyList<string> sessionNames, bool reloadInProgress)

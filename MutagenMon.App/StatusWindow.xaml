@@ -104,6 +104,10 @@
             <TabItem Header="Mutagen monitor Configuration">
                 <local:MutagenMonitorConfigEditorView x:Name="MutagenMonitorConfigEditorViewControl" />
             </TabItem>
+
+            <TabItem Header="Logs">
+                <local:LogsView x:Name="LogsViewControl" />
+            </TabItem>
         </TabControl>
 
         <!-- Toolbar shared by every tab, below the TabControl: Reload
