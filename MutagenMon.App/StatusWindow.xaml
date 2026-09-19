@@ -12,116 +12,113 @@
     </Window.Resources>
     <Grid Margin="16">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- FR-16: toolbar above the grid — Add, and Reload config relocated
-             here from the bottom action row. Stop/Start Mutagen sessions
-             also relocated here, just right of Add. FR-29: Edit mutagen
-             config sits between Add and Stop/Start Mutagen sessions. -->
-        <Grid Grid.Row="0" Margin="0,0,0,8">
+        <TabControl Grid.Row="0">
+            <TabItem Header="Sync">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- FR-16: toolbar above the grid — Add, and Stop/Start
+                         Mutagen sessions, just right of Add. -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,8">
+                        <Button x:Name="AddSessionButton"
+                                Padding="8,4" Click="OnAddSessionClick" ToolTip="Add session">
+                            <StackPanel Orientation="Horizontal">
+                                <iconPacks:PackIconMaterial Kind="PlusThick" Width="16" Height="16" VerticalAlignment="Center" />
+                                <TextBlock Text="Add" Margin="6,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+
+                        <Button x:Name="ToggleMonitoringButton" Content="Stop Mutagen sessions" Width="150"
+                                Margin="8,0,0,0" Click="OnToggleMonitoringClick" />
+                    </StackPanel>
+
+                    <DataGrid x:Name="SessionsGrid" Grid.Row="1"
+                              AutoGenerateColumns="False" IsReadOnly="True"
+                              CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
+                              GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                              SelectionMode="Single" SelectionUnit="FullRow">
+                        <DataGrid.Columns>
+                            <!-- FR-17.1: Edit/Delete row actions, leftmost, before Name.
+                                 FR-28: View sync status, leftmost of the three. -->
+                            <DataGridTemplateColumn Header="" Width="Auto" CanUserResize="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Click="OnViewSyncStatusClick" ToolTip="View sync status"
+                                                    Padding="2" Background="Transparent" BorderThickness="0">
+                                                <iconPacks:PackIconMaterial Kind="EyeOutline" Width="14" Height="14" />
+                                            </Button>
+                                            <Button Click="OnEditSessionClick" ToolTip="Edit session"
+                                                    Margin="4,0,0,0"
+                                                    Padding="2" Background="Transparent" BorderThickness="0">
+                                                <iconPacks:PackIconMaterial Kind="PencilOutline" Width="14" Height="14" />
+                                            </Button>
+                                            <Button Click="OnDeleteSessionClick" ToolTip="Delete session"
+                                                    Padding="2" Margin="4,0,0,0" Background="Transparent" BorderThickness="0">
+                                                <iconPacks:PackIconMaterial Kind="TrashCanOutline" Width="14" Height="14" />
+                                            </Button>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
+                            <DataGridTemplateColumn Header="Status" Width="2*">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Image Source="{Binding IconKey, Converter={StaticResource IconKeyToImageSourceConverter}}"
+                                                   Width="16" Height="16" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding Status}" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Alpha" Binding="{Binding AlphaUrl}" Width="2*" />
+                            <DataGridTextColumn Header="Beta" Binding="{Binding BetaUrl}" Width="2*" />
+                            <DataGridTextColumn Header="Last changed" Binding="{Binding LastChangedDisplay}" Width="Auto" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <TextBlock x:Name="ConflictsText" Grid.Row="2" TextWrapping="Wrap" FontFamily="Consolas" Margin="0,12,0,0" />
+
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                        <Button x:Name="CancelButton" Content="Cancel" Width="90" Click="OnCancelClick" />
+                        <Button x:Name="ResolveConflictsButton" Content="Resolve conflicts" Width="130" Margin="8,0,0,0" Click="OnResolveConflictsClick" />
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <!-- Toolbar shared by every tab, below the TabControl: Reload
+             config & restart, left of Exit mutagen monitor; Close on
+             the right. -->
+        <Grid Grid.Row="1" Margin="0,12,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
             <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left">
-                <Button x:Name="AddSessionButton"
-                        Padding="8,4" Click="OnAddSessionClick" ToolTip="Add session">
+                <Button x:Name="ReloadConfigButton"
+                        Padding="8,4" Click="OnReloadConfigClick" ToolTip="Reload config &amp; restart mutagen">
                     <StackPanel Orientation="Horizontal">
-                        <iconPacks:PackIconMaterial Kind="PlusThick" Width="16" Height="16" VerticalAlignment="Center" />
-                        <TextBlock Text="Add" Margin="6,0,0,0" VerticalAlignment="Center" />
+                        <iconPacks:PackIconMaterial Kind="CogRefreshOutline" Width="16" Height="16" VerticalAlignment="Center" />
+                        <TextBlock Text="Reload config &amp; restart" Margin="6,0,0,0" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
-
-                <Button x:Name="EditMutagenConfigButton"
-                        Padding="8,4" Margin="8,0,0,0" Click="OnEditMutagenConfigClick" ToolTip="Edit mutagen config">
-                    <StackPanel Orientation="Horizontal">
-                        <iconPacks:PackIconMaterial Kind="FileDocumentEditOutline" Width="16" Height="16" VerticalAlignment="Center" />
-                        <TextBlock Text="Edit mutagen config" Margin="6,0,0,0" VerticalAlignment="Center" />
-                    </StackPanel>
-                </Button>
-
-                <Button x:Name="ToggleMonitoringButton" Content="Stop Mutagen sessions" Width="150"
-                        Margin="8,0,0,0" Click="OnToggleMonitoringClick" />
+                <Button x:Name="ExitButton" Content="Exit mutagen monitor" Width="130" Margin="8,0,0,0" Click="OnExitClick" />
             </StackPanel>
 
-            <Button x:Name="ReloadConfigButton" Grid.Column="1" HorizontalAlignment="Right"
-                    Padding="8,4" Click="OnReloadConfigClick" ToolTip="Reload config &amp; restart mutagen">
-                <StackPanel Orientation="Horizontal">
-                    <iconPacks:PackIconMaterial Kind="CogRefreshOutline" Width="16" Height="16" VerticalAlignment="Center" />
-                    <TextBlock Text="Reload config" Margin="6,0,0,0" VerticalAlignment="Center" />
-                </StackPanel>
-            </Button>
-        </Grid>
-
-        <DataGrid x:Name="SessionsGrid" Grid.Row="1"
-                  AutoGenerateColumns="False" IsReadOnly="True"
-                  CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
-                  GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                  SelectionMode="Single" SelectionUnit="FullRow">
-            <DataGrid.Columns>
-                <!-- FR-17.1: Edit/Delete row actions, leftmost, before Name.
-                     FR-28: View sync status, leftmost of the three. -->
-                <DataGridTemplateColumn Header="" Width="Auto" CanUserResize="False">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <StackPanel Orientation="Horizontal">
-                                <Button Click="OnViewSyncStatusClick" ToolTip="View sync status"
-                                        Padding="2" Background="Transparent" BorderThickness="0">
-                                    <iconPacks:PackIconMaterial Kind="EyeOutline" Width="14" Height="14" />
-                                </Button>
-                                <Button Click="OnEditSessionClick" ToolTip="Edit session"
-                                        Margin="4,0,0,0"
-                                        Padding="2" Background="Transparent" BorderThickness="0">
-                                    <iconPacks:PackIconMaterial Kind="PencilOutline" Width="14" Height="14" />
-                                </Button>
-                                <Button Click="OnDeleteSessionClick" ToolTip="Delete session"
-                                        Padding="2" Margin="4,0,0,0" Background="Transparent" BorderThickness="0">
-                                    <iconPacks:PackIconMaterial Kind="TrashCanOutline" Width="14" Height="14" />
-                                </Button>
-                            </StackPanel>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
-                <DataGridTemplateColumn Header="Status" Width="2*">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <StackPanel Orientation="Horizontal">
-                                <Image Source="{Binding IconKey, Converter={StaticResource IconKeyToImageSourceConverter}}"
-                                       Width="16" Height="16" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding Status}" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Alpha" Binding="{Binding AlphaUrl}" Width="2*" />
-                <DataGridTextColumn Header="Beta" Binding="{Binding BetaUrl}" Width="2*" />
-                <DataGridTextColumn Header="Last changed" Binding="{Binding LastChangedDisplay}" Width="Auto" />
-            </DataGrid.Columns>
-        </DataGrid>
-
-        <TextBlock x:Name="ConflictsText" Grid.Row="2" TextWrapping="Wrap" FontFamily="Consolas" Margin="0,12,0,0" />
-
-        <Grid Grid.Row="3" Margin="0,12,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-
-            <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left">
-                <Button x:Name="ExitButton" Content="Exit mutagen monitor" Width="130" Click="OnExitClick" />
-            </StackPanel>
-
-            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button x:Name="CloseButton" Content="Close" Width="90" Click="OnCloseClick" />
-                <Button x:Name="CancelButton" Content="Cancel" Width="90" Margin="8,0,0,0" Click="OnCancelClick" />
-                <Button x:Name="ResolveConflictsButton" Content="Resolve conflicts" Width="130" Margin="8,0,0,0" Click="OnResolveConflictsClick" />
-            </StackPanel>
+            <Button x:Name="CloseButton" Grid.Column="1" Content="Close" Width="90" Click="OnCloseClick" />
         </Grid>
     </Grid>
 </Window>

@@ -42,11 +42,6 @@ public partial class StatusWindow : Window
     /// <c>SessionEditingService</c> and the session definitions.</summary>
     public event EventHandler? AddSessionRequested;
 
-    /// <summary>Raised when the user clicks the toolbar's "Edit mutagen
-    /// config" action (FR-29.2) — handled by App.xaml.cs, which owns
-    /// showing <see cref="MutagenConfigEditorWindow"/>.</summary>
-    public event EventHandler? EditMutagenConfigRequested;
-
     /// <summary>Raised when the user clicks a row's View sync status icon
     /// (FR-28), with that session's name.</summary>
     public event EventHandler<string>? ViewSyncStatusRequested;
@@ -147,12 +142,6 @@ public partial class StatusWindow : Window
     {
         _logger.LogInformation("User action: status window Add session clicked");
         AddSessionRequested?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void OnEditMutagenConfigClick(object sender, RoutedEventArgs e)
-    {
-        _logger.LogInformation("User action: status window Edit mutagen config clicked");
-        EditMutagenConfigRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnViewSyncStatusClick(object sender, RoutedEventArgs e)
