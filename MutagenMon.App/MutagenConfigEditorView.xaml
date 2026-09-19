@@ -4,27 +4,30 @@
     <Grid Margin="8">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,8">
-            <Button x:Name="CheckButton" Content="Check" Width="90" Click="OnCheckClick" />
-            <Button x:Name="SaveButton" Content="Save" Width="90" Margin="8,0,0,0" Click="OnSaveClick" />
-        </StackPanel>
-
         <!-- FR-30.4: shown only when the file didn't exist at load time. -->
-        <TextBlock x:Name="NewFileNoticeText" Grid.Row="1"
+        <TextBlock x:Name="NewFileNoticeText" Grid.Row="0"
                    Text="File does not exist yet — it will be created on Save."
                    FontStyle="Italic" Margin="0,0,0,8" Visibility="Collapsed" />
 
-        <TextBox x:Name="EditorBox" Grid.Row="2"
+        <TextBox x:Name="EditorBox" Grid.Row="1"
                  FontFamily="Consolas"
                  AcceptsReturn="True" AcceptsTab="True"
                  TextWrapping="NoWrap"
                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
                  BorderThickness="1" Padding="6" />
+
+        <Border Grid.Row="2" BorderBrush="{x:Static SystemColors.ControlDarkBrush}" BorderThickness="0,1,0,0"
+                Margin="0,8,0,0" Padding="0,8,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                <Button x:Name="CheckButton" Content="Check" Width="90" Click="OnCheckClick" />
+                <Button x:Name="SaveButton" Content="Save" Width="90" Margin="8,0,0,0" Click="OnSaveClick" />
+            </StackPanel>
+        </Border>
 
         <!-- FR-31.1: red, hidden when there is nothing to report. -->
         <TextBlock x:Name="ValidationErrorText" Grid.Row="3"

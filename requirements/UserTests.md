@@ -367,6 +367,7 @@ Covered above by UT-7.1.
   worst session) to the left of the status text, e.g. green for "Watching
   for changes". "Last changed" reads "—" for a session that hasn't synced
   anything since the app started, or a timestamp otherwise.
+* Below the grid, a "Conflicts:" label reads "(none)".
 * The window can be resized (drag an edge/corner) and the grid grows/
   shrinks with it.
 * A "Close" button is displayed (alongside the "Reload config & restart
@@ -379,8 +380,7 @@ Covered above by UT-7.1.
 
 * Produce at least one unresolved conflict (see UT-9 setup below).
 * Left-click the tray icon.
-* The window's content also shows a
-  "==================== CONFLICTS ====================" section listing
+* The window's content also shows a "Conflicts:" section listing
   "`<session>: <file>`" for the conflicting file (with an
   "`[autoresolving]`" suffix instead if an `AutoResolve` rule matches it
   — see FR-10 below).

@@ -294,8 +294,9 @@ public partial class StatusWindow : Window
         return status.Status;
     }
 
-    /// <summary>The "==== CONFLICTS ====" section, listing every conflict
-    /// (autoresolving ones annotated) — empty string if there are none at all.</summary>
+    /// <summary>Lists every conflict (autoresolving ones annotated) —
+    /// "(none)" if there are none at all. The "Conflicts:" label itself
+    /// lives in the XAML, next to <c>ConflictsText</c>.</summary>
     private static string BuildConflictsSection(
         IReadOnlyCollection<string> sessionNames, IReadOnlyDictionary<string, IReadOnlyList<ConflictRecord>> conflicts)
     {
@@ -314,8 +315,9 @@ public partial class StatusWindow : Window
         }
 
         if (sb.Length == 0)
-            return "";
-        return "==================== CONFLICTS ====================\n" + sb;
+            return "(none)";
+
+        return sb.ToString();
     }
 
     /// <summary>True if at least one conflict is
