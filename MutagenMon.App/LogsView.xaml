@@ -17,12 +17,16 @@
                  the mutagen monitor configuration (default off). -->
             <Button x:Name="GenerateExceptionButton" Content="Generate exception" Width="130" Margin="8,0,0,0"
                     Click="OnGenerateExceptionClick" Visibility="Collapsed" />
+            <CheckBox x:Name="HideCategoryColumnCheck" Content="Hide category column"
+                      VerticalAlignment="Center" Margin="16,0,0,0"
+                      Checked="OnHideCategoryColumnChanged" Unchecked="OnHideCategoryColumnChanged" />
         </StackPanel>
 
         <!-- FR-43: master grid. -->
         <DataGrid x:Name="LogGrid" Grid.Row="1"
                   AutoGenerateColumns="False" IsReadOnly="True"
                   CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
+                  CanUserSortColumns="False"
                   GridLinesVisibility="Horizontal" HeadersVisibility="Column"
                   SelectionMode="Single" SelectionUnit="FullRow"
                   FontFamily="Consolas"
@@ -40,10 +44,10 @@
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Time" Binding="{Binding Timestamp, StringFormat='yyyy-MM-dd HH:mm:ss.fff'}" Width="Auto" />
                 <DataGridTextColumn Header="Level" Binding="{Binding Level}" Width="Auto" />
-                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="Auto" />
                 <!-- FR-43.4: single-line summary — the full (possibly
                      multi-line) message is shown in the detail panel below. -->
                 <DataGridTextColumn Header="Message" Binding="{Binding GridSummary}" Width="*" />
+                <DataGridTextColumn x:Name="CategoryColumn" Header="Category" Binding="{Binding Category}" Width="Auto" />
             </DataGrid.Columns>
         </DataGrid>
 

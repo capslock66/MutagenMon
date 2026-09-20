@@ -79,7 +79,6 @@ public partial class MutagenMonitorConfigEditorView : UserControl
 
         MinLogLevelCombo.SelectedItem = options.MinLogLevel;
         LogPathBox.Text = options.LogPath;
-        DebugExceptionsToConsoleCheck.IsChecked = options.DebugExceptionsToConsole;
         NotifyRestartConnectionCheck.IsChecked = options.NotifyRestartConnection;
         NotifyConflictsCheck.IsChecked = options.NotifyConflicts;
         NotifyAutoresolveCheck.IsChecked = options.NotifyAutoresolve;
@@ -209,7 +208,6 @@ public partial class MutagenMonitorConfigEditorView : UserControl
             TrayTooltip = TrayTooltipBox.Text,
             MinLogLevel = (LogLevel)(MinLogLevelCombo.SelectedItem ?? LogLevel.Trace),
             LogPath = LogPathBox.Text,
-            DebugExceptionsToConsole = DebugExceptionsToConsoleCheck.IsChecked == true,
             NotifyRestartConnection = NotifyRestartConnectionCheck.IsChecked == true,
             NotifyConflicts = NotifyConflictsCheck.IsChecked == true,
             NotifyAutoresolve = NotifyAutoresolveCheck.IsChecked == true,

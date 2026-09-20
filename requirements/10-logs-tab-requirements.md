@@ -31,9 +31,9 @@ for the tab immediately before this one. Continues the FR numbering from
 ## FR-40 — Real-time event grid
 
 - FR-40.1: The tab shows a grid of the last **100** logged events —
-  Timestamp, Level, Category, Message columns — matching every entry
-  `FileLoggerProvider` writes to the primary log file and/or the Windows
-  Event Log (FR-14), not a separate/filtered stream.
+  Timestamp, Level, Message, Category columns, in that order — matching
+  every entry `FileLoggerProvider` writes to the primary log file and/or
+  the Windows Event Log (FR-14), not a separate/filtered stream.
 - FR-40.2: **No file re-read/reload**: the grid is populated once, when the
   tab's hosting control (`LogsView`) is constructed, from
   `FileLoggerProvider.GetRecentEntries()` — a 100-entry in-memory ring
@@ -47,6 +47,17 @@ for the tab immediately before this one. Continues the FR numbering from
   (`Dispatcher.BeginInvoke`).
 - FR-40.4: The grid trims to the same 100-row cap independently on its own
   side, so it self-limits even across a "Clear" (FR-41) — see there.
+- FR-40.5: Column-header sorting is disabled (`CanUserSortColumns="False"`).
+  The grid's row order MUST always match arrival order — auto-scroll
+  (FR-46) and "new entries always appear at the bottom" only make sense
+  against that fixed order; letting a column sort re-order rows out from
+  under a live-appending grid would put the newest entry anywhere on
+  screen instead of at the bottom.
+- FR-40.6: A **"Hide category column"** checkbox in the toolbar, **checked
+  by default**, collapses the Category column entirely (header included)
+  when checked, and restores it when unchecked. Purely a display toggle —
+  it doesn't affect what's logged, the ring buffer, or any other column;
+  toggling it back and forth doesn't lose or reorder any row.
 
 ## FR-41 — Clear (the grid only)
 

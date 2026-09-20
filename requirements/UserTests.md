@@ -1330,6 +1330,28 @@ Covered above by UT-7.4.
 
 ## FR-43/44/45/46 — Logs tab: master/detail, error highlighting, generate exception, auto-scroll
 
+**UT-40.5 — Column headers don't sort the grid (FR-40.5)** ✅
+
+* Open the status window, "Logs" tab, with events actively arriving (e.g.
+  leave a session polling).
+* Column order, left to right, is Time / Level / Message / Category.
+* Click the "Time", "Level", "Message", or "Category" column header.
+* Nothing happens — no sort arrow appears, the row order is unchanged.
+* Let a few more entries arrive. They keep appearing at the bottom, in
+  arrival order, exactly as before clicking the header (no reordering
+  ever happens).
+
+**UT-40.6 — "Hide category column" checkbox (FR-40.6)** ✅
+
+* Open the status window, "Logs" tab.
+* The "Hide category column" checkbox in the toolbar is checked by
+  default, and the Category column (including its header) is not shown —
+  only Time / Level / Message.
+* Uncheck it. The Category column reappears, at its usual position
+  (rightmost).
+* Check it again. The Category column disappears again — no rows are
+  lost, reordered, or otherwise affected by toggling it.
+
 **UT-43.1 — Master/detail split with splitter (FR-43)** ✅
 
 * Open the status window, "Logs" tab.

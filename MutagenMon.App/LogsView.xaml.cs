@@ -45,7 +45,17 @@ public partial class LogsView : UserControl
         InitializeComponent();
         LogGrid.ItemsSource = _entries;
         LogGrid.Loaded += OnLogGridLoaded;
+        // Set after InitializeComponent (not IsChecked="True" in XAML): the
+        // Checked event fires synchronously as soon as the CheckBox itself
+        // is constructed, which happens before CategoryColumn — declared
+        // later in the same XAML file — is assigned to its field.
+        HideCategoryColumnCheck.IsChecked = true;
     }
+
+    private void OnHideCategoryColumnChanged(object sender, RoutedEventArgs e) => UpdateCategoryColumnVisibility();
+
+    private void UpdateCategoryColumnVisibility() =>
+        CategoryColumn.Visibility = HideCategoryColumnCheck.IsChecked == true ? Visibility.Collapsed : Visibility.Visible;
 
     public void Initialize(ILogger logger, FileLoggerProvider loggerProvider, bool showGenerateException)
     {

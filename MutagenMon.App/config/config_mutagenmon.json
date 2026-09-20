@@ -1,7 +1,6 @@
 {
   "DebugLevel": 0,
   "MinLogLevel": "Trace",
-  "DebugExceptionsToConsole": false,
   "ShowGenerateException": true,
   "NotifyRestartConnection": false,
   "NotifyConflicts": true,

@@ -27,8 +27,6 @@ public sealed class MutagenMonOptions
     /// high a level.</summary>
     public LogLevel MinLogLevel { get; set; } = LogLevel.Trace;
 
-    public bool DebugExceptionsToConsole { get; set; }
-
     /// <summary>Shows a "Generate exception" button in the Logs tab's
     /// toolbar, which throws a deliberate unhandled exception to exercise
     /// the FR-14.1 error-handling path without needing a real crash.</summary>

@@ -113,15 +113,6 @@
                                 <ColumnDefinition Width="220" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <Label Grid.Column="0" Content="Log exceptions to console"
-                                   ToolTip="If true, unhandled exceptions are printed to the console instead of shown in a blocking error dialog." />
-                            <CheckBox x:Name="DebugExceptionsToConsoleCheck" Grid.Column="1" VerticalAlignment="Center" />
-                        </Grid>
-                        <Grid Style="{StaticResource FieldRow}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="220" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
                             <Label Grid.Column="0" Content="Notify on restart-while-connecting"
                                    ToolTip="Enables the desktop notification when a session is restarted because it was stuck in 'connecting'." />
                             <CheckBox x:Name="NotifyRestartConnectionCheck" Grid.Column="1" VerticalAlignment="Center" />

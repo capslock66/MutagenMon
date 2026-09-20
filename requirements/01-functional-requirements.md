@@ -466,14 +466,12 @@ scale and are folded into the "≈" approximations there).
 > actually writes and where.
 
 - FR-14.1: Unhandled exceptions MUST be logged with full traceback to an
-  error log file (`<LogPath>/error.log`), and, unless
-  `DebugExceptionsToConsole` is `true` (default `false`), MUST be shown
-  to the user in a blocking, OK-only error dialog with title
-  `"MutagenMon error"` and the traceback as body text. This applies
-  uniformly to: external-process failures (`mutagen`/merge tool
-  non-zero exit or launch failure), the tray icon failing to (re)install
-  (FR-6.4), and any other unhandled exception reaching the top of the main
-  loop.
+  error log file (`<LogPath>/error.log`), and MUST be shown to the user in
+  a blocking, OK-only error dialog with title `"MutagenMon error"` and the
+  traceback as body text. This applies uniformly to: external-process
+  failures (`mutagen`/merge tool non-zero exit or launch failure), the
+  tray icon failing to (re)install (FR-6.4), and any other unhandled
+  exception reaching the top of the main loop.
 - FR-14.2: A configurable verbosity level (`DebugLevel`, default `0`) MUST
   gate a separate debug log (`<LogPath>/debug.log`) capturing internal
   state transitions (0 = disabled, up to 100 = maximum verbosity) — each
@@ -516,8 +514,10 @@ reproducing it verbatim:
   gotcha the rewrite specifically guards against) is logged with full
   exception detail and always shown to the user via a blocking
   `MessageBox`. The legacy's "log to console instead" flag
-  (`DebugExceptionsToConsole` in config) is preserved as a config key for
-  compatibility but has no effect yet in the rewrite.
+  (`DebugExceptionsToConsole` in config) was preserved for a while as an
+  inert compatibility-only config key, then removed outright once it was
+  clear the rewrite would never implement console output — there is no
+  actual console for a `WinExe` WPF app to log to in the first place.
 - **FR-14.2 (reproduced with a different config key, `MinLogLevel`
   instead of `DebugLevel`)**: the rewrite uses a single log sink for
   every level, gated by a minimum `LogLevel` (`Trace`, `Debug`,
