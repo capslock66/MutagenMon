@@ -1,8 +1,9 @@
 <Window x:Class="MutagenMon.App.SessionEditWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="MutagenMon" Width="620" Height="760"
-        MinWidth="560" MinHeight="480"
+        xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
+        Title="MutagenMon" Width="640" Height="540"
+        MinWidth="600" MinHeight="420"
         WindowStartupLocation="CenterOwner" ResizeMode="CanResize"
         ShowInTaskbar="False">
     <Window.Resources>
@@ -14,10 +15,6 @@
             <Setter Property="FontWeight" Value="Bold" />
             <Setter Property="HorizontalAlignment" Value="Center" />
             <Setter Property="Margin" Value="2,0,2,2" />
-        </Style>
-        <Style TargetType="GroupBox">
-            <Setter Property="Margin" Value="0,0,0,10" />
-            <Setter Property="Padding" Value="8" />
         </Style>
     </Window.Resources>
 
@@ -33,6 +30,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="80" />
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -40,19 +38,28 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <Label Grid.Row="0" Grid.Column="0" Content="Name" />
-            <TextBox x:Name="NameBox" Grid.Row="0" Grid.Column="1" Margin="0,2" TextChanged="OnValidationFieldChanged" />
+            <TextBox x:Name="NameBox" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,2" TextChanged="OnValidationFieldChanged" />
             <Label Grid.Row="1" Grid.Column="0" Content="Alpha" />
             <TextBox x:Name="AlphaBox" Grid.Row="1" Grid.Column="1" Margin="0,2" TextChanged="OnValidationFieldChanged" />
+            <Button x:Name="AlphaBrowseButton" Grid.Row="1" Grid.Column="2" Margin="4,2,0,2"
+                    Padding="4,2" Background="Transparent" BorderThickness="0"
+                    Click="OnAlphaBrowseClick" ToolTip="Browse...">
+                <iconPacks:PackIconMaterial Kind="FolderOutline" Width="16" Height="16" />
+            </Button>
             <Label Grid.Row="2" Grid.Column="0" Content="Beta" />
             <TextBox x:Name="BetaBox" Grid.Row="2" Grid.Column="1" Margin="0,2" TextChanged="OnValidationFieldChanged" />
+            <Button x:Name="BetaBrowseButton" Grid.Row="2" Grid.Column="2" Margin="4,2,0,2"
+                    Padding="4,2" Background="Transparent" BorderThickness="0"
+                    Click="OnBetaBrowseClick" ToolTip="Browse...">
+                <iconPacks:PackIconMaterial Kind="FolderOutline" Width="16" Height="16" />
+            </Button>
         </Grid>
 
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-            <StackPanel>
-                <GroupBox Header="Options">
-                    <StackPanel>
-
-                        <Grid Margin="0,0,0,8">
+        <TabControl Grid.Row="1" TabStripPlacement="Left">
+            <TabItem Header="Sync mode">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
+                        <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="140" />
                                 <ColumnDefinition Width="*" />
@@ -60,16 +67,28 @@
                             <Label Grid.Column="0" Content="Sync mode" />
                             <ComboBox x:Name="SyncModeCombo" Grid.Column="1" />
                         </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
 
+            <TabItem Header="Ignore">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
                         <Label Content="Ignore" Padding="0,0,0,2" />
                         <TextBox x:Name="IgnoreBox" AcceptsReturn="True" TextWrapping="NoWrap"
                                  Height="70" VerticalScrollBarVisibility="Auto" FontFamily="Consolas"
                                  Margin="0,0,0,4" />
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <StackPanel Orientation="Horizontal">
                             <CheckBox x:Name="IgnoreVcsCheck" Content="Ignore VCS directories" IsThreeState="True" Margin="0,0,20,0" />
                             <CheckBox x:Name="IgnoreSyntaxDockerCheck" Content="Use Docker ignore syntax" />
                         </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
 
+            <TabItem Header="Permissions">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
                         <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="140" />
@@ -79,8 +98,7 @@
                             <ComboBox x:Name="PermissionsModeCombo" Grid.Column="1" />
                         </Grid>
 
-                        <TextBlock Text="Permissions" FontWeight="Bold" Margin="0,0,0,4" />
-                        <Grid Margin="0,0,0,8">
+                        <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="140" />
                                 <ColumnDefinition Width="*" />
@@ -119,8 +137,14 @@
                             <TextBox x:Name="DirectoryModeAlphaBox" Grid.Row="4" Grid.Column="2" Margin="2" />
                             <TextBox x:Name="DirectoryModeBetaBox" Grid.Row="4" Grid.Column="3" Margin="2" />
                         </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
 
-                        <Grid Margin="0,0,0,8">
+            <TabItem Header="Symbolic links">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
+                        <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="140" />
                                 <ColumnDefinition Width="*" />
@@ -128,9 +152,14 @@
                             <Label Grid.Column="0" Content="Symbolic links" />
                             <ComboBox x:Name="SymlinkModeCombo" Grid.Column="1" />
                         </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
 
-                        <TextBlock Text="Watching" FontWeight="Bold" Margin="0,0,0,4" />
-                        <Grid Margin="0,0,0,8">
+            <TabItem Header="Watching">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
+                        <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="140" />
                                 <ColumnDefinition Width="*" />
@@ -157,9 +186,14 @@
                             <TextBox x:Name="WatchPollingIntervalAlphaBox" Grid.Row="2" Grid.Column="2" Margin="2" />
                             <TextBox x:Name="WatchPollingIntervalBetaBox" Grid.Row="2" Grid.Column="3" Margin="2" />
                         </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
 
-                        <TextBlock Text="Probing and scanning" FontWeight="Bold" Margin="0,0,0,4" />
-                        <Grid Margin="0,0,0,8">
+            <TabItem Header="Probing and scanning">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
+                        <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="140" />
                                 <ColumnDefinition Width="*" />
@@ -186,9 +220,14 @@
                             <ComboBox x:Name="ScanModeAlphaCombo" Grid.Row="2" Grid.Column="2" Margin="2" />
                             <ComboBox x:Name="ScanModeBetaCombo" Grid.Row="2" Grid.Column="3" Margin="2" />
                         </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
 
-                        <TextBlock Text="Staging" FontWeight="Bold" Margin="0,0,0,4" />
-                        <Grid Margin="0,0,0,8">
+            <TabItem Header="Staging">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
+                        <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="140" />
                                 <ColumnDefinition Width="*" />
@@ -209,8 +248,13 @@
                             <ComboBox x:Name="StageModeAlphaCombo" Grid.Row="1" Grid.Column="2" Margin="2" />
                             <ComboBox x:Name="StageModeBetaCombo" Grid.Row="1" Grid.Column="3" Margin="2" />
                         </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
 
-                        <TextBlock Text="Limit" FontWeight="Bold" Margin="0,0,0,4" />
+            <TabItem Header="Limit">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="140" />
@@ -225,24 +269,25 @@
                             <Label Grid.Row="1" Grid.Column="0" Content="Max entry count" />
                             <TextBox x:Name="MaxEntryCountBox" Grid.Row="1" Grid.Column="1" Margin="0,2" />
                         </Grid>
-
                     </StackPanel>
-                </GroupBox>
+                </ScrollViewer>
+            </TabItem>
 
-                <GroupBox x:Name="UnknownFlagsGroup" Visibility="Collapsed">
-                    <GroupBox.Header>
-                        <TextBlock Text="Unknown flags" Foreground="Red" FontWeight="Bold" />
-                    </GroupBox.Header>
-                    <ItemsControl x:Name="UnknownFlagsList">
+            <TabItem x:Name="UnknownFlagsTab" Visibility="Collapsed">
+                <TabItem.Header>
+                    <TextBlock Text="Unknown flags" Foreground="Red" FontWeight="Bold" />
+                </TabItem.Header>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="UnknownFlagsList" Margin="8">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <CheckBox Content="{Binding Text}" IsChecked="{Binding Keep}" Margin="0,2" />
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                </GroupBox>
-            </StackPanel>
-        </ScrollViewer>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
             <Button x:Name="CancelButton" Content="Cancel" Width="90" IsCancel="True" Click="OnCancelClick" />

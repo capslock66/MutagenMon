@@ -11,10 +11,6 @@
             <Setter Property="Padding" Value="0,4,8,4" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
-        <Style TargetType="GroupBox">
-            <Setter Property="Margin" Value="0,0,0,10" />
-            <Setter Property="Padding" Value="8" />
-        </Style>
         <Style x:Key="FieldRow" TargetType="Grid">
             <Setter Property="Margin" Value="0,0,0,6" />
         </Style>
@@ -27,11 +23,10 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
-            <StackPanel>
-
-                <GroupBox Header="General">
-                    <StackPanel>
+        <TabControl Grid.Row="0" TabStripPlacement="Left">
+            <TabItem Header="General">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
                         <Grid Style="{StaticResource FieldRow}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="220" />
@@ -60,10 +55,41 @@
                             <TextBox x:Name="TrayTooltipBox" Grid.Column="1" />
                         </Grid>
                     </StackPanel>
-                </GroupBox>
+                </ScrollViewer>
+            </TabItem>
 
-                <GroupBox Header="Logging &amp; notifications">
-                    <StackPanel>
+            <TabItem Header="SSH servers">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
+                        <TextBlock Text="Known SSH servers, offered as a picklist by the Add/Edit session window's &quot;Browse SSH server…&quot; flow."
+                                   TextWrapping="Wrap" Margin="0,0,0,6" />
+
+                        <DataGrid x:Name="SshServersGrid" AutoGenerateColumns="False"
+                                  CanUserAddRows="False" CanUserDeleteRows="False"
+                                  GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                                  SelectionMode="Single" SelectionUnit="FullRow"
+                                  MaxHeight="160" MinHeight="60">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Host" Binding="{Binding Host}" Width="*" />
+                                <DataGridTemplateColumn Header="" Width="Auto" CanUserResize="False">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Content="Remove" Padding="4,0" Click="OnRemoveServerClick" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <Button x:Name="AddServerButton" Content="+ Add server" Width="110"
+                                HorizontalAlignment="Left" Margin="0,8,0,0" Click="OnAddServerClick" />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Logging &amp; notifications">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
                         <Grid Style="{StaticResource FieldRow}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="220" />
@@ -137,10 +163,12 @@
                             <CheckBox x:Name="ShowGenerateExceptionCheck" Grid.Column="1" VerticalAlignment="Center" />
                         </Grid>
                     </StackPanel>
-                </GroupBox>
+                </ScrollViewer>
+            </TabItem>
 
-                <GroupBox Header="Paths">
-                    <StackPanel>
+            <TabItem Header="Paths">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
                         <Grid Style="{StaticResource FieldRow}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="220" />
@@ -196,10 +224,12 @@
                             <TextBox x:Name="SshPathBox" Grid.Column="1" />
                         </Grid>
                     </StackPanel>
-                </GroupBox>
+                </ScrollViewer>
+            </TabItem>
 
-                <GroupBox Header="Session thresholds &amp; polling">
-                    <StackPanel>
+            <TabItem Header="Session thresholds &amp; polling">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
                         <Grid Style="{StaticResource FieldRow}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="220" />
@@ -246,10 +276,12 @@
                             <TextBox x:Name="MutagenProfileGraceSecondsBox" Grid.Column="1" />
                         </Grid>
                     </StackPanel>
-                </GroupBox>
+                </ScrollViewer>
+            </TabItem>
 
-                <GroupBox Header="Status max lag (seconds)">
-                    <StackPanel>
+            <TabItem Header="Status max lag (seconds)">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
                         <Grid Style="{StaticResource FieldRow}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="220" />
@@ -287,10 +319,12 @@
                             <TextBox x:Name="StatusMaxLagRestartBox" Grid.Column="1" />
                         </Grid>
                     </StackPanel>
-                </GroupBox>
+                </ScrollViewer>
+            </TabItem>
 
-                <GroupBox Header="Auto-resolve rules">
-                    <StackPanel>
+            <TabItem Header="Auto-resolve rules">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
                         <Grid Style="{StaticResource FieldRow}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="220" />
@@ -330,10 +364,9 @@
                         <Button x:Name="AddRuleButton" Content="+ Add rule" Width="110"
                                 HorizontalAlignment="Left" Margin="0,8,0,0" Click="OnAddRuleClick" />
                     </StackPanel>
-                </GroupBox>
-
-            </StackPanel>
-        </ScrollViewer>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
 
         <Border Grid.Row="1" BorderBrush="{x:Static SystemColors.ControlDarkBrush}" BorderThickness="0,1,0,0"
                 Margin="0,8,0,0" Padding="0,8,0,0">

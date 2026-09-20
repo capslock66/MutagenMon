@@ -42,6 +42,7 @@ public class ConfigLoaderTests
     {
         var original = new MutagenMonOptions { TrayTooltip = "RoundTrip", MutagenPollPeriodMs = 1500 };
         original.AutoResolve.Add(new AutoResolveRule { FilePath = ".*\\.tmp$", Resolve = "B wins" });
+        original.SshServers.Add(new SshServerEntry { Host = "robbie" });
 
         var reparsed = ConfigLoader.Parse(ConfigLoader.Serialize(original));
 
@@ -49,6 +50,8 @@ public class ConfigLoaderTests
         Assert.Equal(1500, reparsed.MutagenPollPeriodMs);
         Assert.Single(reparsed.AutoResolve);
         Assert.Equal("B wins", reparsed.AutoResolve[0].Resolve);
+        Assert.Single(reparsed.SshServers);
+        Assert.Equal("robbie", reparsed.SshServers[0].Host);
     }
 
     [Fact]

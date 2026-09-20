@@ -1,6 +1,9 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Extensions.Logging;
+using Microsoft.Win32;
+using MutagenMon.Core.Configuration;
 using MutagenMon.Core.Sessions;
 
 namespace MutagenMon.App;
@@ -20,6 +23,7 @@ public partial class SessionEditWindow : Window
 {
     private readonly ILogger _logger;
     private readonly HashSet<string> _otherSessionNames;
+    private readonly IReadOnlyList<SshServerEntry> _sshServers;
     private readonly List<UnknownFlagItem> _unknownFlags = new();
 
     /// <summary>The session's name before this edit, for the caller to
@@ -41,10 +45,15 @@ public partial class SessionEditWindow : Window
     /// name, used for the FR-18.2 uniqueness check — the session being
     /// edited is excluded from that check by name, not by reference, so a
     /// caller can pass the same full list regardless of mode.</param>
-    public SessionEditWindow(SessionCommandLine? existing, IReadOnlyCollection<string> allSessionNames, ILogger logger)
+    /// <param name="sshServers">FR-18.5's "Browse SSH server…" picklist,
+    /// sourced from <see cref="MutagenMonOptions.SshServers"/>.</param>
+    public SessionEditWindow(
+        SessionCommandLine? existing, IReadOnlyCollection<string> allSessionNames,
+        IReadOnlyList<SshServerEntry> sshServers, ILogger logger)
     {
         InitializeComponent();
         _logger = logger;
+        _sshServers = sshServers;
 
         OriginalName = existing?.Name;
         _otherSessionNames = new HashSet<string>(allSessionNames, StringComparer.Ordinal);
@@ -133,7 +142,7 @@ public partial class SessionEditWindow : Window
         _unknownFlags.Clear();
         _unknownFlags.AddRange(model.UnknownFlags.Select(f => new UnknownFlagItem { Text = f.Text, Keep = f.Keep }));
         UnknownFlagsList.ItemsSource = _unknownFlags;
-        UnknownFlagsGroup.Visibility = _unknownFlags.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        UnknownFlagsTab.Visibility = _unknownFlags.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private SessionCommandLine BuildResult() => new()
@@ -172,6 +181,46 @@ public partial class SessionEditWindow : Window
     };
 
     private void OnValidationFieldChanged(object sender, RoutedEventArgs e) => UpdateSaveEnabled();
+
+    private void OnAlphaBrowseClick(object sender, RoutedEventArgs e) => ShowBrowseMenu((Button)sender, AlphaBox);
+
+    private void OnBetaBrowseClick(object sender, RoutedEventArgs e) => ShowBrowseMenu((Button)sender, BetaBox);
+
+    /// <summary>FR-18.5: opens a small menu offering "Browse local
+    /// folder…" and "Browse SSH server…" next to the clicked field's
+    /// browse button. Remote folder navigation/creation (Phase 3 of
+    /// ENDPOINT_PATH_PICKER_PLAN.md) isn't implemented yet — see
+    /// <see cref="SshFolderPickerWindow"/>.</summary>
+    private void ShowBrowseMenu(Button button, TextBox target)
+    {
+        var localItem = new MenuItem { Header = "Browse local folder…" };
+        localItem.Click += (_, _) => BrowseLocalFolder(target);
+
+        var sshItem = new MenuItem { Header = "Browse SSH server…" };
+        sshItem.Click += (_, _) => BrowseSshServer(target);
+
+        var menu = new ContextMenu { PlacementTarget = button };
+        menu.Items.Add(localItem);
+        menu.Items.Add(sshItem);
+        menu.IsOpen = true;
+    }
+
+    private static void BrowseLocalFolder(TextBox target)
+    {
+        var dialog = new OpenFolderDialog { Title = "Select folder" };
+        if (Directory.Exists(target.Text.Trim()))
+            dialog.InitialDirectory = target.Text.Trim();
+
+        if (dialog.ShowDialog() == true)
+            target.Text = dialog.FolderName;
+    }
+
+    private void BrowseSshServer(TextBox target)
+    {
+        var picker = new SshFolderPickerWindow(_sshServers, target.Text.Trim()) { Owner = this };
+        if (picker.ShowDialog() == true)
+            target.Text = picker.Result!;
+    }
 
     /// <summary>FR-18.2/FR-18.4: Save is enabled only once Name/Alpha/Beta
     /// are all non-empty, Name has no whitespace (it's extracted up to the

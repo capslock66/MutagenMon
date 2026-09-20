@@ -76,6 +76,10 @@ FR-16 revision note for the shared bottom toolbar this tab's "Reload config
     regex engine is the authority here, not this form).
   - Each rule's `Resolve` combo is restricted to `"A wins"`/`"B wins"` at
     the UI level, so it cannot itself be invalid.
+  - Each `SshServers` entry's `Host` must be non-empty and unique
+    (case-insensitive) among the other entries — a blank or duplicate host
+    would make it ambiguous or useless as a picklist entry in the Add/Edit
+    session window's "Browse SSH server…" flow (07-...md's FR-18.5).
 - FR-36.2: Errors are shown in a red text area below the form — same
   convention as FR-31.1.
 - FR-36.3: **Save also runs this same validation first** (mirrors FR-31.3)
@@ -119,6 +123,16 @@ per-row **Up**/**Down**/**Remove** buttons plus a **"+ Add rule"** button
 below the grid, since the rule order is significant and must stay
 user-controllable.
 
+## SSH servers editor design
+
+`SshServers` (an unordered list — no first-match semantics, unlike
+`AutoResolve`) is edited as a `DataGrid` bound directly to
+`SshServerEntry` (the same Core model `MutagenMonOptions.SshServers`
+already uses): a single editable "Host" text column, plus a per-row
+**Remove** button and a **"+ Add server"** button below the grid — no
+**Up**/**Down** buttons, since entry order has no effect on the Add/Edit
+session window's "Browse SSH server…" picklist (07-...md's FR-18.5).
+
 ## Implementation
 
 - `MutagenMon.Core/Configuration/ConfigLoader.cs`: `Load(path)`,
@@ -130,9 +144,15 @@ user-controllable.
   wasn't, as private App-project methods). `App.LoadConfig` is now a
   one-line wrapper kept only so its existing call sites read the same.
 - `MutagenMon.App/MutagenMonitorConfigEditorView.xaml`/`.xaml.cs`: the
-  form itself, following `SessionEditWindow`'s established structured-form
-  style (`GroupBox` zones, `Label`+control rows, `ScrollViewer` around the
-  whole form). Hosted directly in `StatusWindow.xaml` as the "Mutagen
+  form itself, laid out as a master/detail `TabControl` with
+  `TabStripPlacement="Left"` — one tab per section (General, SSH servers,
+  Logging & notifications, Paths, Session thresholds & polling, Status max
+  lag, Auto-resolve rules), each tab's content a `ScrollViewer` around a
+  `Label`+control-per-row `StackPanel`, following `SessionEditWindow`'s
+  established structured-form field style. (Originally a single
+  top-to-bottom `ScrollViewer` of stacked `GroupBox` zones; switched to
+  this left-hand section list once the number of sections grew unwieldy to
+  scroll through.) Hosted directly in `StatusWindow.xaml` as the "Mutagen
   monitor Configuration" `TabItem`; `StatusWindow`'s constructor calls
   `Initialize(logger)` on it once, same pattern as
   `MutagenConfigEditorView`.

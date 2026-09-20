@@ -42,12 +42,14 @@ public partial class MutagenMonitorConfigEditorView : UserControl
     private MutagenMonOptions _loadedOptions = null!;
 
     private readonly ObservableCollection<AutoResolveRule> _autoResolveRules = new();
+    private readonly ObservableCollection<SshServerEntry> _sshServers = new();
 
     public MutagenMonitorConfigEditorView()
     {
         InitializeComponent();
         MinLogLevelCombo.ItemsSource = Enum.GetValues<LogLevel>();
         AutoResolveGrid.ItemsSource = _autoResolveRules;
+        SshServersGrid.ItemsSource = _sshServers;
     }
 
     public void Initialize(ILogger logger)
@@ -106,6 +108,10 @@ public partial class MutagenMonitorConfigEditorView : UserControl
         _autoResolveRules.Clear();
         foreach (var rule in options.AutoResolve)
             _autoResolveRules.Add(new AutoResolveRule { FilePath = rule.FilePath, Resolve = rule.Resolve });
+
+        _sshServers.Clear();
+        foreach (var server in options.SshServers)
+            _sshServers.Add(new SshServerEntry { Host = server.Host });
     }
 
     private void OnCheckClick(object sender, RoutedEventArgs e)
@@ -176,6 +182,17 @@ public partial class MutagenMonitorConfigEditorView : UserControl
             _autoResolveRules.Move(index, index + 1);
     }
 
+    private void OnAddServerClick(object sender, RoutedEventArgs e)
+    {
+        _sshServers.Add(new SshServerEntry { Host = "" });
+    }
+
+    private void OnRemoveServerClick(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).DataContext is SshServerEntry server)
+            _sshServers.Remove(server);
+    }
+
     /// <summary>Builds a <see cref="MutagenMonOptions"/> from the form's
     /// current field values, and the list of validation errors found along
     /// the way (empty when everything parses). Fields this form has no
@@ -218,6 +235,7 @@ public partial class MutagenMonitorConfigEditorView : UserControl
                 RestartSeconds = ParseInt(StatusMaxLagRestartBox, "Status max lag: Restart", errors),
             },
             AutoResolve = _autoResolveRules.Select(r => new AutoResolveRule { FilePath = r.FilePath, Resolve = r.Resolve }).ToList(),
+            SshServers = _sshServers.Select(s => new SshServerEntry { Host = s.Host }).ToList(),
         };
 
         for (var i = 0; i < options.AutoResolve.Count; i++)
@@ -233,6 +251,16 @@ public partial class MutagenMonitorConfigEditorView : UserControl
             {
                 errors.Add($"Auto-resolve rule {i + 1}: invalid regular expression — {ex.Message}");
             }
+        }
+
+        var seenHosts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < options.SshServers.Count; i++)
+        {
+            var host = options.SshServers[i].Host.Trim();
+            if (host.Length == 0)
+                errors.Add($"SSH server {i + 1}: 'Host' must not be empty.");
+            else if (!seenHosts.Add(host))
+                errors.Add($"SSH server {i + 1}: duplicate host '{host}'.");
         }
     }
 

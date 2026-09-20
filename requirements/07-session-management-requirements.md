@@ -133,12 +133,48 @@ the design discussion that produced this document.
   endpoint URLs when the command actually runs (FR-27).
 - FR-18.4: Save is disabled until Name/Alpha/Beta are all non-empty and
   Name passes FR-18.2.
+- FR-18.5: A small browse button sits to the right of the Alpha and Beta
+  boxes. Clicking it opens a menu with two entries:
+  - **"Browse local folder…"** opens the native WPF folder-selection
+    dialog (`Microsoft.Win32.OpenFolderDialog`, pre-seeded with the box's
+    current value if it's an existing local directory) and writes the
+    chosen path verbatim into that box on confirmation.
+  - **"Browse SSH server…"** opens a small dialog listing every server
+    configured in `MutagenMonOptions.SshServers` (see
+    09-mutagen-monitor-config-editor-requirements.md's "SSH servers
+    editor design"), as a combo box the user picks one entry from. If the
+    box's current value already starts with `"<host>:"` for one of those
+    servers, that host is preselected on open (and auto-connects) instead
+    of leaving the combo blank; if the value also has a path after the
+    colon (e.g. `robbie:sources/mutagenMon`), the tree additionally
+    auto-navigates down to and selects that path (each traversed level
+    expanded, stopping at the deepest segment that actually exists if part
+    of it doesn't). If no servers are configured, the dialog shows a
+    message pointing at the "Mutagen monitor Configuration" tab instead of
+    a usable combo. Selecting a server connects to it over SFTP (host
+    resolved the same way the system `ssh`/`scp` binaries would — via
+    `~/.ssh/config`, falling back to the alias itself, the current OS
+    user, port 22, and a default private key under `~/.ssh` — see
+    `MutagenMon.Core/Ssh/SshConnectionResolver.cs`) and shows its remote
+    folders as a lazy-loading tree, rooted at the SFTP session's home
+    directory: each folder fetches its own sub-folders from the server
+    only the first time it's expanded, not upfront. Between the server
+    combo and the tree, a read-only **"Selected"** box always mirrors what
+    OK would currently write (e.g. `robbie:sources/mutagenMon`), updating
+    live as the tree selection changes — empty while nothing is selected
+    or connected. A **"New folder"** button creates a folder under the
+    selected tree node (prompting for its name), immediately on the
+    server, and adds/selects it in the tree — letting the user build a
+    path level by level (e.g. create `sources`, select it, create `appman`
+    under it) before clicking OK. OK writes `"<host>:<path relative to the
+    home directory>"` into the box (e.g. `robbie:sources/appman`), or just
+    `"<host>:"` if the home directory itself is selected.
 
 ## FR-19 — Sync mode
 
-- FR-19.1: A group box **"Options"** contains, first, a **"Sync mode"**
-  combobox with exactly these four values (mutagen's own sync mode
-  values): `two-way-safe` (default/pre-selected), `two-way-resolved`,
+- FR-19.1: A **"Sync mode"** tab (see FR-19.3) contains a combobox with
+  exactly these four values (mutagen's own sync mode values):
+  `two-way-safe` (default/pre-selected), `two-way-resolved`,
   `one-way-safe`, `one-way-replica`.
 - FR-19.2: **(confirmed)** Parsing recognizes `--mode`, `-m`, and
   `--sync-mode` as synonyms — all three set the same `Mode` field.
@@ -162,11 +198,20 @@ the design discussion that produced this document.
   (FR-22 symlink mode, FR-23 watch mode, FR-24 probe/scan mode, FR-25
   stage mode): a flag is only ever emitted when the selected value
   differs from mutagen's own default for it.
+- FR-19.3: Below the Name/Alpha/Beta boxes, every zone described by
+  FR-19 through FR-26 (Sync mode, Ignore, Permissions, Symbolic links,
+  Watching, Probing and scanning, Staging, Limit, and — when present —
+  Unknown flags) is its own tab in a `TabControl` with
+  `TabStripPlacement="Left"`: a vertical list of section names down the
+  left side, the selected section's fields on the right. (Originally all
+  of them together in one scrollable "Options" group box, top to bottom;
+  switched to this left-hand section list once that single page grew too
+  long to scroll through comfortably.)
 
 ## FR-20 — Ignore patterns
 
-- FR-20.1: A multi-line text box **"Ignore"** inside the Options group
-  box, one pattern per line.
+- FR-20.1: A multi-line text box **"Ignore"**, in its own tab (FR-19.3),
+  one pattern per line.
 - FR-20.2: Each non-empty line MUST map to its own repeated flag:
   `-i <patternN>` (one `-i` per line, not the comma-separated
   `--ignore=a,b` alternative form — repeated flags are simpler to
@@ -202,8 +247,8 @@ the design discussion that produced this document.
   independent flag). Maps to `--permissions-mode=<value>`, omitted when
   `portable` (FR-19.2's general default-omission rule).
 
-- FR-21.2: A **"Permissions"** zone inside the Options group box, laid
-  out as a 3-column grid — **Session** / **Alpha** / **Beta** — with one
+- FR-21.2: A **"Permissions"** zone (its own tab per FR-19.3, alongside
+  the Permissions mode combobox above), laid out as a 3-column grid — **Session** / **Alpha** / **Beta** — with one
   row per setting **(confirmed scope: owner + group + file/directory
   modes)**:
   | Row | Session flag | Alpha flag | Beta flag |
@@ -315,10 +360,10 @@ the design discussion that produced this document.
     on the line — a heuristic, since an unrecognized flag's arity (does
     it take a value at all?) isn't known to the app.
 - FR-27.3: **(confirmed)** Every unknown flag unit is shown in a
-  dedicated **"Unknown flags"** zone (its own group box, separate from
-  "Options"), with the group box **title rendered in red**. The zone is
-  hidden/collapsed entirely when there are no unknown flag units (nothing
-  to show, nothing to warn about). Inside it, one row per unknown flag
+  dedicated **"Unknown flags"** tab (FR-19.3), with its tab header
+  **rendered in red**. The tab is hidden/collapsed entirely from the
+  left-hand section list when there are no unknown flag units (nothing to
+  show, nothing to warn about). Inside it, one row per unknown flag
   unit: a **checkbox, checked by default**, followed by that unit's raw
   text (e.g. `☑ --foo-bar=baz`). Unchecking a row means "drop this on
   Save" — it will NOT be re-emitted into the regenerated line (FR-27.4);
@@ -420,7 +465,13 @@ the design discussion that produced this document.
   of opening a duplicate — it does not re-run FR-28.2's command or refresh
   the title's timestamp; use the popup's own Refresh (FR-28.6) for that.
 
-## Design: Add/Edit window layout
+## Design: Add/Edit window layout (superseded — see FR-19.3)
+
+The diagram below (all zones stacked inside one scrollable "Options" group
+box) is the window's original layout, kept here for history. It was
+replaced by the left-hand section list / right-hand detail layout
+described in FR-19.3 once the single scrollable page grew unwieldy — see
+the current diagram further down.
 
 ```
 ┌─ MutagenMon: Add session ──────────────────────────────────────────┐
@@ -473,12 +524,38 @@ the design discussion that produced this document.
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
+### Current layout (FR-19.3)
+
+```
+┌─ MutagenMon: Add session ──────────────────────────────────────────┐
+│  Name       [________________________________]                    │
+│  Alpha      [________________________________]           [📁]     │
+│  Beta       [________________________________]           [📁]     │
+│                                                                     │
+│ ┌────────────────┬──────────────────────────────────────────────┐ │
+│ │ Sync mode       │ Sync mode   [two-way-safe        ▾]          │ │
+│ │ Ignore          │                                              │ │
+│ │ Permissions     │  (selected section's fields, same content    │ │
+│ │ Symbolic links  │   as each zone in the superseded diagram      │ │
+│ │ Watching        │   above — just one shown at a time instead    │ │
+│ │ Probing & scan. │   of all of them stacked)                     │ │
+│ │ Staging         │                                              │ │
+│ │ Limit           │                                              │ │
+│ │ Unknown flags † │                                              │ │
+│ └────────────────┴──────────────────────────────────────────────┘ │
+│                                                                     │
+│                                            [ Cancel ]  [ Save ]    │
+└─────────────────────────────────────────────────────────────────────┘
+  † hidden from the list entirely when there are no unknown flags;
+    its label is rendered in red when present.
+```
+
 Notes:
-- Given the number of zones, the Options group box is expected to need a
-  scrollable content area (a `ScrollViewer` around the group box's inner
-  `StackPanel`) so the window stays a reasonable fixed height rather than
-  growing to fit eight zones — matching `StatusWindow`'s existing
-  `ResizeMode="CanResize"` pattern.
+- `TabControl`/`TabItem` (`TabStripPlacement="Left"`) implements this
+  directly — no custom ListBox-plus-content-swap code needed. Each tab's
+  content is its own `ScrollViewer` around a `Label`+control `StackPanel`,
+  so a section taller than the window (e.g. Permissions) scrolls on its
+  own rather than requiring the whole window to grow.
 - Each 3-column zone (Permissions/Watching/Probing&scanning/Staging) is
   plain, independently hand-written XAML (a `Grid` per zone) rather than
   a shared control template — reconsidered during implementation:

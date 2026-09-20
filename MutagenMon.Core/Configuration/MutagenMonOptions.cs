@@ -112,6 +112,11 @@ public sealed class MutagenMonOptions
     /// <summary>How long to remember autoresolved conflicts, so they
     /// aren't autoresolved again (in seconds).</summary>
     public int AutoResolveHistoryAgeSeconds { get; set; } = 30;
+
+    /// <summary>Known SSH servers, offered as a picklist by the Add/Edit
+    /// session window's "Browse SSH server…" flow (FR-18.5) — see
+    /// <see cref="SshServerEntry"/>.</summary>
+    public List<SshServerEntry> SshServers { get; set; } = new();
 }
 
 public sealed class StatusMaxLagOptions
@@ -133,6 +138,14 @@ public sealed class StatusMaxLagOptions
         TimeSpan.FromSeconds(WarningSeconds),
         TimeSpan.FromSeconds(ErrorSeconds),
         TimeSpan.FromSeconds(RestartSeconds));
+}
+
+/// <summary>One entry in <see cref="MutagenMonOptions.SshServers"/> — the
+/// SSH host/alias used before the ':' in a Mutagen endpoint (e.g. "robbie"
+/// in "robbie:sources/appman").</summary>
+public sealed class SshServerEntry
+{
+    public string Host { get; set; } = "";
 }
 
 public sealed class AutoResolveRule

@@ -44,6 +44,7 @@ stated otherwise, and all "period"/"age" values are in the unit given.
 | `MutagenProfileGraceSeconds` | integer | `4` | seconds | Debounce window: an archive modification is only reported as a confirmed "update" once at least this many seconds have passed since the previously confirmed update, to avoid reacting to rapid successive writes. | FR-12.2 |
 | `AutoResolve` | array of `{filepath, resolve}` | `[]` (4 example entries in the shipped sample config) | — | Ordered list of auto-resolve rules. `filepath` is a regular expression matched against the conflicting file's full path (directory + filename); `resolve` MUST be the literal string `"A wins"` or `"B wins"`. The first matching rule (in array order) wins. | FR-10.1, FR-10.2 |
 | `AutoResolveHistoryAgeSeconds` | integer | `30` | seconds | Once a `(session, filename)` pair has been auto-resolved, it is not reprocessed for this long, to avoid a resolve loop while the sync engine catches up. | FR-10.3 |
+| `SshServers` | array of `{Host}` | `[]` | — | Known SSH servers/aliases, offered as a picklist by the Add/Edit session window's "Browse SSH server…" flow. `Host` is the token used before the `:` in a Mutagen endpoint (e.g. `"robbie"` in `robbie:sources/appman`). | FR-18.5 |
 
 ## Notes for the rewrite
 

@@ -455,6 +455,140 @@ Covered above by UT-7.1.
   "Exit MutagenMon" would (FR-7.4) — see UT-7.4/UT-7.6 for the
   confirmation step itself.
 
+## FR-18 — Add/Edit window: identity fields
+
+**UT-18.5 — Local folder browse button next to Alpha/Beta (FR-18.5)** ✅
+
+* Open the Add/Edit session window (e.g. click "Add" in the status view's
+  toolbar).
+* A small folder-icon button is displayed immediately to the right of both
+  the Alpha and the Beta boxes (not next to Name).
+* Click the button next to Alpha.
+* A menu appears with two entries: "Browse local folder…" and "Browse SSH
+  server…" (see UT-18.6 for the latter).
+* Click "Browse local folder…". The native Windows folder-selection dialog
+  opens.
+* Pick a folder and confirm. The dialog closes and the Alpha box's text is
+  replaced with the chosen folder's full path.
+* Click the same button again. This time the folder dialog opens already
+  pointed at the path currently in the Alpha box (since it's an existing
+  local directory).
+* Type a non-existent path into Alpha (e.g. `robbie:sources/appman`),
+  then click the browse button and "Browse local folder…" again. The
+  dialog opens at its default location instead (the box's value isn't a
+  local directory that exists), and Alpha is untouched if you cancel the
+  dialog.
+* Repeat the same sequence for the button next to Beta — it behaves
+  identically and independently, writing only into the Beta box.
+
+**UT-18.6 — SSH server browse: no servers configured (FR-18.5)** ✅
+
+* Open the Add/Edit session window, click the browse button next to Alpha,
+  then "Browse SSH server…", with no servers configured yet (default
+  state, or after removing every row per UT-34.1 below).
+* A small window opens. Its combo box is disabled/empty, and a red message
+  points at the "Mutagen monitor Configuration" tab to add a server there.
+  "OK" is disabled. Click "Cancel" — the window closes, Alpha is
+  unchanged.
+
+**UT-18.7 — SSH server browse: connect, navigate multiple sub-levels,
+create folders, and pick a path (FR-18.5)** ✅
+
+* Requires a real SSH server you can reach by key-based auth the same way
+  the system `ssh`/`scp` binaries already used elsewhere in the app would
+  (an entry in `~/.ssh/config`, or a default key under `~/.ssh` plus the
+  server reachable under its bare hostname). Add it in "Mutagen monitor
+  Configuration" (UT-34.1) under a host alias, e.g. `robbie`.
+* In the Add/Edit session window, click the browse button next to Alpha,
+  then "Browse SSH server…". Select `robbie` in the combo box.
+* The window connects (a wait cursor is briefly shown) and a tree appears
+  with a single root node labeled with the remote home directory's full
+  path, already selected — "OK" and "New folder" are both enabled as soon
+  as it appears. The read-only "Selected" box between the combo and the
+  tree shows `robbie:` (empty path, since the root/home directory is
+  selected).
+* Click the root node's expander. It fetches and shows the home
+  directory's immediate sub-folders (a brief wait cursor while it does).
+* Click the expander on one of those sub-folders. Only now does the app
+  fetch *its* sub-folders — confirming folders are only listed once
+  actually expanded, not all upfront.
+* Select that sub-folder. The "Selected" box updates immediately to
+  `robbie:<its name>`.
+* Select the root node again, click "New folder", type `sources`, click
+  "OK" in that prompt. A `sources` folder appears immediately under the
+  root and is auto-selected (the "Selected" box now reads
+  `robbie:sources`) — verify with an external SFTP client (or
+  `ssh robbie ls`) that it was actually created on the server, not just
+  shown locally.
+* With `sources` selected, click "New folder" again, type `appman`, OK.
+  An `appman` folder appears under `sources` and is auto-selected (the
+  "Selected" box reads `robbie:sources/appman`).
+* Click "OK" (the picker's own button, not the folder-name prompt's). The
+  window closes and Alpha's text becomes exactly `robbie:sources/appman`.
+* Repeat, this time selecting the root node itself and clicking "OK"
+  without navigating anywhere — Beta's text becomes exactly `robbie:`
+  (no trailing path).
+* Trigger a connection failure (e.g. temporarily rename/remove your SSH
+  private key, or point the combo at a host that doesn't resolve) and
+  select that server. Instead of a tree, a red error message is shown
+  ("Could not connect to '`<host>`':" plus the underlying error); "OK" and
+  "New folder" stay disabled.
+
+**UT-18.8 — SSH server browse preselects the host and auto-navigates to
+the existing path (FR-18.5)** ✅
+
+* With Beta already set to `robbie:sources/appman` (e.g. right after
+  UT-18.7), click the browse button next to Beta again, then "Browse SSH
+  server…".
+* The combo box opens already showing `robbie` selected (not blank) — and
+  since a valid selection is already present, the window immediately
+  connects, without an extra click on the combo.
+* Instead of landing on the (collapsed) home directory root, the tree
+  auto-expands `sources` and lands with `appman` selected — the "Selected"
+  box reads `robbie:sources/appman`, matching Beta's current value exactly
+  ("OK" is already enabled, no navigation needed to confirm the same
+  value).
+* Now set Beta's text to `robbie:sources/doesnotexist/anything` (a path
+  that doesn't exist on the server) and open "Browse SSH server…" again.
+  The tree auto-navigates as far as it can — `sources` ends up expanded
+  and selected (the deepest segment that actually exists) — instead of
+  failing or leaving the root selected.
+* Close the picker (Cancel), then edit Beta's text to a host that isn't in
+  `SshServers` (e.g. `unknownhost:foo`) and open "Browse SSH server…"
+  again. This time the combo opens blank — an unrecognized host isn't
+  force-matched to anything in the list.
+
+## FR-34 — Mutagen monitor Configuration tab: SSH servers editor
+
+**UT-34.1 — Add/remove/validate SSH server entries (09-mutagen-monitor-config-editor-requirements.md's "SSH servers editor design")** ✅
+
+* Open the status window, go to the "Mutagen monitor Configuration" tab.
+* A vertical list of section names ("General", "SSH servers", "Logging &
+  notifications", "Paths", "Session thresholds & polling", "Status max
+  lag (seconds)", "Auto-resolve rules") is shown down the left side, with
+  the selected section's fields on the right — not one long page of
+  stacked sections to scroll through.
+* Click "SSH servers" in that left-hand list. The right side shows an
+  empty "Host" grid and a "+ Add server" button below it.
+* Click "+ Add server". A new row appears with an empty, editable "Host"
+  cell and a "Remove" button.
+* Click "Save" without typing a host. A red validation message "SSH server
+  1: 'Host' must not be empty." is shown below the form, and nothing is
+  written to `config_mutagenmon.json`.
+* Type `robbie` in the Host cell and click "Save" again. This time it
+  succeeds — a confirmation dialog notes the change doesn't affect the
+  already-running monitor.
+* Click "+ Add server" again and type `robbie` (same host, any case, e.g.
+  `Robbie`) in the second row. Click "Save". A red validation message
+  "SSH server 2: duplicate host 'Robbie'." is shown, and the save is
+  blocked.
+* Fix the second row to a different host (e.g. `otherhost`) and Save
+  again — it succeeds.
+* Click "Remove" on one of the rows. The row disappears immediately from
+  the grid (no confirmation needed) and Save persists the removal.
+* Close and reopen the status window (or switch tabs and back). The grid
+  reloads exactly the saved rows, in the same order.
+
 ## FR-28 — Grid row action: view sync status
 
 **UT-28.1 — View sync status shows the raw CLI output (FR-28.1/FR-28.2)** ✅
@@ -1182,9 +1316,9 @@ Covered above by UT-7.4.
 **UT-15.4 — ShowMainScreenAtStartup shows the status window automatically (FR-15.3)** ✅
 
 * Stop MutagenMon (if running). Set `"ShowMainScreenAtStartup": true` in
-  `config/config_mutagenmon.json` (or check "Show main screen at
-  startup" in the "Mutagen monitor Configuration" tab and Save, then
-  restart).
+  `config/config_mutagenmon.json` (or, in the "Mutagen monitor
+  Configuration" tab, select "General" in the left-hand section list and
+  check "Show main screen at startup" there, then Save and restart).
 * Start MutagenMon.
 * The status window appears on its own, with no click on the tray icon —
   showing the current session list, right around the time the tray icon

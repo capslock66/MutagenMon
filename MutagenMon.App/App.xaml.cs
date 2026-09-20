@@ -469,7 +469,7 @@ public partial class App //: Application
         if (_sessionEditingService is null || _statusWindow is null || _logger is null)
             return;
 
-        var window = new SessionEditWindow(null, _sessionNames, _logger) { Owner = _statusWindow };
+        var window = new SessionEditWindow(null, _sessionNames, _options?.SshServers ?? new List<SshServerEntry>(), _logger) { Owner = _statusWindow };
         window.SaveRequested += async (_, _) =>
         {
             window.SetBusy(true);
@@ -515,7 +515,7 @@ public partial class App //: Application
 
         var model = SessionCommandLineParser.Parse(definition.RawCreateCommand);
         model.Name = "";
-        var window = new SessionEditWindow(model, _sessionNames, _logger) { Owner = _statusWindow, Title = $"MutagenMon: Duplicate session {name}" };
+        var window = new SessionEditWindow(model, _sessionNames, _options?.SshServers ?? new List<SshServerEntry>(), _logger) { Owner = _statusWindow, Title = $"MutagenMon: Duplicate session {name}" };
         window.SaveRequested += async (_, _) =>
         {
             window.SetBusy(true);
@@ -626,7 +626,7 @@ public partial class App //: Application
         }
 
         var model = SessionCommandLineParser.Parse(definition.RawCreateCommand);
-        var window = new SessionEditWindow(model, _sessionNames, _logger) { Owner = _statusWindow };
+        var window = new SessionEditWindow(model, _sessionNames, _options?.SshServers ?? new List<SshServerEntry>(), _logger) { Owner = _statusWindow };
         window.SaveRequested += async (_, _) =>
         {
             window.SetBusy(true);
