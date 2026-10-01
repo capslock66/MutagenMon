@@ -46,6 +46,7 @@ public sealed class FileLoggerProvider : ILoggerProvider
 
     private readonly object _writeLock = new();
     private readonly Queue<LogEntry> _recentEntries = new();
+    private readonly List<string> _linesBeforePrimaryPath = new();
     private string? _primaryLogPath;
     private LogLevel _minLevel = LogLevel.Trace;
 
@@ -68,6 +69,15 @@ public sealed class FileLoggerProvider : ILoggerProvider
         lock (_writeLock)
         {
             _primaryLogPath = path;
+
+            // Lines logged before the path was known (e.g. "MutagenMon
+            // starting") were held back; write them now, in order, so the
+            // file starts with the same first line as the Logs tab.
+            if (_linesBeforePrimaryPath.Count > 0)
+            {
+                TryAppend(path, string.Concat(_linesBeforePrimaryPath));
+                _linesBeforePrimaryPath.Clear();
+            }
         }
     }
 
@@ -108,7 +118,11 @@ public sealed class FileLoggerProvider : ILoggerProvider
         {
             // Primary path is null before config is loaded (SetPrimaryLogPath
             // not yet called) — that's not a write "failure" worth an event
-            // log entry, just nothing to write to yet.
+            // log entry, just nothing to write to yet. The line is held back
+            // and flushed by SetPrimaryLogPath.
+            if (_primaryLogPath is null)
+                _linesBeforePrimaryPath.Add(line);
+
             var wroteToPrimary = _primaryLogPath is not null && TryAppend(_primaryLogPath, line);
             if (level == LogLevel.Critical)
                 WriteToWindowsEventLog(line, EventLogEntryType.Error);

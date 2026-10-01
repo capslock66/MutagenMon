@@ -15,5 +15,10 @@
          from querying the local git repository (incl. reading .gitmodules)
          at every build for no benefit. -->
     <EnableSourceControlManagerQueries>false</EnableSourceControlManagerQueries>
+    <!-- Auto-incrementing version: Major.Minor from VersionPrefix, then
+         build = days since 2026-01-01 and revision = seconds-of-day / 2
+         (both must stay below 65535). Override with -p:Version=... -->
+    <VersionPrefix>1.0</VersionPrefix>
+    <Version Condition="'$(Version)' == ''">$(VersionPrefix).$([System.DateTime]::UtcNow.Subtract($([System.DateTime]::Parse('2026-01-01'))).Days).$([System.Math]::Floor($([MSBuild]::Divide($([System.DateTime]::UtcNow.TimeOfDay.TotalSeconds), 2))))</Version>
   </PropertyGroup>
 </Project>

@@ -42,6 +42,10 @@ public partial class App //: Application
     private const string SingleInstanceMutexName = "MutagenMon-SingleInstance";
     private const string ShowStatusEventName = "MutagenMon-ShowStatus";
 
+    /// <summary>The assembly version (Major.Minor.Build.Revision), set at build time.</summary>
+    public static string AppVersion { get; } =
+        System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown";
+
     private Mutex? _singleInstanceMutex;
     private EventWaitHandle? _showStatusEvent;
     private FileLoggerProvider? _loggerProvider;
@@ -110,7 +114,7 @@ public partial class App //: Application
         AppDomain.CurrentDomain.UnhandledException += OnAppDomainUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
 
-        _logger.LogInformation("MutagenMon starting. BaseDirectory={BaseDir}", baseDir);
+        _logger.LogInformation("MutagenMon starting. Version={Version}, ProcessId={ProcessId}, BaseDirectory={BaseDir}", AppVersion, Environment.ProcessId, baseDir);
 
         try
         {
@@ -233,6 +237,12 @@ public partial class App //: Application
     private void OnSelfRestartNeeded()
     {
         _logger?.LogWarning("Status has been stale past the Restart threshold; restarting");
+        // Hand the single-instance mutex over first: otherwise the new
+        // process sees it held, signals us and exits, and this one then
+        // shuts down too — leaving no process (and no tray icon) at all.
+        _singleInstanceMutex?.ReleaseMutex();
+        _singleInstanceMutex?.Dispose();
+        _singleInstanceMutex = null;
         SelfRestart.RestartAndExit();
     }
 

@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Threading;
 using H.NotifyIcon;
+using Microsoft.Win32;
 using Microsoft.Extensions.Logging;
 using MutagenMon.Core.Monitoring;
 using MutagenMon.Core.Mutagen;
@@ -56,6 +57,7 @@ public sealed class TrayIconController
     private bool _restartTriggered;
     private bool _reloadRequested;
     private bool _isReopeningContextMenu;
+    private DateTimeOffset _resumedUtc = DateTimeOffset.MinValue;
 
     /// <summary>True from <see cref="RequestReload"/> until every configured
     /// session has stopped reporting a status and the in-place reload has
@@ -104,6 +106,7 @@ public sealed class TrayIconController
     {
         _logger.LogInformation("Tray icon controller started (1s tick)");
         _taskbarIcon.PreviewTrayContextMenuOpen += OnPreviewTrayContextMenuOpen;
+        SystemEvents.PowerModeChanged += OnPowerModeChanged;
         Tick();
         _timer.Start();
     }
@@ -112,6 +115,7 @@ public sealed class TrayIconController
     {
         _logger.LogInformation("Tray icon controller stopped");
         _taskbarIcon.PreviewTrayContextMenuOpen -= OnPreviewTrayContextMenuOpen;
+        SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         _timer.Stop();
     }
 
@@ -171,6 +175,19 @@ public sealed class TrayIconController
         public int Y;
     }
 
+    /// <summary>Sleep/hibernate pauses polling, so on resume the last
+    /// successful poll is as old as the sleep itself — which would trip the
+    /// Restart threshold at once. Staleness is therefore measured from the
+    /// resume instant until the first fresh poll lands.</summary>
+    private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
+    {
+        if (e.Mode != PowerModes.Resume)
+            return;
+
+        _resumedUtc = DateTimeOffset.UtcNow;
+        _logger.LogInformation("System resumed from sleep/hibernate; staleness is measured from now");
+    }
+
     private void Tick()
     {
         foreach (var message in _notificationQueue.DrainAll())
@@ -178,8 +195,9 @@ public sealed class TrayIconController
 
         var snapshot = _stateStore.Get();
         var now = DateTimeOffset.UtcNow;
+        var lastPollUtc = snapshot.LastSuccessfulPollUtc > _resumedUtc ? snapshot.LastSuccessfulPollUtc : _resumedUtc;
 
-        if (!_restartTriggered && IsBeyondRestartThreshold(snapshot.LastSuccessfulPollUtc, now, _lagThresholds))
+        if (!_restartTriggered && IsBeyondRestartThreshold(lastPollUtc, now, _lagThresholds))
         {
             _logger.LogWarning("Status stale past the Restart threshold; triggering self-restart");
             _restartTriggered = true;
@@ -197,7 +215,7 @@ public sealed class TrayIconController
             return;
         }
 
-        var staleness = GetStalenessTier(snapshot.LastSuccessfulPollUtc, now, _lagThresholds);
+        var staleness = GetStalenessTier(lastPollUtc, now, _lagThresholds);
         var input = new TrayIconInput(snapshot.WorstCode, snapshot.Enabled, snapshot.ProfileJustUpdated, staleness);
         var state = TrayIconStateResolver.Resolve(input, _appName);
 

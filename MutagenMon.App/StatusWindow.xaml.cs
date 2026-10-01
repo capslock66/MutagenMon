@@ -75,6 +75,7 @@ public partial class StatusWindow : Window
     public StatusWindow(ILogger logger, IconImageCache iconCache, FileLoggerProvider loggerProvider, bool showGenerateException)
     {
         InitializeComponent();
+        Title = $"MutagenMon {App.AppVersion}";
         SessionsGrid.ItemsSource = _sessionRows;
         ((IconKeyToImageSourceConverter)Resources["IconKeyToImageSourceConverter"]).Cache = iconCache;
         _logger = logger;
