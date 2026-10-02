@@ -370,13 +370,17 @@ public sealed partial class SessionMonitorService : BackgroundService
                 current.HasConflicts = true;
             else if (line.StartsWith("Problems:", StringComparison.Ordinal))
                 current.HasProblems = true;
+            // mutagen pads these prefixes to align the two columns
+            // ("(alpha) x" vs "(beta)  x"), so the path is trimmed rather than
+            // sliced at a fixed offset; the state is what sits inside the
+            // trailing parentheses, without the closing one.
             else if (line.StartsWith("(alpha) ", StringComparison.Ordinal))
             {
                 var pos = FindMatchingOpenParen(line, line.Length - 1);
                 if (pos is int p && p > 8)
                 {
-                    pendingAlphaName = line[8..(p - 1)];
-                    pendingAlphaState = line[(p + 1)..];
+                    pendingAlphaName = line[7..p].Trim();
+                    pendingAlphaState = line[(p + 1)..^1];
                 }
             }
             else if (line.StartsWith("(beta) ", StringComparison.Ordinal))
@@ -384,8 +388,8 @@ public sealed partial class SessionMonitorService : BackgroundService
                 var pos = FindMatchingOpenParen(line, line.Length - 1);
                 if (pos is int p && p > 7)
                 {
-                    var betaName = line[7..(p - 1)];
-                    var betaState = line[(p + 1)..];
+                    var betaName = line[6..p].Trim();
+                    var betaState = line[(p + 1)..^1];
                     conflicts[currentName].Add(new ConflictRecord(pendingAlphaName, betaName, pendingAlphaState, betaState, AutoResolved: false));
                 }
             }

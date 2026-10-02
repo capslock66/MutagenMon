@@ -31,12 +31,15 @@
                   SelectionMode="Single" SelectionUnit="FullRow"
                   FontFamily="Consolas"
                   SelectionChanged="OnLogGridSelectionChanged">
-            <!-- FR-44: Error and Critical rows in red. -->
+            <!-- FR-44: Error and Critical rows in red, Warning rows in orange. -->
             <DataGrid.RowStyle>
                 <Style TargetType="DataGridRow">
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding IsErrorOrCritical}" Value="True">
                             <Setter Property="Foreground" Value="Red" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding IsWarning}" Value="True">
+                            <Setter Property="Foreground" Value="DarkOrange" />
                         </DataTrigger>
                     </Style.Triggers>
                 </Style>

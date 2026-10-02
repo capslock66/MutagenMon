@@ -23,12 +23,11 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <!-- FR-16: toolbar above the grid — Add and Duplicate. -->
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,8">
+                    <!-- FR-16: toolbar above the grid — Add, Duplicate and Stop/Start sessions. -->
+                    <Grid Grid.Row="0" Margin="0,0,0,8">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                         <Button x:Name="AddSessionButton"
                                 Padding="8,4" Click="OnAddSessionClick" ToolTip="Add session">
                             <StackPanel Orientation="Horizontal">
@@ -44,7 +43,14 @@
                                 <TextBlock Text="Duplicate" Margin="6,0,0,0" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
+
+                        <Button x:Name="ToggleMonitoringButton" Content="Stop Mutagen sessions" Width="150"
+                                Margin="8,0,0,0" Click="OnToggleMonitoringClick" />
                     </StackPanel>
+
+                    <Button x:Name="ResolveConflictsButton" Content="Resolve conflicts" Width="130"
+                            HorizontalAlignment="Right" Click="OnResolveConflictsClick" />
+                    </Grid>
 
                     <DataGrid x:Name="SessionsGrid" Grid.Row="1"
                               AutoGenerateColumns="False" IsReadOnly="True"
@@ -53,6 +59,17 @@
                               SelectionMode="Single" SelectionUnit="FullRow"
                               SelectionChanged="OnSessionsGridSelectionChanged"
                               MouseDoubleClick="OnSessionsGridMouseDoubleClick">
+                        <!-- A session with unresolved conflicts is shown entirely in red. -->
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ConflictCount}" Value="0">
+                                        <Setter Property="Foreground" Value="{x:Static SystemColors.ControlTextBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                                <Setter Property="Foreground" Value="Red" />
+                            </Style>
+                        </DataGrid.RowStyle>
                         <DataGrid.Columns>
                             <!-- FR-17.1: Edit/Delete row actions, leftmost, before Name.
                                  FR-28: View sync status, leftmost of the three. -->
@@ -89,6 +106,7 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Conflict" Binding="{Binding ConflictDisplay}" Width="Auto" />
                             <DataGridTextColumn Header="Alpha" Binding="{Binding AlphaUrl}" Width="2*" />
                             <DataGridTextColumn Header="Beta" Binding="{Binding BetaUrl}" Width="2*" />
                             <DataGridTextColumn Header="Last changed" Binding="{Binding LastChangedDisplay}" Width="Auto" />
@@ -103,19 +121,6 @@
                         <TextBlock Text="Conflicts:" FontFamily="Consolas" FontWeight="Bold" Margin="0,0,8,0" />
                         <TextBlock x:Name="ConflictsText" Grid.Column="1" TextWrapping="Wrap" FontFamily="Consolas" />
                     </Grid>
-                    <Border Grid.Row="3" BorderBrush="{x:Static SystemColors.ControlDarkBrush}" BorderThickness="0,1,0,0"
-                            Margin="0,8,0,0" Padding="0,8,0,0">
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                            <Button x:Name="ToggleMonitoringButton" Content="Stop Mutagen sessions" Width="150"
-                                    Click="OnToggleMonitoringClick" />
-                        </StackPanel>
-                    </Border>
-
-
-                    <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,2,0,0">
-                        <Button x:Name="CancelButton" Content="Cancel" Width="90" Click="OnCancelClick" />
-                        <Button x:Name="ResolveConflictsButton" Content="Resolve conflicts" Width="130" Margin="8,0,0,0" Click="OnResolveConflictsClick" />
-                    </StackPanel>
                 </Grid>
             </TabItem>
 
@@ -133,15 +138,9 @@
         </TabControl>
 
         <!-- Toolbar shared by every tab, below the TabControl: Reload
-             config & restart, left of Exit mutagen monitor; Close on
-             the right. -->
+             config & restart, left of Exit mutagen monitor. -->
         <Grid Grid.Row="1" Margin="0,12,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-
-            <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                 <Button x:Name="ReloadConfigButton"
                         Padding="8,4" Click="OnReloadConfigClick" ToolTip="Reload config &amp; restart mutagen">
                     <StackPanel Orientation="Horizontal">
@@ -151,8 +150,6 @@
                 </Button>
                 <Button x:Name="ExitButton" Content="Exit mutagen monitor" Width="130" Margin="8,0,0,0" Click="OnExitClick" />
             </StackPanel>
-
-            <Button x:Name="CloseButton" Grid.Column="1" Content="Close" Width="90" Click="OnCloseClick" />
         </Grid>
     </Grid>
 </Window>

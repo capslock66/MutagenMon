@@ -1,33 +1,61 @@
 <Window x:Class="MutagenMon.App.ConflictResolutionWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="MutagenMon: resolve file conflict" Width="480" SizeToContent="Height"
-        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
+        Title="MutagenMon: resolve file conflicts" Width="1000" Height="480"
+        MinWidth="720" MinHeight="320"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanResize"
         ShowInTaskbar="False"
         Icon="pack://siteoforigin:,,,/Assets/Icons/app_icon_monitor.ico">
-    <Grid Margin="16">
+    <Grid x:Name="RootGrid" Margin="16">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock x:Name="FileNameText" Grid.Row="0" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,12" />
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
 
-        <TextBlock x:Name="AlphaInfoText" Grid.Row="1" TextWrapping="Wrap" FontFamily="Consolas" Margin="0,0,0,8" />
-        <TextBlock x:Name="BetaInfoText" Grid.Row="2" TextWrapping="Wrap" FontFamily="Consolas" Margin="0,0,0,12" />
+            <DataGrid x:Name="ConflictsGrid" Grid.Column="0"
+                      AutoGenerateColumns="False" IsReadOnly="True"
+                      CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
+                      CanUserSortColumns="False"
+                      GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                      SelectionMode="Single" SelectionUnit="FullRow"
+                      SelectionChanged="OnSelectionChanged">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Session" Binding="{Binding SessionName}" Width="Auto" />
+                    <DataGridTextColumn Header="File" Binding="{Binding FileName}" Width="2*" />
+                    <DataGridTextColumn Header="Conflict description" Binding="{Binding Description}" Width="3*" />
+                    <DataGridTextColumn Header="Resolution" Binding="{Binding Resolution}" Width="*" />
+                </DataGrid.Columns>
+            </DataGrid>
 
-        <StackPanel Grid.Row="3" Margin="0,0,0,16">
-            <RadioButton x:Name="VisualMergeOption" Content="Visual merge" GroupName="ResolutionChoice" Margin="0,0,0,6" />
-            <RadioButton x:Name="AWinsOption" Content="A wins" GroupName="ResolutionChoice" Margin="0,0,0,6" />
-            <RadioButton x:Name="BWinsOption" Content="B wins" GroupName="ResolutionChoice" />
-        </StackPanel>
+            <!-- Always visible. Only the options (OptionsPanel) are shown, and
+                 only for an unresolved row; they are hidden again after OK
+                 until the user selects another row. -->
+            <StackPanel x:Name="ChoicePanel" Grid.Column="1" Width="300" Margin="12,0,0,0">
+                <TextBlock x:Name="StatusText" TextWrapping="Wrap" FontWeight="Bold" Margin="0,0,0,8" />
+                <TextBlock x:Name="DescriptionText" TextWrapping="Wrap" Foreground="Red" Margin="0,0,0,4" />
+                <TextBlock x:Name="DetailsText" TextWrapping="Wrap" FontFamily="Consolas" FontSize="10"
+                           Foreground="Gray" Margin="0,0,0,8" />
+                <TextBlock x:Name="AlphaInfoText" TextWrapping="Wrap" FontFamily="Consolas" Margin="0,0,0,8" />
+                <TextBlock x:Name="BetaInfoText" TextWrapping="Wrap" FontFamily="Consolas" Margin="0,0,0,12" />
+                <StackPanel x:Name="OptionsPanel" Visibility="Collapsed">
+                <RadioButton x:Name="VisualMergeOption" Content="Visual merge" GroupName="ResolutionChoice"
+                             Margin="0,0,0,6" Checked="OnChoiceChecked" />
+                <RadioButton x:Name="AWinsOption" Content="Alpha wins" GroupName="ResolutionChoice"
+                             Margin="0,0,0,6" Checked="OnChoiceChecked" />
+                <RadioButton x:Name="BWinsOption" Content="Beta wins" GroupName="ResolutionChoice"
+                             Margin="0,0,0,16" Checked="OnChoiceChecked" />
+                <Button x:Name="OkButton" Content="OK" Width="90" HorizontalAlignment="Left" Click="OnOkClick" />
+                </StackPanel>
+            </StackPanel>
+        </Grid>
 
-        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button x:Name="OkButton" Content="OK" Width="90" IsDefault="True" Click="OnOkClick" />
-            <Button x:Name="CancelButton" Content="Cancel" Width="90" Margin="8,0,0,0" IsCancel="True" Click="OnCancelClick" />
-        </StackPanel>
+        <Button x:Name="CloseButton" Grid.Row="1" Content="Close" Width="90"
+                HorizontalAlignment="Right" Margin="0,12,0,0" IsCancel="True" Click="OnCloseClick" />
     </Grid>
 </Window>

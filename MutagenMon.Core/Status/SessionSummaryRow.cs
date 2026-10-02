@@ -9,9 +9,14 @@ public sealed record SessionSummaryRow(
     string Name,
     string IconKey,
     string Status,
+    int ConflictCount,
     string AlphaUrl,
     string BetaUrl,
     DateTimeOffset? LastChangedUtc)
 {
+    /// <summary>The Conflict column: the number of unresolved
+    /// (non-autoresolved) conflicts, blank when there are none.</summary>
+    public string ConflictDisplay => ConflictCount > 0 ? ConflictCount.ToString() : "";
+
     public string LastChangedDisplay => LastChangedUtc is { } t ? t.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") : "—";
 }

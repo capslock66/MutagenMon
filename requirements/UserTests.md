@@ -811,42 +811,51 @@ the beta folder (or its remote equivalent); then click "Start Mutagen
 sessions" again. Mutagen detects this as a two-sided edit and reports a
 conflict on its next poll.
 
-**UT-9.1 — Conflict batch entry and A/B comparison (FR-9.1)** ✅
+**UT-9.1 — Conflict grid and A/B comparison (FR-9.1)** ✅
 
-* Produce one conflict (see setup above).
-* Left-click the tray icon.
+* Produce two conflicts (see setup above).
+* In the status view's grid, the conflicting session's Conflict column
+  (right after Status) shows `2`.
 * Click "Resolve conflicts".
-* A window is displayed with the title "MutagenMon: resolve file conflict
-  1 of 1" (or "N of total" if several conflicts are pending).
-* The content shows the conflicting file's name, and for each of A and B:
-  the endpoint URL, the file size in bytes, and the last-modified
-  timestamp.
+* A window titled "MutagenMon: resolve file conflicts" is displayed with a
+  grid (Session, File, Conflict description, Resolution) and one row per conflict. No
+  options are shown yet (the side panel is visible but empty), and nothing
+  is resolved automatically.
+* Select the first row.
+* In the side panel to the right of the grid, for each of Alpha and Beta: the endpoint URL,
+  the file size in bytes and the last-modified timestamp, followed by the
+  options "Visual merge", "Alpha wins", "Beta wins" and an "OK" button.
 
 **UT-9.2 — Default choice follows the most recently modified side
 (FR-9.3)** ✅
 
-* In the window from UT-9.1, note which radio button, "A wins" or "B
-  wins", is pre-selected.
+* In the window from UT-9.1, note which radio button, "Alpha wins" or
+  "Beta wins", is pre-selected.
 * Compare the two timestamps shown above it.
-* The pre-selected option matches whichever side (A or B) has the more
-  recent timestamp.
+* The pre-selected option matches the side with the more recent timestamp.
+* The row's Resolution cell reads "<choice> (pending)".
+* Click another radio button: the Resolution cell follows immediately.
 
-**UT-9.3 — "A wins" resolution (FR-9.2)** ✅
+**UT-9.3 — "Alpha wins" resolution (FR-9.2)** ✅
 
-* With the conflict dialog open, click the "A wins" radio button.
+* With a row selected, click the "Alpha wins" radio button.
 * Click "OK".
-* B's copy of the file now has A's content (compare the two files
+* Beta's copy of the file now has Alpha's content (compare the two files
   directly).
+* The Resolution cell reads "Alpha wins (resolved)" and the options
+  disappear.
+* The side panel stays visible; the options do not come back until
+  another row is selected.
+* Select the resolved row again: the panel shows its resolution but offers
+  no options.
 * Open `log/mutagenMon.log`.
 * A new "Conflict resolved" line is present with the session name, both
   URLs, the file name, method "A wins", and no "[AUTO]" tag.
 
-**UT-9.4 — "B wins" resolution (FR-9.2)** ✅
+**UT-9.4 — "Beta wins" resolution (FR-9.2)** ✅
 
-* Produce a fresh conflict (see setup above).
-* Open the resolution dialog and click the "B wins" radio button.
-* Click "OK".
-* A's copy of the file now has B's content.
+* Select the other row, click the "Beta wins" radio button and click "OK".
+* Alpha's copy of the file now has Beta's content.
 * `log/mutagenMon.log` has a new "Conflict resolved" line with method "B
   wins".
 
@@ -854,42 +863,30 @@ conflict on its next poll.
 
 * Set `MergePath` in `config_mutagenmon.json` to a real merge tool (e.g.
   WinMerge) and restart MutagenMon.
-* Produce a conflict and open the resolution dialog.
+* Produce a conflict, open the resolution window and select its row.
 * Click the "Visual merge" radio button.
 * Click "OK".
-* The configured merge tool opens with local copies of both A and B.
-* Edit and save the left (A) pane in the merge tool.
+* The configured merge tool opens with local copies of both Alpha and
+  Beta.
+* Edit and save the left (Alpha) pane in the merge tool.
 * Close the merge tool.
-* A confirmation window is displayed, titled "MutagenMon: resolved file
-  conflict", with the content "Merged file copied to both sides:"
-  followed by the file name.
-* Click "OK".
-* Both A and B now contain the merged content.
+* Both Alpha and Beta now contain the merged content, and the Resolution
+  cell reads "Visual merge (resolved)".
 
-**UT-9.6 — Visual merge re-prompts when nothing changed (FR-9.2)** ✅
+**UT-9.6 — Visual merge with no change leaves the row unresolved
+(FR-9.2)** ✅
 
 * Repeat UT-9.5, but close the merge tool without changing either pane.
-* No confirmation window is displayed.
-* The same conflict is presented again immediately, instead of silently
-  moving to the next one.
+* An informational dialog says no change was made and the conflict is
+  still unresolved.
+* The row stays unresolved and its options remain available.
 
-**UT-9.7 — Cancelling on one conflict (FR-9.4)** ✅ *(tests current
-behavior, which is now known to diverge from corrected FR-9.4 — see below)*
+**UT-9.7 — Closing the window leaves unresolved rows untouched
+(FR-9.4)** ✅
 
-* Produce two separate conflicts.
-* Left-click the tray icon.
-* Click "Resolve conflicts".
-* On the first conflict presented, click "Cancel".
-* **Current .NET behavior**: no further conflict window is displayed (the
-  whole batch is aborted) and neither file was modified.
-* **Corrected FR-9.4 (true legacy behavior)**: Cancel should only skip the
-  first conflict and immediately present the second one, not abort the
-  batch. The current .NET implementation was built against this
-  document's previous, incorrect wording of FR-9.4, not against the
-  legacy app's actual behavior — see the discrepancy note under FR-9.4 in
-  [01-functional-requirements.md](01-functional-requirements.md#fr-9--manual-conflict-resolution).
-  This test should be rewritten (and the code fixed, if legacy parity is
-  wanted) rather than left as documenting the divergent behavior.
+* Produce two conflicts and open the resolution window.
+* Resolve only the first row, then click "Close".
+* The second conflict is untouched and the status view still shows `1` in the Conflict column (once mutagen has reported the first as resolved).
 
 **UT-9.8 — Too-many-conflicts guard (FR-9.5)** ✅ *(needs 100+ conflicts —
 optional if you can't produce that many)*
@@ -906,11 +903,11 @@ optional if you can't produce that many)*
 
 * Produce a conflict where at least one side is an SSH endpoint.
 * Left-click the tray icon.
-* Click "Resolve conflicts".
+* Click "Resolve conflicts" and select that conflict's row.
 * A small, borderless window with the text "Remote connection..." is
   briefly displayed while file sizes/timestamps are fetched.
-* The window disappears on its own once the comparison window (UT-9.1)
-  appears — it is never dismissed by the user.
+* The window disappears on its own once the options appear to the right of
+  the grid — it is never dismissed by the user.
 
 **UT-9.10 — Directory-level conflict (FR-9.2, not covered by the original
 FR-9 wording)** ✅
@@ -919,8 +916,8 @@ FR-9 wording)** ✅
   single file (e.g. delete a synced subdirectory on one side while new
   untracked content appears under it on the other — `mutagen sync list -l`
   shows a line like `(alpha) some/dir (Directory -> <non-existent>)`).
-* Left-click the tray icon, click "Resolve conflicts".
-* The dialog shows `(directory)` (not a byte size) for whichever side is a
+* Left-click the tray icon, click "Resolve conflicts" and select the row.
+* The side panel shows `(directory)` (not a byte size) for whichever side is a
   directory, and `(does not exist)` for a side that has none of the entry.
 * The "Visual merge" option is disabled/greyed out (a directory can't be
   diffed with the merge tool).
@@ -1388,15 +1385,19 @@ Covered above by UT-7.4.
 * A single-line message (most log lines) is unaffected — shown in full in
   the grid, with no `[+... ]` suffix.
 
-**UT-44.1 — Error and Critical rows shown in red (FR-44)** ✅
+**UT-44.1 — Error and Critical rows in red, Warning rows in orange (FR-44)** ✅
 
 * Trigger at least one `Error`-level log line (e.g. "Open log file" when
   the log file doesn't exist yet logs at Information — instead, trigger
   a real error path, such as FR-42.1/42.2's failure branches, or any
   Error-level entry already visible from normal operation) and at least
   one `Critical`-level line (e.g. UT-45.1 below).
-* In the grid, both rows' text is red. Rows at every other level
-  (Trace/Debug/Information/Warning) keep the default (black) text color.
+* In the grid, both rows' text is red.
+* Trigger at least one `Warning`-level line (e.g. the "Failed to update
+  the tray icon/tooltip; will retry next tick" path, or a duplicate
+  session name in the sessions file). Its row's text is orange.
+* Rows at every other level (Trace/Debug/Information) keep the default
+  (black) text color.
 
 **UT-45.1 — "Generate exception" button, hidden by default (FR-45)** ✅
 

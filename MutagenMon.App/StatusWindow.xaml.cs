@@ -87,14 +87,12 @@ public partial class StatusWindow : Window
     public void UpdateContent(MonitorSnapshot snapshot, IReadOnlyList<string> sessionNames, bool reloadInProgress)
     {
         var rows = BuildSessionRows(
-            sessionNames, snapshot.SessionStatuses, snapshot.LastChangedUtc, snapshot.SessionCodes, snapshot.Enabled);
+            sessionNames, snapshot.SessionStatuses, snapshot.LastChangedUtc, snapshot.SessionCodes, snapshot.Conflicts, snapshot.Enabled);
         SyncRows(_sessionRows, rows);
 
         ConflictsText.Text = BuildConflictsSection(sessionNames, snapshot.Conflicts);
 
         var hasUnresolvedConflicts = HasUnresolvedConflicts(snapshot.Conflicts);
-        CloseButton.Visibility = hasUnresolvedConflicts ? Visibility.Collapsed : Visibility.Visible;
-        CancelButton.Visibility = hasUnresolvedConflicts ? Visibility.Visible : Visibility.Collapsed;
         ResolveConflictsButton.Visibility = hasUnresolvedConflicts ? Visibility.Visible : Visibility.Collapsed;
 
         ToggleMonitoringButton.Content = snapshot.Enabled ? "Stop Mutagen sessions" : "Start Mutagen sessions";
@@ -125,18 +123,6 @@ public partial class StatusWindow : Window
 
         while (target.Count > source.Count)
             target.RemoveAt(target.Count - 1);
-    }
-
-    private void OnCloseClick(object sender, RoutedEventArgs e)
-    {
-        _logger.LogInformation("User action: status window Close clicked");
-        Hide();
-    }
-
-    private void OnCancelClick(object sender, RoutedEventArgs e)
-    {
-        _logger.LogInformation("User action: status window Cancel clicked");
-        Hide();
     }
 
     private void OnResolveConflictsClick(object sender, RoutedEventArgs e)
@@ -253,6 +239,7 @@ public partial class StatusWindow : Window
         IReadOnlyDictionary<string, ParsedSessionStatus?> statuses,
         IReadOnlyDictionary<string, DateTimeOffset?> lastChangedUtc,
         IReadOnlyDictionary<string, SessionStatusCode> sessionCodes,
+        IReadOnlyDictionary<string, IReadOnlyList<ConflictRecord>> conflicts,
         bool enabled)
     {
         var rows = new List<SessionSummaryRow>();
@@ -261,10 +248,16 @@ public partial class StatusWindow : Window
             statuses.TryGetValue(name, out var status);
             lastChangedUtc.TryGetValue(name, out var lastChanged);
             sessionCodes.TryGetValue(name, out var code);
+
+            var conflictCount = conflicts.TryGetValue(name, out var sessionConflicts)
+                ? sessionConflicts.Count(c => !c.AutoResolved)
+                : 0;
+
             rows.Add(new SessionSummaryRow(
                 name,
                 TrayIconStateResolver.ResolveSessionIconKey(code, enabled),
                 BuildStatusDisplay(status),
+                conflictCount,
                 status?.Alpha?.Url ?? "(unknown)",
                 status?.Beta?.Url ?? "(unknown)",
                 lastChanged));

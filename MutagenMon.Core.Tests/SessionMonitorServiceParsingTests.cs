@@ -130,6 +130,30 @@ public class SessionMonitorServiceParsingTests
     }
 
     [Fact]
+    public void ConflictNamesAreTrimmedAndStatesExcludeTheClosingParenthesis()
+    {
+        // mutagen pads "(beta) " with an extra space to align it under "(alpha) ".
+        const string raw = """
+            Name: padded-sync
+            Alpha:
+                URL: C:\a
+            Beta:
+                URL: C:\b
+            Status: Watching for changes
+            Conflicts:
+            (alpha) copylogs.bat (<non-existent> -> File (a36d3ae5))
+            (beta)  copylogs.bat (<non-existent> -> File (3d39a608))
+            """;
+
+        var conflict = Assert.Single(SessionMonitorService.Parse(raw, new[] { "padded-sync" }).Conflicts["padded-sync"]);
+
+        Assert.Equal("copylogs.bat", conflict.AlphaName);
+        Assert.Equal("copylogs.bat", conflict.BetaName);
+        Assert.Equal("<non-existent> -> File (a36d3ae5)", conflict.AlphaState);
+        Assert.Equal("<non-existent> -> File (3d39a608)", conflict.BetaState);
+    }
+
+    [Fact]
     public void MissingSessionYieldsNullStatusNotAnException()
     {
         var result = SessionMonitorService.Parse(Raw, new[] { "photos-sync", "never-created-sync" });

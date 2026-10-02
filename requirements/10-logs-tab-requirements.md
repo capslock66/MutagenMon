@@ -114,12 +114,15 @@ for the tab immediately before this one. Continues the FR numbering from
   height in the grid. The uncollapsed `Message` is still what the detail
   panel (FR-43.1) shows for the selected row.
 
-## FR-44 — Error and Critical rows highlighted in red
+## FR-44 — Error and Critical rows highlighted in red, Warning rows in orange
 
 - FR-44.1: Grid rows whose `Level` is `Error` or `Critical` are rendered
   with red foreground text (`DataGridRow.Foreground`), via a `DataTrigger`
-  bound to `LogEntry.IsErrorOrCritical`. `Warning`/other levels are
-  unaffected.
+  bound to `LogEntry.IsErrorOrCritical`.
+- FR-44.2: Grid rows whose `Level` is `Warning` are rendered with
+  `DarkOrange` foreground text (readable on a white background, unlike
+  plain `Orange`), via a `DataTrigger` bound to `LogEntry.IsWarning`.
+  Other levels are unaffected.
 
 ## FR-45 — "Generate exception" button (test aid)
 
@@ -173,7 +176,7 @@ for the tab immediately before this one. Continues the FR numbering from
 - `MutagenMon.App/LogEntry.cs`: the record shown (`Timestamp`, `Level`,
   `Category`, `Message`) — distinct from `FileLoggerProvider`'s own
   free-text file-line formatting. Added the computed `IsErrorOrCritical`
-  (FR-44) and `GridSummary` (FR-43.4) properties.
+  and `IsWarning` (FR-44) and `GridSummary` (FR-43.4) properties.
 - `MutagenMon.App/LogsView.xaml`/`.xaml.cs`: the tab itself, hosted
   directly in `StatusWindow.xaml`. `StatusWindow`'s constructor now also
   takes the app's single `FileLoggerProvider` instance (alongside the

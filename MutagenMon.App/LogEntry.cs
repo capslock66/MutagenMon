@@ -12,6 +12,9 @@ public sealed record LogEntry(DateTimeOffset Timestamp, LogLevel Level, string C
     /// <summary>Drives the Logs tab grid's red row highlighting.</summary>
     public bool IsErrorOrCritical => Level is LogLevel.Error or LogLevel.Critical;
 
+    /// <summary>Drives the Logs tab grid's orange row highlighting.</summary>
+    public bool IsWarning => Level is LogLevel.Warning;
+
     /// <summary>What the grid's Message column shows: <see cref="Message"/>
     /// collapsed to its first line, with an indicator appended when there's
     /// more — a multi-line <see cref="Message"/> (e.g. one with an appended

@@ -198,7 +198,8 @@ The full specification lives in
   aggregated worst-of-all-sessions code — to the left of the raw status text;
   session identifiers never shown; while actively staging a file with parsed
   `StagingProgress` available, see FR-2.2, an upload-progress summary
-  replaces the raw text), Alpha URL, Beta URL, and Last changed (the
+  replaces the raw text; followed by a Conflict column holding the number of unresolved,
+  non-autoresolved conflicts, blank when none), Alpha URL, Beta URL, and Last changed (the
   session's mutagen archive-file mtime tracked by FR-12 — the only signal
   that reliably reflects a completed sync regardless of how briefly it
   was in flight, "—" if never observed). If any un-auto-resolved conflicts
@@ -246,21 +247,21 @@ The full specification lives in
 
 ## FR-9 — Manual conflict resolution
 
-- FR-9.1: For every unresolved conflict, one at a time (dialog title
-  `"MutagenMon: resolve file conflict <N> of <total>"`), the application
-  MUST present: the conflicting file path, and for each side
-  (A/"alpha" and B/"beta") the endpoint URL, file size, and last-modified
-  timestamp (fetched locally or via SSH `stat` for remote endpoints), laid
-  out as `"A: <url1>\n<size> bytes, <timestamp>"` (and likewise for B).
-  > **Legacy quirk, not to reproduce silently**: in the current
-  > implementation, `<total>` is actually the **number of configured
-  > sessions**, not the number of conflicts to resolve (it is computed as
-  > `len(conflicts_dict)`, and that dict always has exactly one entry per
-  > configured session, empty or not). With 3 sessions and 7 real
-  > conflicts, the dialog cycles "1 of 3", "2 of 3", ... "7 of 3" — `<N>`
-  > legitimately exceeds `<total>`. The rewrite SHOULD instead compute
-  > `<total>` as the real count of unresolved (non-autoresolved) conflicts
-  > across all sessions, unless legacy-parity is explicitly requested.
+- FR-9.1: "Resolve conflicts" MUST open a single window (title
+  `"MutagenMon: resolve file conflicts"`) listing every unresolved
+  (non-autoresolved) conflict in a grid with the columns Session, File,
+  Conflict description (what happened on the alpha and beta sides) and
+  Resolution, in session order then mutagen's reporting order (no
+  automatic batch run). Selecting an unresolved row MUST show, in a side panel
+  to the right of the grid (always visible), the endpoint URL, file size and last-modified timestamp of
+  each side (fetched locally or via SSH `stat` for remote endpoints),
+  laid out as `"Alpha: <url1>\n<size> bytes, <timestamp>"` (and likewise for
+  Beta), followed by the three options **Visual merge**, **Alpha wins**,
+  **Beta wins** and an **OK** button. The Resolution column MUST follow the
+  user's pick (`"<choice> (pending)"`), and OK MUST apply it and show
+  `"<choice> (resolved)"`. After OK the options MUST disappear until the
+  user selects another row; a row already resolved MUST NOT offer the
+  options again.
 - FR-9.2: The user MUST be able to choose one of: **Visual merge** (opens
   an external diff/merge tool, `MergePath`, on local copies of both files;
   if the local "A" copy's file was modified afterwards — mtime changed —
@@ -278,38 +279,19 @@ The full specification lives in
   > directory). **A wins**/**B wins** mirrors the winning side's subtree
   > onto the other side recursively, or deletes the destination entirely
   > when the winning side has nothing at that path.
-- FR-9.3: The dialog MUST pre-select "A wins" or "B wins" automatically
+- FR-9.3: The options MUST pre-select "A wins" or "B wins" automatically
   based on which side has the more recent modification timestamp, as a
   suggested default the user can override.
-- FR-9.4: Cancelling the dialog for one conflict MUST **skip only that
-  conflict** and immediately present the next unresolved conflict in the
-  batch — it MUST NOT abort the whole batch. (Correction to a
-  misdescription in earlier revisions of this document: the legacy
-  `resolve_single()` treats Cancel identically to a completed resolution —
-  both make the outer loop move on to the next conflict — there is no code
-  path that stops the batch early other than exhausting all conflicts or
-  hitting the FR-9.5 cap.) The only way to leave a conflict *unresolved and
-  revisit it later* is to close/kill the whole application before the
-  batch completes.
-  > **⚠ Implementation discrepancy found while correcting this
-  > requirement**: the current .NET implementation
-  > (`ConflictResolutionController.cs`,
-  > [dotNet/src/MutagenMon.App](../dotNet/src/MutagenMon.App)) deliberately
-  > aborts the whole batch on Cancel, citing FR-9.4 in its own doc comment
-  > — i.e. it was built against this document's *previous, incorrect*
-  > wording, not against the legacy app's actual behavior. This is a real
-  > behavioral divergence from legacy parity that needs an explicit
-  > decision (fix the code to match this corrected FR-9.4, or knowingly
-  > keep abort-on-cancel as a deliberate rewrite-only improvement and say
-  > so here) — it has not been fixed as part of this documentation pass.
+- FR-9.4: There is no per-conflict Cancel and no batch: the user resolves
+  the rows they want, in any order, and leaves the others unresolved by
+  closing the window ("Close"). (Supersedes the legacy
+  one-dialog-per-conflict loop and its Cancel semantics.)
 - FR-9.5: If more than 100 unresolved (non-autoresolved) conflicts are
-  pending, the application MUST stop presenting further conflicts (the
-  first 100 in iteration order are still resolved one by one as normal)
-  and show a blocking, OK-only, informational dialog — title
+  pending, the application MUST NOT open the resolution window and MUST
+  instead show a blocking, OK-only, informational dialog — title
   `"MutagenMon: resolve file conflict"`, body
   `"Too many conflicts. You can restart resolving or resolve manually"`
-  — then abandon the rest of the batch (the remaining conflicts are left
-  unresolved until the next time the workflow is invoked).
+  (the conflicts are left unresolved until the workflow is invoked again).
 - FR-9.6: While copying/inspecting a remote (SSH) endpoint, the application
   MUST show a lightweight "connecting" indicator, dismissed automatically
   once the operation completes.
