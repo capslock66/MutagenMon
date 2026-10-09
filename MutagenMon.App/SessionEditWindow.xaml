@@ -36,6 +36,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <Label Grid.Row="0" Grid.Column="0" Content="Name" />
             <TextBox x:Name="NameBox" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,2" TextChanged="OnValidationFieldChanged" />
@@ -53,24 +54,11 @@
                     Click="OnBetaBrowseClick" ToolTip="Browse...">
                 <iconPacks:PackIconMaterial Kind="FolderOutline" Width="16" Height="16" />
             </Button>
+            <Label Grid.Row="3" Grid.Column="0" Content="Sync mode" />
+            <ComboBox x:Name="SyncModeCombo" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,2" />
         </Grid>
 
-        <TabControl Grid.Row="1" TabStripPlacement="Left">
-            <TabItem Header="Sync mode">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="8">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="140" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <Label Grid.Column="0" Content="Sync mode" />
-                            <ComboBox x:Name="SyncModeCombo" Grid.Column="1" />
-                        </Grid>
-                    </StackPanel>
-                </ScrollViewer>
-            </TabItem>
-
+        <TabControl Grid.Row="1" TabStripPlacement="Left" ItemContainerStyle="{StaticResource LeftTabItem}" BorderBrush="#FF828790" BorderThickness="1">
             <TabItem Header="Ignore">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="8">

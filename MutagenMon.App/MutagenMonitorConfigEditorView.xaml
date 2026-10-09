@@ -23,7 +23,7 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TabControl Grid.Row="0" TabStripPlacement="Left">
+        <TabControl Grid.Row="0" TabStripPlacement="Left" ItemContainerStyle="{StaticResource LeftTabItem}" BorderBrush="#FF828790" BorderThickness="1">
             <TabItem Header="General">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="8">

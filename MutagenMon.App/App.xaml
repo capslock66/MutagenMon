@@ -4,6 +4,28 @@
              xmlns:tb="clr-namespace:H.NotifyIcon;assembly=H.NotifyIcon.Wpf"
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
+        <Style x:Key="LeftTabItem" TargetType="TabItem">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Bd" BorderBrush="#FF828790" BorderThickness="1" Background="#FFF0F0F0"
+                                Padding="6,2" Margin="0,0,0,-1">
+                            <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FFE5F1FB" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="White" />
+                                <Setter TargetName="Bd" Property="Margin" Value="0,0,-1,-1" />
+                                <Setter Property="Panel.ZIndex" Value="1" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <tb:TaskbarIcon x:Key="TrayIcon" ToolTipText="MutagenMon: waiting for status..." TrayLeftMouseUp="OnShowStatusClick">
             <tb:TaskbarIcon.ContextMenu>
                 <ContextMenu Opened="OnTrayContextMenuOpened">

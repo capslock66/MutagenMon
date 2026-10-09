@@ -310,3 +310,16 @@ NoGit/
 *.tlb
 MutagenMon.App/StartMutagenMon.lnk
 copyToProdBuild.bat
+
+# Claude Code sandbox placeholders (empty files)
+.bash_profile
+.bashrc
+.profile
+.zprofile
+.zshrc
+.ripgreprc
+.gitmodules
+.mcp.json
+.idea
+.vscode
+.claude/
