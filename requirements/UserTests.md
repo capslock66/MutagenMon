@@ -693,6 +693,16 @@ content (FR-29.1/FR-29.2/FR-30.1/FR-30.2/FR-30.3)** ✅
   monospace, multi-line, editable text box. No "file does not exist"
   notice is shown.
 
+**UT-29.1b — File hyperlink opens the file in the default editor**
+
+* Ensure `%USERPROFILE%\.mutagen.yml` exists. Open the status view and
+  select the "Mutagen Configuration" tab.
+* Above the editor, a hyperlink showing the full path of
+  `.mutagen.yml` is displayed.
+* Click it. The file opens in the OS default editor for `.yml` files.
+* Delete the file, restart MutagenMon and click the link again: a message
+  states the file does not exist yet; nothing else happens.
+
 **UT-29.2 — Missing file opens an empty editor with a notice, and Save
 creates it (FR-30.4/FR-32.2)** ✅
 

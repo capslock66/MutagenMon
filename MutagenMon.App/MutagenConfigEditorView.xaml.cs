@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -54,12 +55,39 @@ public partial class MutagenConfigEditorView : UserControl
     {
         _logger = logger;
         _path = ResolveConfigPath();
+        OpenFileLink.Inlines.Add(_path);
+        OpenFileLink.ToolTip = "Open in the default editor";
 
         var loaded = LoadConfigFile(_path);
         EditorBox.Text = loaded.Content;
         _encoding = loaded.Encoding;
         _fileExisted = loaded.FileExisted;
         NewFileNoticeText.Visibility = _fileExisted ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void OnOpenFileLinkClick(object sender, RoutedEventArgs e)
+    {
+        _logger.LogInformation("User action: mutagen config file link clicked");
+
+        if (!File.Exists(_path))
+        {
+            MessageBox.Show(
+                Window.GetWindow(this), "The mutagen config file does not exist yet — Save it first.",
+                "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(_path) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to open mutagen config file '{Path}'", _path);
+            MessageBox.Show(
+                Window.GetWindow(this), $"MutagenMon could not open the mutagen config file:\n\n{ex.Message}",
+                "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void OnCheckClick(object sender, RoutedEventArgs e)
