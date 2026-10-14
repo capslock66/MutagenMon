@@ -57,6 +57,9 @@ public sealed class TrayIconController
     private bool _restartTriggered;
     private bool _reloadRequested;
     private bool _isReopeningContextMenu;
+    // Set from the SystemEvents thread (resume) and the UI thread (failed
+    // update), consumed by Tick on the UI thread.
+    private volatile bool _recreateIconRequested;
     private DateTimeOffset _resumedUtc = DateTimeOffset.MinValue;
 
     /// <summary>True from <see cref="RequestReload"/> until every configured
@@ -185,7 +188,11 @@ public sealed class TrayIconController
             return;
 
         _resumedUtc = DateTimeOffset.UtcNow;
-        _logger.LogInformation("System resumed from sleep/hibernate; staleness is measured from now");
+        // The shell may have dropped the native tray icon while the system
+        // was down; recreating it is cheap, and the de-duplicated update
+        // path would otherwise never notice (no update, no error).
+        _recreateIconRequested = true;
+        _logger.LogInformation("System resumed from sleep/hibernate; staleness is measured from now, tray icon will be recreated");
     }
 
     private void Tick()
@@ -221,14 +228,16 @@ public sealed class TrayIconController
 
         Polled?.Invoke(snapshot, state);
 
-        if (_lastState is { } last && last.IconKey == state.IconKey && last.Tooltip == state.Tooltip)
+        var iconRecreated = _recreateIconRequested && TryRecreateNativeIcon();
+
+        if (!iconRecreated && _lastState is { } last && last.IconKey == state.IconKey && last.Tooltip == state.Tooltip)
             return;
 
         _logger.LogDebug("Tray icon state changed: {IconKey} — \"{Tooltip}\"", state.IconKey, state.Tooltip);
 
         try
         {
-            if (_lastState?.IconKey != state.IconKey)
+            if (iconRecreated || _lastState?.IconKey != state.IconKey)
             {
                 _logger.LogInformation("Tray icon changed: {PreviousIconKey} -> {IconKey}", _lastState?.IconKey, state.IconKey);
                 _taskbarIcon.Icon = _iconCache.Get(state.IconKey);
@@ -241,14 +250,38 @@ public sealed class TrayIconController
             // The native tray icon can go stale after the taskbar is torn
             // down (Explorer restart, or waking from sleep/hibernate)
             // without a TaskbarCreated message to recreate it — H.NotifyIcon
-            // throws instead of no-op'ing. _lastState is deliberately left
-            // unset so the same update is retried next tick, rather than
-            // surfacing a disruptive error dialog every second.
-            _logger.LogWarning(ex, "Failed to update the tray icon/tooltip; will retry next tick");
+            // throws instead of no-op'ing, and retrying the update on the
+            // same stale native icon can never succeed. The icon is
+            // therefore recreated next tick, and _lastState is deliberately
+            // left unset so the same update is re-applied afterwards, rather
+            // than surfacing a disruptive error dialog every second.
+            _recreateIconRequested = true;
+            _logger.LogWarning(ex, "Failed to update the tray icon/tooltip; recreating the native icon next tick");
             return;
         }
 
         _lastState = state;
+    }
+
+    /// <summary>Drops the (possibly stale) native tray icon and adds a fresh
+    /// one. Returns false — leaving the request armed for the next tick — if
+    /// the shell isn't ready yet (typical right after a resume). The caller
+    /// must re-apply the icon and tooltip after a successful recreate.</summary>
+    private bool TryRecreateNativeIcon()
+    {
+        try
+        {
+            _taskbarIcon.TrayIcon.TryRemove();
+            _taskbarIcon.ForceCreate();
+            _recreateIconRequested = false;
+            _logger.LogInformation("Native tray icon recreated");
+            return true;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Failed to recreate the native tray icon; will retry next tick");
+            return false;
+        }
     }
 
     /// <summary>Implements the staleness checks (FR-6.1/6.2/6.3) as
