@@ -61,6 +61,15 @@ public sealed class TrayIconController
     // update), consumed by Tick on the UI thread.
     private volatile bool _recreateIconRequested;
     private DateTimeOffset _resumedUtc = DateTimeOffset.MinValue;
+    // At auto-start on logon, the icon can be created before Explorer's
+    // notification area is ready: it is shown but never receives clicks, and
+    // no error or TaskbarCreated message ever signals it. The native icon is
+    // therefore recreated at these offsets after startup (cheap, idempotent).
+    private static readonly TimeSpan[] StartupRecreateDelays = [TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(60)];
+    private readonly DateTimeOffset _startedUtc = DateTimeOffset.UtcNow;
+    private int _startupRecreatesDone;
+    // Failed recreate attempts since the last successful one.
+    private int _recreateRetryCount;
 
     /// <summary>True from <see cref="RequestReload"/> until every configured
     /// session has stopped reporting a status and the in-place reload has
@@ -228,6 +237,12 @@ public sealed class TrayIconController
 
         Polled?.Invoke(snapshot, state);
 
+        if (_startupRecreatesDone < StartupRecreateDelays.Length && now - _startedUtc >= StartupRecreateDelays[_startupRecreatesDone])
+        {
+            _startupRecreatesDone++;
+            _recreateIconRequested = true;
+        }
+
         var iconRecreated = _recreateIconRequested && TryRecreateNativeIcon();
 
         if (!iconRecreated && _lastState is { } last && last.IconKey == state.IconKey && last.Tooltip == state.Tooltip)
@@ -274,12 +289,14 @@ public sealed class TrayIconController
             _taskbarIcon.TrayIcon.TryRemove();
             _taskbarIcon.ForceCreate();
             _recreateIconRequested = false;
-            _logger.LogInformation("Native tray icon recreated");
+            _logger.LogInformation("Native tray icon recreated (retry count: {RetryCount})", _recreateRetryCount);
+            _recreateRetryCount = 0;
             return true;
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Failed to recreate the native tray icon; will retry next tick");
+            _recreateRetryCount++;
+            _logger.LogWarning(ex, "Failed to recreate the native tray icon (retry count: {RetryCount}); will retry next tick", _recreateRetryCount);
             return false;
         }
     }
