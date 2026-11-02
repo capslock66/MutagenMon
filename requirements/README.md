@@ -36,7 +36,12 @@ This folder documents the required behavior of MutagenMon.
    and design for a real-time, 100-event log grid as a fourth status-window
    tab. Implemented (FR-39 through FR-42). Last tab of the rewrite tracked
    in `TABS_UI_PLAN.md`.
-9. [UserTests.md](UserTests.md) — manual, click-by-click acceptance test
+9. [11-scripts-tab-requirements.md](11-scripts-tab-requirements.md) —
+   requirements and design for a "Scripts" tab that lists scripts defined in
+   a separate ini-like file and runs the selected one on a remote Linux
+   server over SSH (one connection per run, output shown in the tab).
+   Planned (FR-47 through FR-54).
+10. [UserTests.md](UserTests.md) — manual, click-by-click acceptance test
    script for verifying each requirement against the running application,
    kept in step with implementation progress.
 

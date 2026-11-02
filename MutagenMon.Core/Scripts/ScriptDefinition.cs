@@ -1,0 +1,20 @@
+namespace MutagenMon.Core.Scripts;
+
+/// <summary>
+/// One script parsed out of the scripts file (FR-48). <see cref="Body"/> is
+/// the text sent verbatim to bash (directive comments included, `\n` line
+/// endings, no `set -e` prefix — that is the runner's job, FR-51.2).
+/// A non-null <see cref="ValidationError"/> means the script is listed but
+/// cannot be run (FR-49.2).
+/// </summary>
+public sealed record ScriptDefinition(
+    string Name,
+    string? Host,
+    string Description,
+    bool StopOnError,
+    bool Confirm,
+    string Body,
+    string? ValidationError)
+{
+    public bool IsValid => ValidationError is null;
+}
