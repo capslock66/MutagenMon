@@ -77,7 +77,8 @@
                                   MaxHeight="160" MinHeight="60">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Host" Binding="{Binding Host}" Width="*" />
-                                <DataGridTemplateColumn Header="" Width="Auto" CanUserResize="False">
+                                <!-- Fixed width: an Auto column sized while the grid was empty stays too narrow once the first row is added. -->
+                                <DataGridTemplateColumn Header="" Width="80" CanUserResize="False">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Button Content="Remove" Padding="4,0" Click="OnRemoveServerClick" />

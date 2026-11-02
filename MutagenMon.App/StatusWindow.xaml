@@ -124,7 +124,7 @@
                 </Grid>
             </TabItem>
 
-            <TabItem Header="Scripts">
+            <TabItem x:Name="ScriptsTab" Header="Scripts">
                 <local:ScriptsView x:Name="ScriptsViewControl" />
             </TabItem>
 

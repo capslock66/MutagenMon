@@ -74,7 +74,7 @@ public partial class StatusWindow : Window
     private readonly ILogger _logger;
 
     public StatusWindow(ILogger logger, IconImageCache iconCache, FileLoggerProvider loggerProvider, bool showGenerateException,
-        Func<string> scriptsPathProvider, Func<ScriptRunner> scriptRunnerFactory)
+        Func<string> scriptsPathProvider, Func<ScriptRunner> scriptRunnerFactory, Func<string?> defaultScriptHostProvider)
     {
         InitializeComponent();
         Title = $"MutagenMon {App.AppVersion}";
@@ -84,7 +84,20 @@ public partial class StatusWindow : Window
         MutagenConfigEditorViewControl.Initialize(logger);
         MutagenMonitorConfigEditorViewControl.Initialize(logger);
         LogsViewControl.Initialize(logger, loggerProvider, showGenerateException);
-        ScriptsViewControl.Initialize(logger, scriptsPathProvider, scriptRunnerFactory);
+        ScriptsViewControl.Initialize(logger, scriptsPathProvider, scriptRunnerFactory, defaultScriptHostProvider);
+        ScriptsViewControl.HasUnsavedChangesChanged += (_, hasUnsavedChanges) => UpdateScriptsTabHeader(hasUnsavedChanges);
+    }
+
+    /// <summary>"Scripts", or a bold "Scripts *" while a script has unsaved changes.</summary>
+    private void UpdateScriptsTabHeader(bool hasUnsavedChanges)
+    {
+        if (!hasUnsavedChanges)
+        {
+            ScriptsTab.Header = "Scripts";
+            return;
+        }
+
+        ScriptsTab.Header = new TextBlock { Text = "Scripts *", FontWeight = FontWeights.Bold };
     }
 
     public void UpdateContent(MonitorSnapshot snapshot, IReadOnlyList<string> sessionNames, bool reloadInProgress)

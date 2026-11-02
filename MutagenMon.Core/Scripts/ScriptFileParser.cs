@@ -27,6 +27,11 @@ public static partial class ScriptFileParser
         return header.Success;
     }
 
+    /// <summary>True when <paramref name="name"/> can be written as a
+    /// section header and read back unchanged (FR-48.1).</summary>
+    public static bool IsValidName(string name) =>
+        TryGetSectionName($"[{name}]", out var parsedName) && parsedName == name;
+
     public static IReadOnlyList<ScriptDefinition> ParseFile(string path) => ParseLines(File.ReadAllLines(path));
 
     public static IReadOnlyList<ScriptDefinition> ParseLines(IEnumerable<string> lines)

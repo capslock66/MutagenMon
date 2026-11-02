@@ -387,6 +387,11 @@ public partial class App //: Application
     private string ResolveScriptsPath() =>
         Path.Combine(AppContext.BaseDirectory, _options!.ScriptsFile.Replace('/', Path.DirectorySeparatorChar));
 
+    /// <summary>First configured SSH server host, or null when none is set
+    /// (prefills the host of a new script).</summary>
+    private string? FirstSshServerHost() =>
+        _options?.SshServers.Select(server => server.Host.Trim()).FirstOrDefault(host => host.Length > 0);
+
     /// <summary>Built per run: <see cref="ScriptRunner"/> reads the ssh path
     /// and timeout once, so a fresh one picks up a reloaded config.</summary>
     private ScriptRunner CreateScriptRunner() =>
@@ -397,7 +402,7 @@ public partial class App //: Application
         if (_statusWindow is null)
         {
             _statusWindow = new StatusWindow(_logger!, _iconCache!, _loggerProvider!, _options?.ShowGenerateException ?? false,
-                ResolveScriptsPath, CreateScriptRunner);
+                ResolveScriptsPath, CreateScriptRunner, FirstSshServerHost);
             _statusWindow.ResolveConflictsRequested += OnResolveConflictsRequested;
             _statusWindow.ReloadConfigRequested += OnStatusWindowReloadConfigRequested;
             _statusWindow.ToggleMonitoringRequested += OnStatusWindowToggleMonitoringRequested;
