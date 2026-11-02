@@ -4,10 +4,10 @@
 Add a "Scripts" tab listing scripts defined in a separate ini-like file. The user selects a script and runs it; the whole script is executed in one SSH connection on a Linux server. First use case: start a detached tmux session running `claude --remote-control`.
 
 ## Next Step
-Phase 3: UI (MutagenMon.App). Not started; waits for an explicit request.
+Phase 4: Tests and user tests. Not started; waits for an explicit request.
 
 ## Current Phase
-Phase 2 complete; Phase 3 pending
+Phases 1-3 complete; Phase 4 pending
 
 ## Phases
 
@@ -25,10 +25,10 @@ Phase 2 complete; Phase 3 pending
 - **Status:** complete
 
 ### Phase 3: UI (MutagenMon.App)
-- [ ] 3.1 New tab: script list (left), read-only script text + Run/Cancel + Reload button, read-only output pane (right)
-- [ ] 3.2 Running state, exit code display, confirmation dialog for `@confirm: true`
-- [ ] 3.3 Logging of executions via existing logger
-- **Status:** pending
+- [x] 3.1 New tab: script list (left), read-only script text + Run/Cancel + Reload button, read-only output pane (right)
+- [x] 3.2 Running state, exit code display, confirmation dialog for `@confirm: true`
+- [x] 3.3 Logging of executions via existing logger
+- **Status:** complete
 
 ### Phase 4: Tests and user tests
 - [ ] 4.1 Unit tests: parser (including `[ -f x ]` / `[[ ... ]]` not treated as headers), runner with fake ssh

@@ -1,0 +1,87 @@
+<UserControl x:Class="MutagenMon.App.ScriptsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- FR-47.2: Run, Cancel (only while a script is running), Reload. -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,8">
+            <Button x:Name="RunButton" Content="Run" Width="90" IsEnabled="False" Click="OnRunClick" />
+            <Button x:Name="CancelButton" Content="Cancel" Width="90" Margin="8,0,0,0" IsEnabled="False" Click="OnCancelClick" />
+            <Button x:Name="ReloadButton" Content="Reload" Width="90" Margin="8,0,0,0" Click="OnReloadClick" />
+            <!-- Link to the scripts file itself, opened with the OS default editor. -->
+            <TextBlock VerticalAlignment="Center" Margin="12,0,0,0">
+                <Hyperlink x:Name="OpenFileLink" Click="OnOpenFileLinkClick" ToolTip="Open in the default editor" />
+            </TextBlock>
+        </StackPanel>
+
+        <!-- FR-49.2: informational message (missing/unreadable file), never a dialog. -->
+        <TextBlock x:Name="InfoText" Grid.Row="1" TextWrapping="Wrap" Margin="0,0,0,8" Visibility="Collapsed" />
+
+        <!-- FR-47.3: script list on the left; script text above the output on the right. -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="240" MinWidth="120" />
+                <ColumnDefinition Width="5" />
+                <ColumnDefinition Width="*" MinWidth="200" />
+            </Grid.ColumnDefinitions>
+
+            <ListBox x:Name="ScriptList" Grid.Column="0" SelectionMode="Single"
+                     HorizontalContentAlignment="Stretch"
+                     SelectionChanged="OnScriptListSelectionChanged">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Margin="2">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding Detail}" TextWrapping="Wrap">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="Gray" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsInvalid}" Value="True">
+                                                <Setter Property="Foreground" Value="Red" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="LightGray" />
+
+            <Grid Grid.Column="2" Margin="8,0,0,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" MinHeight="60" />
+                    <RowDefinition Height="5" />
+                    <RowDefinition Height="2*" MinHeight="60" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBox x:Name="ScriptText" Grid.Row="0" IsReadOnly="True"
+                         TextWrapping="NoWrap" FontFamily="Consolas"
+                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" />
+
+                <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch" Background="LightGray" />
+
+                <!-- FR-52: read-only output, stderr in red. -->
+                <RichTextBox x:Name="OutputBox" Grid.Row="2" IsReadOnly="True"
+                             FontFamily="Consolas"
+                             VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                    <RichTextBox.Document>
+                        <FlowDocument PageWidth="5000" />
+                    </RichTextBox.Document>
+                </RichTextBox>
+
+                <!-- FR-52.3: outcome of the run (exit code, cancelled/timed out, duration), kept out of the streamed output. -->
+                <TextBlock x:Name="StatusText" Grid.Row="3" Margin="0,6,0,0" TextWrapping="Wrap" />
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>

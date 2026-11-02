@@ -14,6 +14,7 @@ using MutagenMon.Core.Mutagen;
 using MutagenMon.Core.Notifications;
 using MutagenMon.Core.ProfileWatch;
 using MutagenMon.Core.Resolution;
+using MutagenMon.Core.Scripts;
 using MutagenMon.Core.Sessions;
 using MutagenMon.Core.Status;
 
@@ -381,11 +382,22 @@ public partial class App //: Application
         window.Top = workArea.Top + (workArea.Height - height) / 2;
     }
 
+    /// <summary>Scripts file path from the current options, relative to the
+    /// application directory like <c>MutagenSessionsBatFile</c> (FR-49).</summary>
+    private string ResolveScriptsPath() =>
+        Path.Combine(AppContext.BaseDirectory, _options!.ScriptsFile.Replace('/', Path.DirectorySeparatorChar));
+
+    /// <summary>Built per run: <see cref="ScriptRunner"/> reads the ssh path
+    /// and timeout once, so a fresh one picks up a reloaded config.</summary>
+    private ScriptRunner CreateScriptRunner() =>
+        new(Options.Create(_options!), _host!.Services.GetRequiredService<ILogger<ScriptRunner>>());
+
     private void ShowStatusWindow()
     {
         if (_statusWindow is null)
         {
-            _statusWindow = new StatusWindow(_logger!, _iconCache!, _loggerProvider!, _options?.ShowGenerateException ?? false);
+            _statusWindow = new StatusWindow(_logger!, _iconCache!, _loggerProvider!, _options?.ShowGenerateException ?? false,
+                ResolveScriptsPath, CreateScriptRunner);
             _statusWindow.ResolveConflictsRequested += OnResolveConflictsRequested;
             _statusWindow.ReloadConfigRequested += OnStatusWindowReloadConfigRequested;
             _statusWindow.ToggleMonitoringRequested += OnStatusWindowToggleMonitoringRequested;

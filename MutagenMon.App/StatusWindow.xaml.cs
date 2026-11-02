@@ -9,6 +9,7 @@ using System.Windows.Media;
 using Microsoft.Extensions.Logging;
 using MutagenMon.Core.Monitoring;
 using MutagenMon.Core.Mutagen;
+using MutagenMon.Core.Scripts;
 using MutagenMon.Core.Status;
 
 namespace MutagenMon.App;
@@ -72,7 +73,8 @@ public partial class StatusWindow : Window
     private readonly ObservableCollection<SessionSummaryRow> _sessionRows = new();
     private readonly ILogger _logger;
 
-    public StatusWindow(ILogger logger, IconImageCache iconCache, FileLoggerProvider loggerProvider, bool showGenerateException)
+    public StatusWindow(ILogger logger, IconImageCache iconCache, FileLoggerProvider loggerProvider, bool showGenerateException,
+        Func<string> scriptsPathProvider, Func<ScriptRunner> scriptRunnerFactory)
     {
         InitializeComponent();
         Title = $"MutagenMon {App.AppVersion}";
@@ -82,6 +84,7 @@ public partial class StatusWindow : Window
         MutagenConfigEditorViewControl.Initialize(logger);
         MutagenMonitorConfigEditorViewControl.Initialize(logger);
         LogsViewControl.Initialize(logger, loggerProvider, showGenerateException);
+        ScriptsViewControl.Initialize(logger, scriptsPathProvider, scriptRunnerFactory);
     }
 
     public void UpdateContent(MonitorSnapshot snapshot, IReadOnlyList<string> sessionNames, bool reloadInProgress)

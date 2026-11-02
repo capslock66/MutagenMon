@@ -124,6 +124,10 @@
                 </Grid>
             </TabItem>
 
+            <TabItem Header="Scripts">
+                <local:ScriptsView x:Name="ScriptsViewControl" />
+            </TabItem>
+
             <TabItem Header="Mutagen Configuration">
                 <local:MutagenConfigEditorView x:Name="MutagenConfigEditorViewControl" />
             </TabItem>
