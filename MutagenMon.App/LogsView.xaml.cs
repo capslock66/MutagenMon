@@ -45,6 +45,9 @@ public partial class LogsView : UserControl
         InitializeComponent();
         LogGrid.ItemsSource = _entries;
         LogGrid.Loaded += OnLogGridLoaded;
+        // The primary log path is only known once config is loaded and can
+        // change on a config reload, so refresh the link each time the tab is shown.
+        Loaded += (_, _) => RefreshLogPathLink();
         // Set after InitializeComponent (not IsChecked="True" in XAML): the
         // Checked event fires synchronously as soon as the CheckBox itself
         // is constructed, which happens before CategoryColumn — declared
@@ -67,6 +70,13 @@ public partial class LogsView : UserControl
             _entries.Add(entry);
 
         loggerProvider.EntryLogged += OnEntryLogged;
+        RefreshLogPathLink();
+    }
+
+    private void RefreshLogPathLink()
+    {
+        OpenLogFileLink.Inlines.Clear();
+        OpenLogFileLink.Inlines.Add(_loggerProvider.PrimaryLogPath ?? "(log file path not known yet)");
     }
 
     /// <summary>Raised on whatever thread produced the log entry — never the

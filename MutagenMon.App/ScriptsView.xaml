@@ -5,25 +5,28 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- FR-47.2: Run, Cancel (only while a script is running), Reload. -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,8">
-            <Button x:Name="RunButton" Content="Run" Width="90" IsEnabled="False" Click="OnRunClick" />
+        <!-- Link to the scripts file itself, opened with the OS default editor. -->
+        <TextBlock Grid.Row="0" Margin="0,0,0,8">
+            <Hyperlink x:Name="OpenFileLink" Click="OnOpenFileLinkClick" ToolTip="Open in the default editor" />
+        </TextBlock>
+
+        <!-- FR-47.2: Reload, Run, Cancel (only while a script is running). -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,8">
+            <Button x:Name="ReloadButton" Content="Reload" Width="90" Click="OnReloadClick" />
+            <Button x:Name="SaveButton" Content="Save" Width="90" Margin="8,0,0,0" IsEnabled="False" Click="OnSaveClick" />
+            <Button x:Name="RunButton" Content="Run" Width="90" Margin="8,0,0,0" IsEnabled="False" Click="OnRunClick" />
             <Button x:Name="CancelButton" Content="Cancel" Width="90" Margin="8,0,0,0" IsEnabled="False" Click="OnCancelClick" />
-            <Button x:Name="ReloadButton" Content="Reload" Width="90" Margin="8,0,0,0" Click="OnReloadClick" />
-            <!-- Link to the scripts file itself, opened with the OS default editor. -->
-            <TextBlock VerticalAlignment="Center" Margin="12,0,0,0">
-                <Hyperlink x:Name="OpenFileLink" Click="OnOpenFileLinkClick" ToolTip="Open in the default editor" />
-            </TextBlock>
         </StackPanel>
 
         <!-- FR-49.2: informational message (missing/unreadable file), never a dialog. -->
-        <TextBlock x:Name="InfoText" Grid.Row="1" TextWrapping="Wrap" Margin="0,0,0,8" Visibility="Collapsed" />
+        <TextBlock x:Name="InfoText" Grid.Row="2" TextWrapping="Wrap" Margin="0,0,0,8" Visibility="Collapsed" />
 
         <!-- FR-47.3: script list on the left; script text above the output on the right. -->
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="240" MinWidth="120" />
                 <ColumnDefinition Width="5" />
@@ -65,6 +68,7 @@
                 </Grid.RowDefinitions>
 
                 <TextBox x:Name="ScriptText" Grid.Row="0" IsReadOnly="True"
+                         AcceptsReturn="True" AcceptsTab="True" TextChanged="OnScriptTextChanged"
                          TextWrapping="NoWrap" FontFamily="Consolas"
                          VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" />
 

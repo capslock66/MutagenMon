@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
+using Microsoft.Win32;
 using Microsoft.Extensions.Logging;
 using MutagenMon.Core.Configuration;
 
@@ -56,6 +58,8 @@ public partial class MutagenMonitorConfigEditorView : UserControl
     {
         _logger = logger;
         _path = Path.Combine(AppContext.BaseDirectory, "config", "config_mutagenmon.json");
+        OpenFileLink.Inlines.Add(_path);
+        OpenFileLink.ToolTip = "Open in the default editor";
 
         try
         {
@@ -69,6 +73,105 @@ public partial class MutagenMonitorConfigEditorView : UserControl
         }
 
         PopulateFromOptions(_loadedOptions);
+    }
+
+    /// <summary>Resolves a path as typed in a box (possibly relative to the
+    /// application directory, like the app itself does), or null when it is
+    /// empty or not a valid path.</summary>
+    private static string? ResolveForDialog(string typedPath)
+    {
+        if (string.IsNullOrWhiteSpace(typedPath))
+            return null;
+
+        try
+        {
+            return Path.GetFullPath(typedPath.Trim(), AppContext.BaseDirectory);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Dialog title for a path box. Boxes without an explicit title
+    /// fall back to their <see cref="MutagenMonOptions"/> property name (the
+    /// box name minus its "Box" suffix, e.g. <c>LogPathBox</c>).</summary>
+    private static string DialogTitleFor(TextBox box)
+    {
+        const string suffix = "Box";
+        return box.Name switch
+        {
+            nameof(MutagenPathBox) => "Select Mutagen.exe path",
+            nameof(MutagenSessionsBatFileBox) => "Select Mutagen Session .bat file",
+            nameof(ScriptsFileBox) => "Select scripts file",
+            nameof(MutagenProfileDirBox) => "Select Mutagen Profile directory",
+            nameof(MergePathBox) => "Select merge .exe file",
+            nameof(ScpPathBox) => "Select Scp path",
+            nameof(SshPathBox) => "Select Ssh path",
+            nameof(LogPathBox) => "Select Log path",
+            var name => $"Select {(name.EndsWith(suffix, StringComparison.Ordinal) ? name[..^suffix.Length] : name)}",
+        };
+    }
+
+    /// <summary>The "..." button next to a file path box; the box is
+    /// referenced by the button's <c>Tag</c>.</summary>
+    private void OnBrowseFileClick(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).Tag is not TextBox box)
+            return;
+
+        _logger.LogInformation("User action: mutagen monitor config editor Browse file clicked for {Field}", box.Name);
+        var dialog = new OpenFileDialog { Title = DialogTitleFor(box) };
+        var current = ResolveForDialog(box.Text);
+        if (current is not null && Path.GetDirectoryName(current) is { } directory && Directory.Exists(directory))
+        {
+            dialog.InitialDirectory = directory;
+            dialog.FileName = Path.GetFileName(current);
+        }
+
+        if (dialog.ShowDialog(Window.GetWindow(this)) == true)
+            box.Text = dialog.FileName;
+    }
+
+    /// <summary>The "..." button next to a directory path box.</summary>
+    private void OnBrowseFolderClick(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).Tag is not TextBox box)
+            return;
+
+        _logger.LogInformation("User action: mutagen monitor config editor Browse folder clicked for {Field}", box.Name);
+        var dialog = new OpenFolderDialog { Title = DialogTitleFor(box) };
+        var current = ResolveForDialog(box.Text);
+        if (current is not null && Directory.Exists(current))
+            dialog.InitialDirectory = current;
+
+        if (dialog.ShowDialog(Window.GetWindow(this)) == true)
+            box.Text = dialog.FolderName;
+    }
+
+    private void OnOpenFileLinkClick(object sender, RoutedEventArgs e)
+    {
+        _logger.LogInformation("User action: mutagen monitor config file link clicked");
+
+        if (!File.Exists(_path))
+        {
+            MessageBox.Show(
+                Window.GetWindow(this), "The mutagen monitor config file does not exist.",
+                "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(_path) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to open mutagen monitor config file '{Path}'", _path);
+            MessageBox.Show(
+                Window.GetWindow(this), $"MutagenMon could not open the mutagen monitor config file:\n\n{ex.Message}",
+                "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void PopulateFromOptions(MutagenMonOptions options)
@@ -87,6 +190,7 @@ public partial class MutagenMonitorConfigEditorView : UserControl
 
         MutagenPathBox.Text = options.MutagenPath;
         MutagenSessionsBatFileBox.Text = options.MutagenSessionsBatFile;
+        ScriptsFileBox.Text = options.ScriptsFile;
         MutagenProfileDirBox.Text = options.MutagenProfileDir;
         MergePathBox.Text = options.MergePath;
         ScpPathBox.Text = options.ScpPath;
@@ -195,7 +299,7 @@ public partial class MutagenMonitorConfigEditorView : UserControl
     /// <summary>Builds a <see cref="MutagenMonOptions"/> from the form's
     /// current field values, and the list of validation errors found along
     /// the way (empty when everything parses). Fields this form has no
-    /// control for (<c>DebugLevel</c>, <c>ScriptsFile</c>, <c>ScriptTimeoutSeconds</c>) are carried through from
+    /// control for (<c>DebugLevel</c>, <c>ScriptTimeoutSeconds</c>) are carried through from
     /// <see cref="_loadedOptions"/> unchanged.</summary>
     private void ReadFromUi(out MutagenMonOptions options, out List<string> errors)
     {
@@ -203,7 +307,6 @@ public partial class MutagenMonitorConfigEditorView : UserControl
         options = new MutagenMonOptions
         {
             DebugLevel = _loadedOptions.DebugLevel,
-            ScriptsFile = _loadedOptions.ScriptsFile,
             ScriptTimeoutSeconds = _loadedOptions.ScriptTimeoutSeconds,
             StartEnabled = StartEnabledCheck.IsChecked == true,
             ShowMainScreenAtStartup = ShowMainScreenAtStartupCheck.IsChecked == true,
@@ -217,6 +320,7 @@ public partial class MutagenMonitorConfigEditorView : UserControl
             ShowGenerateException = ShowGenerateExceptionCheck.IsChecked == true,
             MutagenPath = MutagenPathBox.Text,
             MutagenSessionsBatFile = MutagenSessionsBatFileBox.Text,
+            ScriptsFile = ScriptsFileBox.Text,
             MutagenProfileDir = MutagenProfileDirBox.Text,
             MergePath = MergePathBox.Text,
             ScpPath = ScpPathBox.Text,

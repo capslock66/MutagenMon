@@ -28,9 +28,19 @@ public partial class ScriptsView : UserControl
     private Func<string> _scriptsPathProvider = null!;
     private Func<ScriptRunner> _runnerFactory = null!;
     private readonly ObservableCollection<ScriptListItem> _items = new();
+    /// <summary>Last run output and status per script name, so switching
+    /// scripts and coming back shows that script's own last run. Also the
+    /// sink of a run in progress: its output keeps accumulating here while
+    /// another script is displayed.</summary>
+    private readonly Dictionary<string, ScriptRunView> _runViews = new();
     private CancellationTokenSource? _runSource;
+    /// <summary>Unsaved edits of scripts that are not the displayed one,
+    /// by script name, so switching scripts does not lose them.</summary>
+    private readonly Dictionary<string, string> _drafts = new();
     private bool _isLoaded;
     private bool _isRunning;
+    private bool _isReloading;
+    private bool _suppressTextChanged;
 
     public ScriptsView()
     {
@@ -62,6 +72,72 @@ public partial class ScriptsView : UserControl
     private void OnReloadClick(object sender, RoutedEventArgs e)
     {
         _logger.LogInformation("User action: Scripts Reload clicked");
+        if (HasUnsavedChanges())
+        {
+            if (!GenericMessageDialog.ShowConfirm(
+                    Window.GetWindow(this), _logger, "Reload scripts",
+                    "Some scripts have unsaved changes. Reloading discards them.", "Reload", "Cancel"))
+                return;
+
+            _drafts.Clear();
+            SetScriptText((ScriptList.SelectedItem as ScriptListItem)?.Script.Body ?? "");
+        }
+
+        LoadScripts();
+    }
+
+    private bool HasUnsavedChanges() => _drafts.Count > 0 || IsDirty();
+
+    /// <summary>True when the displayed text differs from the selected
+    /// script's saved body (line endings and surrounding blank lines
+    /// ignored, as the file format ignores them).</summary>
+    private bool IsDirty() =>
+        ScriptList.SelectedItem is ScriptListItem item && NormalizeBody(ScriptText.Text) != NormalizeBody(item.Script.Body);
+
+    private static string NormalizeBody(string text) => text.Replace("\r\n", "\n").Trim('\n');
+
+    private void SetScriptText(string text)
+    {
+        _suppressTextChanged = true;
+        try
+        {
+            ScriptText.Text = text;
+        }
+        finally
+        {
+            _suppressTextChanged = false;
+        }
+    }
+
+    private void OnScriptTextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!_suppressTextChanged)
+            UpdateButtons();
+    }
+
+    private void OnSaveClick(object sender, RoutedEventArgs e)
+    {
+        if (ScriptList.SelectedItem is not ScriptListItem item || !IsDirty())
+            return;
+
+        var name = item.Script.Name;
+        var path = _scriptsPathProvider();
+        _logger.LogInformation("User action: Scripts Save clicked for '{Script}'", name);
+        try
+        {
+            ScriptFileEditor.ReplaceBody(path, name, ScriptText.Text);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            _logger.LogError(ex, "Failed to save script '{Script}' to '{Path}'", name, path);
+            MessageBox.Show(
+                Window.GetWindow(this), $"MutagenMon could not save the script '{name}':\n\n{ex.Message}",
+                "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        _logger.LogInformation("Script '{Script}' saved to '{Path}'", name, path);
+        _drafts.Remove(name);
         LoadScripts();
     }
 
@@ -83,7 +159,15 @@ public partial class ScriptsView : UserControl
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _logger.LogWarning(ex, "Scripts file '{Path}' could not be read", path);
-            _items.Clear();
+            _isReloading = true;
+            try
+            {
+                _items.Clear();
+            }
+            finally
+            {
+                _isReloading = false;
+            }
             ShowInfo(ex is FileNotFoundException or DirectoryNotFoundException
                 ? $"Scripts file not found: {path}"
                 : $"Scripts file could not be read: {path} ({ex.Message})");
@@ -92,11 +176,22 @@ public partial class ScriptsView : UserControl
 
         _logger.LogInformation("Loaded {Count} script(s) from '{Path}'", scripts.Count, path);
         InfoText.Visibility = Visibility.Collapsed;
-        _items.Clear();
-        foreach (var script in scripts)
-            _items.Add(new ScriptListItem(script));
+        // The rebuild below raises selection changes for items that no
+        // longer exist: those must not be taken for the user switching scripts.
+        _isReloading = true;
+        try
+        {
+            _items.Clear();
+            foreach (var script in scripts)
+                _items.Add(new ScriptListItem(script));
 
-        ScriptList.SelectedItem = _items.FirstOrDefault(item => item.Script.Name == previousName);
+            ScriptList.SelectedItem = _items.FirstOrDefault(item => item.Script.Name == previousName);
+        }
+        finally
+        {
+            _isReloading = false;
+        }
+
         UpdateButtons();
     }
 
@@ -130,20 +225,55 @@ public partial class ScriptsView : UserControl
     {
         InfoText.Text = message;
         InfoText.Visibility = Visibility.Visible;
-        ScriptText.Text = "";
+        SetScriptText("");
         UpdateButtons();
     }
 
     private void OnScriptListSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        ScriptText.Text = (ScriptList.SelectedItem as ScriptListItem)?.Script.Body ?? "";
+        // The text box still holds the previous script's text here: keep it as a draft if edited.
+        if (!_isReloading && e.RemovedItems.Count > 0 && e.RemovedItems[0] is ScriptListItem previous)
+        {
+            if (NormalizeBody(ScriptText.Text) != NormalizeBody(previous.Script.Body))
+                _drafts[previous.Script.Name] = ScriptText.Text;
+            else
+                _drafts.Remove(previous.Script.Name);
+        }
+
+        var selected = ScriptList.SelectedItem as ScriptListItem;
+        var selectedName = selected?.Script.Name;
+        SetScriptText(selectedName is not null && _drafts.TryGetValue(selectedName, out var draft) ? draft : selected?.Script.Body ?? "");
+        ScriptText.IsReadOnly = selected is null;
+        ShowRunView(selectedName);
         UpdateButtons();
     }
+
+    /// <summary>Refreshes the output pane and status label from the cached
+    /// run of <paramref name="scriptName"/> (blank when it has none).</summary>
+    private void ShowRunView(string? scriptName)
+    {
+        OutputBox.Document.Blocks.Clear();
+        if (scriptName is null || !_runViews.TryGetValue(scriptName, out var runView))
+        {
+            SetStatusText("", isError: false);
+            return;
+        }
+
+        foreach (var line in runView.Lines)
+            AppendOutputParagraph(line);
+        SetStatusText(runView.StatusText, runView.StatusIsError);
+    }
+
+    private bool IsSelected(string scriptName) =>
+        (ScriptList.SelectedItem as ScriptListItem)?.Script.Name == scriptName;
 
     private void UpdateButtons()
     {
         var selected = ScriptList.SelectedItem as ScriptListItem;
-        RunButton.IsEnabled = !_isRunning && selected is { Script.IsValid: true };
+        var isDirty = IsDirty();
+        SaveButton.IsEnabled = isDirty;
+        // The run uses the saved script: running while the text differs from it would be misleading.
+        RunButton.IsEnabled = !_isRunning && !isDirty && selected is { Script.IsValid: true };
         CancelButton.IsEnabled = _isRunning;
     }
 
@@ -160,20 +290,23 @@ public partial class ScriptsView : UserControl
 
         _isRunning = true;
         UpdateButtons();
+        // A new run replaces the cached view of this script (FR-52.4: the pane is cleared at the start of each run).
+        var runView = new ScriptRunView(script.Name);
+        _runViews[script.Name] = runView;
         OutputBox.Document.Blocks.Clear();
-        SetStatus($"Running '{script.Name}' on {script.Host}...", isError: false);
+        SetStatus(runView, $"Running '{script.Name}' on {script.Host}...", isError: false);
 
         _runSource = new CancellationTokenSource();
         try
         {
             var result = await _runnerFactory().RunAsync(
-                script, line => Dispatcher.BeginInvoke(() => AppendOutputLine(line.Text, line.IsError)), _runSource.Token);
-            SetStatus(DescribeOutcome(result), isError: result.Outcome != ScriptRunOutcome.Completed || result.ExitCode != 0);
+                script, line => Dispatcher.BeginInvoke(() => AppendOutput(runView, line)), _runSource.Token);
+            SetStatus(runView, DescribeOutcome(result), isError: result.Outcome != ScriptRunOutcome.Completed || result.ExitCode != 0);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Script '{Script}' failed unexpectedly", script.Name);
-            SetStatus($"Script run failed: {ex.Message}", isError: true);
+            SetStatus(runView, $"Script run failed: {ex.Message}", isError: true);
         }
         finally
         {
@@ -190,7 +323,17 @@ public partial class ScriptsView : UserControl
         _runSource?.Cancel();
     }
 
-    private void SetStatus(string text, bool isError)
+    /// <summary>Records the status in the cache and, when that script is the
+    /// one displayed, in the label.</summary>
+    private void SetStatus(ScriptRunView runView, string text, bool isError)
+    {
+        runView.StatusText = text;
+        runView.StatusIsError = isError;
+        if (IsSelected(runView.ScriptName))
+            SetStatusText(text, isError);
+    }
+
+    private void SetStatusText(string text, bool isError)
     {
         StatusText.Text = text;
         StatusText.Foreground = isError ? Brushes.Red : SystemColors.ControlTextBrush;
@@ -211,12 +354,25 @@ public partial class ScriptsView : UserControl
         };
     }
 
-    /// <summary>Appends one line, keeping only the last
-    /// <see cref="MaxOutputLines"/> (FR-52.4). UI thread only.</summary>
-    private void AppendOutputLine(string text, bool isError)
+    /// <summary>Caches one line (last <see cref="MaxOutputLines"/> only,
+    /// FR-52.4) and shows it when that script is the one displayed. UI
+    /// thread only.</summary>
+    private void AppendOutput(ScriptRunView runView, ScriptOutputLine line)
     {
-        var paragraph = new Paragraph(new Run(text)) { Margin = new Thickness(0) };
-        if (isError)
+        runView.Lines.Enqueue(line);
+        while (runView.Lines.Count > MaxOutputLines)
+            runView.Lines.Dequeue();
+
+        if (IsSelected(runView.ScriptName))
+            AppendOutputParagraph(line);
+    }
+
+    /// <summary>Adds one line to the pane, keeping only the last
+    /// <see cref="MaxOutputLines"/>. UI thread only.</summary>
+    private void AppendOutputParagraph(ScriptOutputLine line)
+    {
+        var paragraph = new Paragraph(new Run(line.Text)) { Margin = new Thickness(0) };
+        if (line.IsError)
             paragraph.Foreground = Brushes.Red;
 
         var blocks = OutputBox.Document.Blocks;
@@ -226,6 +382,18 @@ public partial class ScriptsView : UserControl
 
         OutputBox.ScrollToEnd();
     }
+}
+
+/// <summary>Output and status of the last run of one script (FR-52).</summary>
+public sealed class ScriptRunView(string scriptName)
+{
+    public string ScriptName { get; } = scriptName;
+
+    public Queue<ScriptOutputLine> Lines { get; } = new();
+
+    public string StatusText { get; set; } = "";
+
+    public bool StatusIsError { get; set; }
 }
 
 /// <summary>List row for one script: the name, and either the host and

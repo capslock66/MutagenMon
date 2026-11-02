@@ -18,12 +18,18 @@
 
     <Grid Margin="8">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TabControl Grid.Row="0" TabStripPlacement="Left" ItemContainerStyle="{StaticResource LeftTabItem}" BorderBrush="#FF828790" BorderThickness="1">
+        <!-- Link to the configuration file itself, opened with the OS default editor. -->
+        <TextBlock Grid.Row="0" Margin="0,0,0,8">
+            <Hyperlink x:Name="OpenFileLink" Click="OnOpenFileLinkClick" />
+        </TextBlock>
+
+        <TabControl Grid.Row="1" TabStripPlacement="Left" ItemContainerStyle="{StaticResource LeftTabItem}" BorderBrush="#FF828790" BorderThickness="1">
             <TabItem Header="General">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="8">
@@ -104,15 +110,6 @@
                                 <ColumnDefinition Width="220" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <Label Grid.Column="0" Content="Log path"
-                                   ToolTip="Base directory for mutagenMon.log." />
-                            <TextBox x:Name="LogPathBox" Grid.Column="1" />
-                        </Grid>
-                        <Grid Style="{StaticResource FieldRow}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="220" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
                             <Label Grid.Column="0" Content="Notify on restart-while-connecting"
                                    ToolTip="Enables the desktop notification when a session is restarted because it was stuck in 'connecting'." />
                             <CheckBox x:Name="NotifyRestartConnectionCheck" Grid.Column="1" VerticalAlignment="Center" />
@@ -164,55 +161,97 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="220" />
                                 <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <Label Grid.Column="0" Content="Mutagen path"
                                    ToolTip="Path to the mutagen CLI executable." />
                             <TextBox x:Name="MutagenPathBox" Grid.Column="1" />
+                            <Button Grid.Column="2" Content="..." Margin="4,0,0,0" Padding="8,0" ToolTip="Browse for a file"
+                                    Tag="{Binding ElementName=MutagenPathBox}" Click="OnBrowseFileClick" />
                         </Grid>
                         <Grid Style="{StaticResource FieldRow}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="220" />
                                 <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <Label Grid.Column="0" Content="Mutagen sessions file"
                                    ToolTip="Path to the batch file containing one 'mutagen sync create' line per session." />
                             <TextBox x:Name="MutagenSessionsBatFileBox" Grid.Column="1" />
+                            <Button Grid.Column="2" Content="..." Margin="4,0,0,0" Padding="8,0" ToolTip="Browse for a file"
+                                    Tag="{Binding ElementName=MutagenSessionsBatFileBox}" Click="OnBrowseFileClick" />
                         </Grid>
                         <Grid Style="{StaticResource FieldRow}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="220" />
                                 <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Scripts file"
+                                   ToolTip="Path to the ini-like file defining the scripts listed in the Scripts tab." />
+                            <TextBox x:Name="ScriptsFileBox" Grid.Column="1" />
+                            <Button Grid.Column="2" Content="..." Margin="4,0,0,0" Padding="8,0" ToolTip="Browse for a file"
+                                    Tag="{Binding ElementName=ScriptsFileBox}" Click="OnBrowseFileClick" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <Label Grid.Column="0" Content="Mutagen profile directory"
                                    ToolTip="Root directory of the sync engine's own data (per-session archive files)." />
                             <TextBox x:Name="MutagenProfileDirBox" Grid.Column="1" />
+                            <Button Grid.Column="2" Content="..." Margin="4,0,0,0" Padding="8,0" ToolTip="Browse for a folder"
+                                    Tag="{Binding ElementName=MutagenProfileDirBox}" Click="OnBrowseFolderClick" />
                         </Grid>
                         <Grid Style="{StaticResource FieldRow}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="220" />
                                 <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <Label Grid.Column="0" Content="Merge tool path"
                                    ToolTip="Path to the external visual diff/merge tool executable." />
                             <TextBox x:Name="MergePathBox" Grid.Column="1" />
+                            <Button Grid.Column="2" Content="..." Margin="4,0,0,0" Padding="8,0" ToolTip="Browse for a file"
+                                    Tag="{Binding ElementName=MergePathBox}" Click="OnBrowseFileClick" />
                         </Grid>
                         <Grid Style="{StaticResource FieldRow}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="220" />
                                 <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <Label Grid.Column="0" Content="scp path"
                                    ToolTip="Path to the scp binary used for remote (SSH) file transfer during conflict resolution." />
                             <TextBox x:Name="ScpPathBox" Grid.Column="1" />
+                            <Button Grid.Column="2" Content="..." Margin="4,0,0,0" Padding="8,0" ToolTip="Browse for a file"
+                                    Tag="{Binding ElementName=ScpPathBox}" Click="OnBrowseFileClick" />
                         </Grid>
                         <Grid Style="{StaticResource FieldRow}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="220" />
                                 <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <Label Grid.Column="0" Content="ssh path"
                                    ToolTip="Path to the ssh binary used for remote stat calls (file size/mtime)." />
                             <TextBox x:Name="SshPathBox" Grid.Column="1" />
+                            <Button Grid.Column="2" Content="..." Margin="4,0,0,0" Padding="8,0" ToolTip="Browse for a file"
+                                    Tag="{Binding ElementName=SshPathBox}" Click="OnBrowseFileClick" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Log path"
+                                   ToolTip="Base directory for mutagenMon.log." />
+                            <TextBox x:Name="LogPathBox" Grid.Column="1" />
+                            <Button Grid.Column="2" Content="..." Margin="4,0,0,0" Padding="8,0" ToolTip="Browse for a folder"
+                                    Tag="{Binding ElementName=LogPathBox}" Click="OnBrowseFolderClick" />
                         </Grid>
                     </StackPanel>
                 </ScrollViewer>
@@ -359,7 +398,7 @@
             </TabItem>
         </TabControl>
 
-        <Border Grid.Row="1" BorderBrush="{x:Static SystemColors.ControlDarkBrush}" BorderThickness="0,1,0,0"
+        <Border Grid.Row="2" BorderBrush="{x:Static SystemColors.ControlDarkBrush}" BorderThickness="0,1,0,0"
                 Margin="0,8,0,0" Padding="0,8,0,0">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                 <Button x:Name="CheckButton" Content="Check" Width="90" Click="OnCheckClick" />
@@ -368,7 +407,7 @@
         </Border>
 
         <!-- FR-31-style: red, hidden when there is nothing to report. -->
-        <TextBlock x:Name="ValidationErrorText" Grid.Row="2"
+        <TextBlock x:Name="ValidationErrorText" Grid.Row="3"
                    Foreground="Red" TextWrapping="Wrap" Margin="0,8,0,0"
                    Visibility="Collapsed" />
     </Grid>

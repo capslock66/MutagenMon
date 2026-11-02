@@ -4,14 +4,19 @@
     <Grid Margin="8">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" MinHeight="80" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="40" MinHeight="24" />
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,8">
+        <!-- Link to the log file itself, opened with the OS default editor. -->
+        <TextBlock Grid.Row="0" Margin="0,0,0,8">
+            <Hyperlink x:Name="OpenLogFileLink" Click="OnOpenLogFileClick" ToolTip="Open in the default editor" />
+        </TextBlock>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,8">
             <Button x:Name="ClearButton" Content="Clear" Width="90" Click="OnClearClick" />
-            <Button x:Name="OpenLogFileButton" Content="Open log file" Width="110" Margin="8,0,0,0" Click="OnOpenLogFileClick" />
             <Button x:Name="ClearLogFileButton" Content="Clear log file" Width="110" Margin="8,0,0,0" Click="OnClearLogFileClick" />
             <!-- FR-45: only shown when ShowGenerateException is enabled in
                  the mutagen monitor configuration (default off). -->
@@ -23,7 +28,7 @@
         </StackPanel>
 
         <!-- FR-43: master grid. -->
-        <DataGrid x:Name="LogGrid" Grid.Row="1"
+        <DataGrid x:Name="LogGrid" Grid.Row="2"
                   AutoGenerateColumns="False" IsReadOnly="True"
                   CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
                   CanUserSortColumns="False"
@@ -54,12 +59,12 @@
             </DataGrid.Columns>
         </DataGrid>
 
-        <GridSplitter Grid.Row="2" Height="5" HorizontalAlignment="Stretch"
+        <GridSplitter Grid.Row="3" Height="5" HorizontalAlignment="Stretch"
                        ResizeBehavior="PreviousAndNext" Background="LightGray" />
 
         <!-- FR-43: detail panel for the selected row — word-wrapped, scrollable,
              2 lines tall by default (resizable via the splitter above). -->
-        <TextBox x:Name="DetailText" Grid.Row="3"
+        <TextBox x:Name="DetailText" Grid.Row="4"
                  IsReadOnly="True" TextWrapping="Wrap"
                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                  FontFamily="Consolas" />

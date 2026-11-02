@@ -17,6 +17,16 @@ public static partial class ScriptFileParser
     [GeneratedRegex(@"^#\s*@([A-Za-z\-]+)\s*:\s*(.*)$")]
     private static partial Regex DirectiveRegex();
 
+    /// <summary>True when <paramref name="line"/> is a section header
+    /// (FR-48.1); shared with <see cref="ScriptFileEditor"/> so "which line
+    /// is a header" is decided in exactly one place.</summary>
+    internal static bool TryGetSectionName(string line, out string name)
+    {
+        var header = HeaderRegex().Match(line.Trim());
+        name = header.Success ? header.Groups[1].Value : "";
+        return header.Success;
+    }
+
     public static IReadOnlyList<ScriptDefinition> ParseFile(string path) => ParseLines(File.ReadAllLines(path));
 
     public static IReadOnlyList<ScriptDefinition> ParseLines(IEnumerable<string> lines)
