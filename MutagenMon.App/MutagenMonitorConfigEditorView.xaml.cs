@@ -195,7 +195,7 @@ public partial class MutagenMonitorConfigEditorView : UserControl
     /// <summary>Builds a <see cref="MutagenMonOptions"/> from the form's
     /// current field values, and the list of validation errors found along
     /// the way (empty when everything parses). Fields this form has no
-    /// control for (<c>DebugLevel</c>) are carried through from
+    /// control for (<c>DebugLevel</c>, <c>ScriptsFile</c>, <c>ScriptTimeoutSeconds</c>) are carried through from
     /// <see cref="_loadedOptions"/> unchanged.</summary>
     private void ReadFromUi(out MutagenMonOptions options, out List<string> errors)
     {
@@ -203,6 +203,8 @@ public partial class MutagenMonitorConfigEditorView : UserControl
         options = new MutagenMonOptions
         {
             DebugLevel = _loadedOptions.DebugLevel,
+            ScriptsFile = _loadedOptions.ScriptsFile,
+            ScriptTimeoutSeconds = _loadedOptions.ScriptTimeoutSeconds,
             StartEnabled = StartEnabledCheck.IsChecked == true,
             ShowMainScreenAtStartup = ShowMainScreenAtStartupCheck.IsChecked == true,
             TrayTooltip = TrayTooltipBox.Text,

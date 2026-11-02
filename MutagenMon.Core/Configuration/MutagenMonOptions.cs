@@ -73,6 +73,14 @@ public sealed class MutagenMonOptions
     /// <summary>Path to mutagen sessions config.</summary>
     public string MutagenSessionsBatFile { get; set; } = "mutagen/mutagen-create.bat";
 
+    /// <summary>Path to the ini-like file defining the scripts listed in
+    /// the Scripts tab (FR-48).</summary>
+    public string ScriptsFile { get; set; } = "config/scripts.ini";
+
+    /// <summary>Maximum duration of one script run, in seconds; past it the
+    /// local ssh process is killed (FR-51.4).</summary>
+    public int ScriptTimeoutSeconds { get; set; } = 300;
+
     /// <summary>Number of pollings with "not connected" errors to allow
     /// before restarting a mutagen session.</summary>
     public int SessionMaxErrors { get; set; } = 30000;

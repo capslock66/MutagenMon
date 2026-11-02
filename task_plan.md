@@ -4,10 +4,10 @@
 Add a "Scripts" tab listing scripts defined in a separate ini-like file. The user selects a script and runs it; the whole script is executed in one SSH connection on a Linux server. First use case: start a detached tmux session running `claude --remote-control`.
 
 ## Next Step
-Phase 2: Core (parser, config options, runner). Not started; waits for an explicit request.
+Phase 3: UI (MutagenMon.App). Not started; waits for an explicit request.
 
 ## Current Phase
-Phase 2 (pending)
+Phase 2 complete; Phase 3 pending
 
 ## Phases
 
@@ -19,10 +19,10 @@ Phase 2 (pending)
 
 ### Phase 2: Core (MutagenMon.Core)
 - [x] 2.1 Parser for the scripts file (sections, `# @key: value` directives)
-- [ ] 2.2 Config option: path of the scripts file
-- [ ] 2.3 Script runner: `ssh <host> bash -s`, script on stdin, async, streamed stdout/stderr, exit code, timeout, cancel
-- [ ] 2.4 Reuse `SshConnectionResolver` / `SshPath` for host resolution
-- **Status:** pending
+- [x] 2.2 Config option: path of the scripts file
+- [x] 2.3 Script runner: `ssh <host> bash -s`, script on stdin, async, streamed stdout/stderr, exit code, timeout, cancel
+- [x] 2.4 Host resolution: system `ssh` (`SshPath`) resolves the alias from `~/.ssh/config` itself; `SshConnectionResolver` (SSH.NET) not used
+- **Status:** complete
 
 ### Phase 3: UI (MutagenMon.App)
 - [ ] 3.1 New tab: script list (left), read-only script text + Run/Cancel + Reload button, read-only output pane (right)
@@ -48,13 +48,13 @@ Phase 2 (pending)
 | Use `tmux new -d` (detached) in scripts, plus `has-session` guard | No TTY under non-interactive ssh; idempotent re-run |
 | Do not couple to polling / tray icon code | Tray icon is the top-priority requirement (03-tray-icon-requirements.md) |
 | Work on branch `remote-script` | User request |
-| Config keys `ScriptsFile` (default `mutagen/scripts.ini`) and `ScriptTimeoutSeconds` (default `300`) | Proposed in Phase 1; follows existing `MutagenSessionsBatFile` naming; to be confirmed by user |
+| Config keys `ScriptsFile` (default `config/scripts.ini`, changed from `mutagen/scripts.ini` on user request) and `ScriptTimeoutSeconds` (default `300`) | Proposed in Phase 1; default path set by user next to `config_mutagenmon.json`; timeout to be confirmed by user |
 | Directives: `@host` (required), `@description`, `@stop-on-error`, `@confirm`; FR-47..FR-54 | Phase 1 document 11 |
 | `ssh` runs with `BatchMode=yes`, no TTY | A password prompt could otherwise hang a run |
 | Output pane capped at 5000 lines | Avoid memory exhaustion by chatty scripts |
 
 ## Open Questions
-- Confirm the proposed defaults (`mutagen/scripts.ini`, 300 s timeout, 5000-line cap).
+- Confirm the proposed defaults (300 s timeout, 5000-line cap).
 
 ## Errors Encountered
 | Error | Attempt | Resolution |

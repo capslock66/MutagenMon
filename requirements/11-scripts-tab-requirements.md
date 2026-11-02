@@ -164,7 +164,7 @@ tmux has-session -t appman-rc 2>/dev/null || tmux new -d -s appman-rc "$CCD --re
   timeout; testable with a fake `ssh`, like `ConflictFileClient`).
 - `MutagenMon.App/ScriptsView.xaml`/`.xaml.cs` (new): the tab, hosted in
   `StatusWindow.xaml` and initialised the same way as `LogsView`.
-- `MutagenMon.App/mutagen/scripts.ini` (new): shipped sample file with the
+- `MutagenMon.App/config/scripts.ini` (new): shipped sample file with the
   example above.
 - Tests: `MutagenMon.Core.Tests` — parser (headers, `[ -f x ]` / `[[ ... ]]`
   inside a body, directives, CRLF, duplicates, missing host) and runner
