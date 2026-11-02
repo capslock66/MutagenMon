@@ -60,6 +60,15 @@
                                    ToolTip="Application name used as the prefix of every tray tooltip and dialog title." />
                             <TextBox x:Name="TrayTooltipBox" Grid.Column="1" />
                         </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Script timeout (seconds)"
+                                   ToolTip="Maximum duration of one script run in the Scripts tab; past it the local ssh process is killed. 0 disables the timeout." />
+                            <TextBox x:Name="ScriptTimeoutSecondsBox" Grid.Column="1" />
+                        </Grid>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

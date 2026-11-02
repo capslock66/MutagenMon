@@ -179,6 +179,7 @@ public partial class MutagenMonitorConfigEditorView : UserControl
         StartEnabledCheck.IsChecked = options.StartEnabled;
         ShowMainScreenAtStartupCheck.IsChecked = options.ShowMainScreenAtStartup;
         TrayTooltipBox.Text = options.TrayTooltip;
+        ScriptTimeoutSecondsBox.Text = options.ScriptTimeoutSeconds.ToString();
 
         MinLogLevelCombo.SelectedItem = options.MinLogLevel;
         LogPathBox.Text = options.LogPath;
@@ -299,7 +300,7 @@ public partial class MutagenMonitorConfigEditorView : UserControl
     /// <summary>Builds a <see cref="MutagenMonOptions"/> from the form's
     /// current field values, and the list of validation errors found along
     /// the way (empty when everything parses). Fields this form has no
-    /// control for (<c>DebugLevel</c>, <c>ScriptTimeoutSeconds</c>) are carried through from
+    /// control for (<c>DebugLevel</c>) are carried through from
     /// <see cref="_loadedOptions"/> unchanged.</summary>
     private void ReadFromUi(out MutagenMonOptions options, out List<string> errors)
     {
@@ -307,7 +308,7 @@ public partial class MutagenMonitorConfigEditorView : UserControl
         options = new MutagenMonOptions
         {
             DebugLevel = _loadedOptions.DebugLevel,
-            ScriptTimeoutSeconds = _loadedOptions.ScriptTimeoutSeconds,
+            ScriptTimeoutSeconds = ParseInt(ScriptTimeoutSecondsBox, "Script timeout", errors),
             StartEnabled = StartEnabledCheck.IsChecked == true,
             ShowMainScreenAtStartup = ShowMainScreenAtStartupCheck.IsChecked == true,
             TrayTooltip = TrayTooltipBox.Text,
