@@ -3,6 +3,7 @@ using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using Microsoft.Extensions.Logging;
 using YamlDotNet.RepresentationModel;
 
@@ -93,7 +94,14 @@ public partial class MutagenConfigEditorView : UserControl
     private void OnCheckClick(object sender, RoutedEventArgs e)
     {
         _logger.LogInformation("User action: mutagen config editor Check clicked");
-        ShowValidationResult(ValidateYaml(EditorBox.Text));
+        var errors = ValidateYaml(EditorBox.Text);
+        ShowValidationResult(errors);
+        if (errors.Count == 0)
+        {
+            ValidationErrorText.Text = "Check ok";
+            ValidationErrorText.Foreground = Brushes.Green;
+            ValidationErrorText.Visibility = Visibility.Visible;
+        }
     }
 
     private void OnSaveClick(object sender, RoutedEventArgs e)
@@ -135,6 +143,7 @@ public partial class MutagenConfigEditorView : UserControl
 
     private void ShowValidationResult(IReadOnlyList<string> errors)
     {
+        ValidationErrorText.Foreground = Brushes.Red;
         ValidationErrorText.Text = string.Join(Environment.NewLine, errors);
         ValidationErrorText.Visibility = errors.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     }

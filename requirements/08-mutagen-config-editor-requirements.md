@@ -117,14 +117,18 @@ design discussion that produced this document.
 
 - FR-31.1: The window has a **"Check"** button, separate from
   Save/Close **(confirmed)**, and a text label below the editor reserved
-  for validation errors, rendered in **red**, empty/hidden when there is
-  nothing to report.
+  for validation feedback: errors are rendered in **red**; a successful
+  Check is rendered as the **green** message "Check ok" (FR-31.2).
+  Hidden when there is nothing to report.
 - FR-31.2: Clicking Check parses the text box's current content as YAML
   (new dependency: a YAML library — **YamlDotNet** is the standard choice
   for .NET, MIT-licensed; parsing/validation logic belongs in
   `MutagenMon.Core`, consistent with `SessionCommandLineParser` living in
   Core rather than the App project).
-  - On success, the red error label is cleared/hidden.
+  - On success, the red error label is replaced by the green message
+    "Check ok" (same label, green foreground). The message stays visible
+    until the next Check or Save click; a later failure switches the label
+    back to red.
   - On failure, the label shows the parser's error message(s), including
     line/column information when the library provides it (YamlDotNet's
     `YamlException` exposes `Start`/`End` marks for this).

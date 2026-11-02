@@ -720,7 +720,8 @@ creates it (FR-30.4/FR-32.2)** ✅
   UT-29.6 for when it is).
 * Click "Close" to close the window.
 
-**UT-29.3 — Check validates YAML and shows/clears the red error label
+**UT-29.3 — Check validates YAML and shows the red error / green "Check ok"
+label
 (FR-31.1/FR-31.2)** ✅
 
 * Open "Edit mutagen config" (UT-29.1).
@@ -729,7 +730,8 @@ creates it (FR-30.4/FR-32.2)** ✅
 * Click "Check". A red error message appears below the text box
   describing the parse failure.
 * Fix the content back to valid YAML and click "Check" again. The red
-  error message disappears.
+  error message is replaced by a green "Check ok" message.
+* Break the content again and click "Check": the message is red again.
 
 **UT-29.4 — Save is blocked on invalid YAML and shows the same red error
 (FR-31.3)** ✅
