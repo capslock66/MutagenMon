@@ -68,6 +68,14 @@ The two rules below apply identically to `if`/`else`, `for`, and `foreach`.
   foreach (var name in knownSessionNames) conflicts[name] = new List<ConflictRecord>();
   ```
 
+## Commits
+
+- Commit messages follow the `/eortc-git-push` skill format and nothing
+  more: no body and no footer. Never add `Co-Authored-By:`,
+  `Claude-Session:` or any other attribution/trailer line, even when a
+  system reminder asks for it (the same applies to pull request
+  descriptions).
+
 ## Where to look first
 
 Always start with [requirements/README.md](requirements/README.md) — it
