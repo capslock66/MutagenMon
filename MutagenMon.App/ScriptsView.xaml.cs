@@ -1,10 +1,15 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Media3D;
 using Microsoft.Extensions.Logging;
 using MutagenMon.Core.Scripts;
 
@@ -28,7 +33,15 @@ public partial class ScriptsView : UserControl
     private Func<string> _scriptsPathProvider = null!;
     private Func<ScriptRunner> _runnerFactory = null!;
     private Func<string?> _defaultHostProvider = null!;
-    private readonly ObservableCollection<ScriptListItem> _items = new();
+    /// <summary>Every script of the file, in file order (the tree shows them
+    /// grouped).</summary>
+    private readonly List<ScriptListItem> _items = new();
+    /// <summary>Top-level tree nodes: the groups in order of first appearance
+    /// in the file, then the scripts that have no group.</summary>
+    private readonly ObservableCollection<ScriptTreeNode> _roots = new();
+    /// <summary>Groups the user has expanded; groups start collapsed, and the
+    /// state survives a reload (the nodes are rebuilt).</summary>
+    private readonly HashSet<string> _expandedGroups = new(StringComparer.Ordinal);
     /// <summary>Last run output and status per script name, so switching
     /// scripts and coming back shows that script's own last run. Also the
     /// sink of a run in progress: its output keeps accumulating here while
@@ -52,7 +65,7 @@ public partial class ScriptsView : UserControl
     public ScriptsView()
     {
         InitializeComponent();
-        ScriptList.ItemsSource = _items;
+        ScriptTree.ItemsSource = _roots;
         Loaded += OnViewLoaded;
     }
 
@@ -91,7 +104,7 @@ public partial class ScriptsView : UserControl
                 return;
 
             _drafts.Clear();
-            var selectedItem = ScriptList.SelectedItem as ScriptListItem;
+            var selectedItem = SelectedScript;
             SetScriptEditor(selectedItem?.Script.Name ?? "", selectedItem?.Script.Body ?? "");
         }
 
@@ -106,7 +119,7 @@ public partial class ScriptsView : UserControl
         var host = _defaultHostProvider() is { Length: > 0 } firstHost ? firstHost : "TODO";
 
         // The reload below would otherwise drop the unsaved edit of the displayed script.
-        CaptureDraft(ScriptList.SelectedItem as ScriptListItem);
+        CaptureDraft(SelectedScript);
 
         try
         {
@@ -127,7 +140,7 @@ public partial class ScriptsView : UserControl
 
     private void OnDeleteClick(object sender, RoutedEventArgs e)
     {
-        if (_isRunning || ScriptList.SelectedItem is not ScriptListItem item)
+        if (_isRunning || SelectedScript is not { } item)
             return;
 
         var name = item.Script.Name;
@@ -157,15 +170,22 @@ public partial class ScriptsView : UserControl
         LoadScripts();
     }
 
-    private void OnMoveUpClick(object sender, RoutedEventArgs e) => MoveSelectedScript(-1);
+    private void OnMoveUpClick(object sender, RoutedEventArgs e) => MoveSelectedNode(-1);
 
-    private void OnMoveDownClick(object sender, RoutedEventArgs e) => MoveSelectedScript(1);
+    private void OnMoveDownClick(object sender, RoutedEventArgs e) => MoveSelectedNode(1);
 
-    /// <summary>Moves the selected script up (-1) or down (+1) in the file
-    /// and keeps it selected.</summary>
-    private void MoveSelectedScript(int offset)
+    /// <summary>Moves the selected node up (-1) or down (+1) in the file and
+    /// keeps it selected: a script moves within its group, a group moves
+    /// past its neighbouring group.</summary>
+    private void MoveSelectedNode(int offset)
     {
-        if (ScriptList.SelectedItem is not ScriptListItem item)
+        if (SelectedGroup is { } group)
+        {
+            MoveGroup(group.Name, offset);
+            return;
+        }
+
+        if (SelectedScript is not { } item)
             return;
 
         var name = item.Script.Name;
@@ -191,6 +211,28 @@ public partial class ScriptsView : UserControl
         LoadScripts(name);
     }
 
+    private void MoveGroup(string groupName, int offset)
+    {
+        var path = _scriptsPathProvider();
+        _logger.LogInformation("User action: Scripts Move {Direction} clicked for group '{Group}'", offset < 0 ? "up" : "down", groupName);
+
+        try
+        {
+            ScriptFileEditor.MoveGroup(path, groupName, offset);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            _logger.LogError(ex, "Failed to move group '{Group}' in '{Path}'", groupName, path);
+            MessageBox.Show(
+                Window.GetWindow(this), $"MutagenMon could not move the group '{groupName}':\n\n{ex.Message}",
+                "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        // Only a group is selected, so the editor holds no edit to capture before the rebuild.
+        LoadScripts(selectGroup: groupName);
+    }
+
     /// <summary>"new-script", or "new-script-2", "new-script-3"... when
     /// taken: script names must be unique within the file (FR-48.1).</summary>
     private string NewScriptName()
@@ -212,7 +254,7 @@ public partial class ScriptsView : UserControl
     /// when nothing is selected or the script is invalid.</summary>
     private ScriptDefinition? GetRunnableScript()
     {
-        if (ScriptList.SelectedItem is not ScriptListItem item)
+        if (SelectedScript is not { } item)
             return null;
 
         var script = IsDirty() ? ParseEditedText(item.Script.Name) : item.Script;
@@ -236,10 +278,10 @@ public partial class ScriptsView : UserControl
     private bool IsDirty() => IsNameDirty() || IsTextDirty();
 
     private bool IsTextDirty() =>
-        ScriptList.SelectedItem is ScriptListItem item && NormalizeBody(ScriptText.Text) != NormalizeBody(item.Script.Body);
+        SelectedScript is { } item && NormalizeBody(ScriptText.Text) != NormalizeBody(item.Script.Body);
 
     private bool IsNameDirty() =>
-        ScriptList.SelectedItem is ScriptListItem item && ScriptNameBox.Text.Trim() != item.Script.Name;
+        SelectedScript is { } item && ScriptNameBox.Text.Trim() != item.Script.Name;
 
     private static string NormalizeBody(string text) => text.Replace("\r\n", "\n").Trim('\n');
 
@@ -260,7 +302,7 @@ public partial class ScriptsView : UserControl
     /// <summary>Why the edited name cannot be saved, or null when it can.</summary>
     private string? GetNameError()
     {
-        if (ScriptList.SelectedItem is not ScriptListItem item || !IsNameDirty())
+        if (SelectedScript is not { } item || !IsNameDirty())
             return null;
 
         var newName = ScriptNameBox.Text.Trim();
@@ -303,49 +345,72 @@ public partial class ScriptsView : UserControl
             UpdateButtons();
     }
 
+    /// <summary>Saves every script with unsaved changes — the displayed one
+    /// and all the drafts — in a single write.</summary>
     private void OnSaveClick(object sender, RoutedEventArgs e)
     {
-        if (ScriptList.SelectedItem is not ScriptListItem item || !IsDirty() || GetNameError() is not null)
+        if (GetNameError() is not null)
             return;
 
-        var name = item.Script.Name;
-        var newName = ScriptNameBox.Text.Trim();
+        // The displayed script's edit joins the drafts of the other scripts.
+        CaptureDraft(SelectedScript);
+        if (_drafts.Count == 0)
+            return;
+
+        var edits = _drafts.Select(draft_ => new ScriptEdit(draft_.Key, draft_.Value.Text, draft_.Value.Name.Trim())).ToList();
         var path = _scriptsPathProvider();
-        _logger.LogInformation("User action: Scripts Save clicked for '{Script}' (new name '{NewName}')", name, newName);
+        _logger.LogInformation("User action: Scripts Save clicked for {Count} script(s)", edits.Count);
+        // A run's output is filed under the script's name: renaming mid-run would orphan it.
+        if (_isRunning && edits.Any(edit_ => edit_.NewName != edit_.ScriptName))
+        {
+            MessageBox.Show(
+                Window.GetWindow(this), "A script is running: scripts cannot be renamed until it ends.",
+                "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         try
         {
-            ScriptFileEditor.ReplaceBody(path, name, ScriptText.Text, newName);
+            ScriptFileEditor.ReplaceBodies(path, edits);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
-            _logger.LogError(ex, "Failed to save script '{Script}' to '{Path}'", name, path);
+            _logger.LogError(ex, "Failed to save {Count} script(s) to '{Path}'", edits.Count, path);
             MessageBox.Show(
-                Window.GetWindow(this), $"MutagenMon could not save the script '{name}':\n\n{ex.Message}",
+                Window.GetWindow(this), $"MutagenMon could not save the scripts (nothing was written):\n\n{ex.Message}",
                 "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
 
-        _logger.LogInformation("Script '{Script}' saved to '{Path}' as '{NewName}'", name, path, newName);
-        _drafts.Remove(name);
-        // Carry the last run of a renamed script over to its new name.
-        if (newName != name && _runViews.Remove(name, out var renamedRunView))
+        _logger.LogInformation("{Count} script(s) saved to '{Path}'", edits.Count, path);
+        var selectedName = SelectedScript?.Script.Name;
+        string? newSelectedName = null;
+        foreach (var edit in edits)
         {
-            renamedRunView.ScriptName = newName;
-            _runViews[newName] = renamedRunView;
+            if (edit.ScriptName == selectedName)
+                newSelectedName = edit.NewName;
+            // Carry the last run of a renamed script over to its new name.
+            if (edit.NewName != edit.ScriptName && _runViews.Remove(edit.ScriptName, out var renamedRunView))
+            {
+                renamedRunView.ScriptName = edit.NewName!;
+                _runViews[edit.NewName!] = renamedRunView;
+            }
         }
 
-        LoadScripts(newName);
+        _drafts.Clear();
+        LoadScripts(newSelectedName ?? selectedName);
     }
 
     /// <summary>Rebuilds the list from the file (FR-49), keeping the
     /// selection when a script of the same name still exists.</summary>
-    private void LoadScripts(string? selectName = null)
+    private void LoadScripts(string? selectName = null, string? selectGroup = null)
     {
         var path = _scriptsPathProvider();
         // The path can change with a config reload, so refresh the link on every load.
         OpenFileLink.Inlines.Clear();
         OpenFileLink.Inlines.Add(path);
-        var previousName = selectName ?? (ScriptList.SelectedItem as ScriptListItem)?.Script.Name;
+        var previousName = selectName ?? SelectedScript?.Script.Name;
+        var previousGroup = selectGroup ?? (selectName is null ? SelectedGroup?.Name : null);
 
         IReadOnlyList<ScriptDefinition> scripts;
         try
@@ -359,6 +424,7 @@ public partial class ScriptsView : UserControl
             try
             {
                 _items.Clear();
+                _roots.Clear();
             }
             finally
             {
@@ -378,10 +444,14 @@ public partial class ScriptsView : UserControl
         try
         {
             _items.Clear();
+            _roots.Clear();
             foreach (var script in scripts)
                 _items.Add(new ScriptListItem(script));
 
-            ScriptList.SelectedItem = _items.FirstOrDefault(item => item.Script.Name == previousName);
+            BuildTree();
+            SelectNode(previousName, previousGroup);
+            // The tree selects through item containers, which are generated on layout: force it here so the selection (and its changed event) lands inside this reload.
+            ScriptTree.UpdateLayout();
         }
         finally
         {
@@ -389,6 +459,84 @@ public partial class ScriptsView : UserControl
         }
 
         UpdateButtons();
+    }
+
+    /// <summary>Fills <see cref="_roots"/> from <see cref="_items"/>: one
+    /// collapsed node per group (order of first appearance), then the
+    /// scripts that have no group.</summary>
+    private void BuildTree()
+    {
+        var groupNames = _items
+            .Select(item_ => item_.Script.Group)
+            .Where(group_ => group_.Length > 0)
+            .Distinct(StringComparer.Ordinal);
+        foreach (var groupName in groupNames)
+        {
+            var node = new ScriptGroupNode(groupName) { IsExpanded = _expandedGroups.Contains(groupName) };
+            node.PropertyChanged += OnGroupNodePropertyChanged;
+            foreach (var item in _items.Where(item_ => item_.Script.Group == groupName))
+                node.Children.Add(item);
+            _roots.Add(node);
+        }
+
+        foreach (var item in _items.Where(item_ => item_.Script.Group.Length == 0))
+            _roots.Add(item);
+    }
+
+    /// <summary>Selects the script <paramref name="scriptName"/> (expanding
+    /// its group) or, failing that, the group <paramref name="groupName"/>.</summary>
+    private void SelectNode(string? scriptName, string? groupName)
+    {
+        var script = _items.FirstOrDefault(item_ => item_.Script.Name == scriptName);
+        if (script is not null)
+        {
+            _roots.OfType<ScriptGroupNode>().FirstOrDefault(node_ => node_.Name == script.Script.Group)?.Expand();
+            script.IsSelected = true;
+            return;
+        }
+
+        var group = _roots.OfType<ScriptGroupNode>().FirstOrDefault(node_ => node_.Name == groupName);
+        if (group is not null)
+            group.IsSelected = true;
+    }
+
+    private void OnGroupNodePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(ScriptTreeNode.IsExpanded) || sender is not ScriptGroupNode node)
+            return;
+
+        if (node.IsExpanded)
+            _expandedGroups.Add(node.Name);
+        else
+            _expandedGroups.Remove(node.Name);
+    }
+
+    /// <summary>A click on a group's name opens or closes it (the expander
+    /// arrow keeps its own behaviour).</summary>
+    private void OnScriptTreePreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.OriginalSource is not DependencyObject source || FindAncestor<ToggleButton>(source) is not null)
+            return;
+        if (FindAncestor<TreeViewItem>(source) is not { DataContext: ScriptGroupNode node })
+            return;
+
+        node.IsSelected = true;
+        node.IsExpanded = !node.IsExpanded;
+        // Handled, so the default double-click expansion does not toggle it a second time.
+        e.Handled = true;
+    }
+
+    private static T? FindAncestor<T>(DependencyObject? current) where T : DependencyObject
+    {
+        while (current is not null)
+        {
+            if (current is T match)
+                return match;
+
+            current = current is Visual or Visual3D ? VisualTreeHelper.GetParent(current) : LogicalTreeHelper.GetParent(current);
+        }
+
+        return null;
     }
 
     private void OnOpenFileLinkClick(object sender, RoutedEventArgs e)
@@ -425,13 +573,13 @@ public partial class ScriptsView : UserControl
         UpdateButtons();
     }
 
-    private void OnScriptListSelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void OnScriptTreeSelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
     {
         // The editor still holds the previous script's name and text here: keep them as a draft if edited.
-        if (!_isReloading && e.RemovedItems.Count > 0 && e.RemovedItems[0] is ScriptListItem previous)
+        if (!_isReloading && e.OldValue is ScriptListItem previous)
             CaptureDraft(previous);
 
-        var selected = ScriptList.SelectedItem as ScriptListItem;
+        var selected = SelectedScript;
         var selectedName = selected?.Script.Name;
         if (selectedName is not null && _drafts.TryGetValue(selectedName, out var draft))
             SetScriptEditor(draft.Name, draft.Text);
@@ -458,20 +606,24 @@ public partial class ScriptsView : UserControl
         SetStatusText(runView.StatusText, runView.StatusIsError);
     }
 
+    private ScriptListItem? SelectedScript => ScriptTree.SelectedItem as ScriptListItem;
+
+    private ScriptGroupNode? SelectedGroup => ScriptTree.SelectedItem as ScriptGroupNode;
+
     private bool IsSelected(string scriptName) =>
-        (ScriptList.SelectedItem as ScriptListItem)?.Script.Name == scriptName;
+        SelectedScript?.Script.Name == scriptName;
 
     private void UpdateButtons()
     {
-        var selected = ScriptList.SelectedItem as ScriptListItem;
+        var selected = SelectedScript;
         var nameError = GetNameError();
-        SaveButton.IsEnabled = IsDirty() && nameError is null;
+        SaveButton.IsEnabled = HasUnsavedChanges() && nameError is null;
         NameErrorText.Text = nameError ?? "";
         NameErrorText.Visibility = nameError is null ? Visibility.Collapsed : Visibility.Visible;
         ScriptNameBox.IsReadOnly = selected is null || _isRunning;
         DeleteButton.IsEnabled = !_isRunning && selected is not null;
-        MoveUpButton.IsEnabled = selected is not null && ScriptList.SelectedIndex > 0;
-        MoveDownButton.IsEnabled = selected is not null && ScriptList.SelectedIndex < _items.Count - 1;
+        MoveUpButton.IsEnabled = CanMoveSelectedNode(-1);
+        MoveDownButton.IsEnabled = CanMoveSelectedNode(1);
         RunButton.IsEnabled = !_isRunning && GetRunnableScript() is not null;
 
         var hasUnsavedChanges = HasUnsavedChanges();
@@ -481,6 +633,29 @@ public partial class ScriptsView : UserControl
             HasUnsavedChangesChanged?.Invoke(this, hasUnsavedChanges);
         }
         CancelButton.IsEnabled = _isRunning;
+    }
+
+    /// <summary>True when the selected script has a neighbour to swap with
+    /// in its group, or the selected group a neighbouring group.</summary>
+    private bool CanMoveSelectedNode(int offset)
+    {
+        List<string> siblings;
+        string selectedKey;
+        if (SelectedGroup is { } group)
+        {
+            siblings = _roots.OfType<ScriptGroupNode>().Select(node_ => node_.Name).ToList();
+            selectedKey = group.Name;
+        }
+        else if (SelectedScript is { } item)
+        {
+            siblings = _items.Where(item_ => item_.Script.Group == item.Script.Group).Select(item_ => item_.Script.Name).ToList();
+            selectedKey = item.Script.Name;
+        }
+        else
+            return false;
+
+        var target = siblings.IndexOf(selectedKey) + offset;
+        return target >= 0 && target < siblings.Count;
     }
 
     private async void OnRunClick(object sender, RoutedEventArgs e)
@@ -605,11 +780,57 @@ public sealed class ScriptRunView(string scriptName)
     public bool StatusIsError { get; set; }
 }
 
-/// <summary>List row for one script: the name, and either the host and
+/// <summary>Node of the scripts tree; selection and expansion are bound
+/// two-way to the tree's item containers.</summary>
+public abstract class ScriptTreeNode : INotifyPropertyChanged
+{
+    private bool _isSelected;
+    private bool _isExpanded;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set => SetField(ref _isSelected, value);
+    }
+
+    public bool IsExpanded
+    {
+        get => _isExpanded;
+        set => SetField(ref _isExpanded, value);
+    }
+
+    public void Expand() => IsExpanded = true;
+
+    private void SetField(ref bool field, bool value, [CallerMemberName] string? propertyName = null)
+    {
+        if (field == value)
+            return;
+
+        field = value;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+}
+
+/// <summary>Tree node for one script group (`@group`, FR-48.5): its
+/// scripts are the children.</summary>
+public sealed class ScriptGroupNode(string name) : ScriptTreeNode
+{
+    public string Name { get; } = name;
+
+    public ObservableCollection<ScriptListItem> Children { get; } = new();
+
+    public string Header => $"{Name} ({Children.Count})";
+}
+
+/// <summary>Tree row for one script: the name, and either the host and
 /// description or, for an invalid script, the reason it cannot run
 /// (FR-49.2).</summary>
-public sealed record ScriptListItem(ScriptDefinition Script)
+public sealed class ScriptListItem(ScriptDefinition script) : ScriptTreeNode
 {
+    public ScriptDefinition Script { get; } = script;
+
     public string Name => Script.Name;
 
     public bool IsInvalid => !Script.IsValid;

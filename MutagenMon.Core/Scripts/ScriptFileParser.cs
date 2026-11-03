@@ -66,6 +66,7 @@ public static partial class ScriptFileParser
         var description = "";
         var stopOnError = true;
         var confirm = false;
+        var group = "";
         var errors = new List<string>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
@@ -88,6 +89,9 @@ public static partial class ScriptFileParser
                 case "description":
                     description = value;
                     break;
+                case "group":
+                    group = value;
+                    break;
                 case "stop-on-error":
                     if (TryParseBool(value, out var stop))
                         stopOnError = stop;
@@ -109,7 +113,23 @@ public static partial class ScriptFileParser
             errors.Add($"duplicate script name '{name}'");
 
         var validationError = errors.Count == 0 ? null : string.Join("; ", errors);
-        return new ScriptDefinition(name, host, description, stopOnError, confirm, body, validationError);
+        return new ScriptDefinition(name, host, description, stopOnError, confirm, body, validationError, group);
+    }
+
+    /// <summary>The `@group` directive of a section's lines (first
+    /// occurrence wins, like <see cref="ParseLines"/>), or empty when there
+    /// is none. Shared with <see cref="ScriptFileEditor"/> so a section's
+    /// group is decided in exactly one place.</summary>
+    internal static string ReadGroup(IEnumerable<string> lines)
+    {
+        foreach (var line in lines)
+        {
+            var match = DirectiveRegex().Match(line.Trim());
+            if (match.Success && match.Groups[1].Value.Equals("group", StringComparison.OrdinalIgnoreCase))
+                return match.Groups[2].Value.Trim();
+        }
+
+        return "";
     }
 
     private static bool TryParseBool(string value, out bool result)

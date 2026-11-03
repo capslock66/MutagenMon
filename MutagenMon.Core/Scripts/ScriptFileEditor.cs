@@ -22,6 +22,18 @@ public static class ScriptFileEditor
         File.WriteAllText(path, ReplaceBodyInText(text, scriptName, newBody, newName), encoding);
     }
 
+    /// <summary>Applies several <see cref="ScriptEdit"/>s in order and
+    /// writes the file once: when any edit fails (see
+    /// <see cref="ReplaceBody"/>), nothing is written.</summary>
+    public static void ReplaceBodies(string path, IEnumerable<ScriptEdit> edits)
+    {
+        var text = ReadFile(path, out var encoding);
+        foreach (var edit in edits)
+            text = ReplaceBodyInText(text, edit.ScriptName, edit.NewBody, edit.NewName);
+
+        File.WriteAllText(path, text, encoding);
+    }
+
     /// <summary>Appends a new `[scriptName]` section with
     /// <paramref name="body"/> at the end of the file, creating the file
     /// (and its directory) when it does not exist yet. The caller picks a
@@ -124,8 +136,9 @@ public static class ScriptFileEditor
     }
 
     /// <summary>Moves the section of <paramref name="scriptName"/> up
-    /// (<paramref name="offset"/> -1) or down (+1) among the sections of the
-    /// file; a no-op at either end. Throws
+    /// (<paramref name="offset"/> -1) or down (+1) among the sections of its
+    /// own group (those with the same `@group`, or those without one); a
+    /// no-op at either end of the group. Throws
     /// <see cref="InvalidOperationException"/> when the name matches no
     /// section or several.</summary>
     public static void MoveScript(string path, string scriptName, int offset)
@@ -134,25 +147,85 @@ public static class ScriptFileEditor
         File.WriteAllText(path, MoveScriptInText(text, scriptName, offset), encoding);
     }
 
+    /// <summary>Moves every section of the group <paramref name="groupName"/>
+    /// up (-1) or down (+1) past the neighbouring group; a no-op at either
+    /// end. Groups are ordered by first appearance in the file. The sections
+    /// of a group become contiguous and the sections without a group are
+    /// placed after all groups, which is the order the Scripts tab shows.
+    /// Throws <see cref="InvalidOperationException"/> when no section has
+    /// that group.</summary>
+    public static void MoveGroup(string path, string groupName, int offset)
+    {
+        var text = ReadFile(path, out var encoding);
+        File.WriteAllText(path, MoveGroupInText(text, groupName, offset), encoding);
+    }
+
     internal static string MoveScriptInText(string text, string scriptName, int offset)
     {
         var lineEnding = text.Contains("\r\n") ? "\r\n" : "\n";
         var lines = text.Replace("\r\n", "\n").Split('\n').ToList();
         var (headerIndex, _) = FindSection(lines, scriptName);
+        var (prefix, sections) = SplitSections(lines);
 
+        var current = sections.FindIndex(s_ => s_.HeaderIndex == headerIndex);
+        var step = Math.Sign(offset);
+        var target = current + step;
+        // Sections of other groups in between keep their place: the script only changes order within its group.
+        while (target >= 0 && target < sections.Count && sections[target].Group != sections[current].Group)
+            target += step;
+        if (step == 0 || target < 0 || target >= sections.Count)
+            return text;
+
+        var contents = sections.Select(s_ => s_.Content).ToList();
+        var moved = contents[current];
+        contents.RemoveAt(current);
+        contents.Insert(target, moved);
+        return JoinSections(prefix, sections, contents, lineEnding);
+    }
+
+    internal static string MoveGroupInText(string text, string groupName, int offset)
+    {
+        var lineEnding = text.Contains("\r\n") ? "\r\n" : "\n";
+        var lines = text.Replace("\r\n", "\n").Split('\n').ToList();
+        var (prefix, sections) = SplitSections(lines);
+
+        var groupOrder = sections
+            .Select(s_ => s_.Group)
+            .Where(g_ => g_.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        var current = groupOrder.IndexOf(groupName);
+        if (current < 0)
+            throw new InvalidOperationException($"Group '{groupName}' was not found in the file.");
+
+        var target = current + Math.Sign(offset);
+        if (target == current || target < 0 || target >= groupOrder.Count)
+            return text;
+
+        (groupOrder[current], groupOrder[target]) = (groupOrder[target], groupOrder[current]);
+        var contents = groupOrder
+            .SelectMany(g_ => sections.Where(s_ => s_.Group == g_))
+            .Concat(sections.Where(s_ => s_.Group.Length == 0))
+            .Select(s_ => s_.Content)
+            .ToList();
+        return JoinSections(prefix, sections, contents, lineEnding);
+    }
+
+    /// <summary>One section of the file: its header line index, its group,
+    /// its content (header + body) and the blank lines closing it.</summary>
+    private sealed record Section(int HeaderIndex, string Group, List<string> Content, List<string> Closing);
+
+    /// <summary>Splits the file into the lines before the first header and
+    /// its sections.</summary>
+    private static (List<string> Prefix, List<Section> Sections) SplitSections(List<string> lines)
+    {
         var headerIndexes = Enumerable.Range(0, lines.Count)
             .Where(i => ScriptFileParser.TryGetSectionName(lines[i], out _))
             .ToList();
-        var current = headerIndexes.IndexOf(headerIndex);
-        var target = current + offset;
-        if (target < 0 || target >= headerIndexes.Count)
-            return text;
+        if (headerIndexes.Count == 0)
+            return (lines, new List<Section>());
 
-        // Each section's content (header + body) is swapped, while the blank
-        // lines closing a slot stay where they are: the spacing between
-        // sections, and the file's final newline, do not move with the script.
-        var contents = new List<List<string>>();
-        var closings = new List<List<string>>();
+        var sections = new List<Section>();
         for (var i = 0; i < headerIndexes.Count; i++)
         {
             var start = headerIndexes[i];
@@ -161,17 +234,24 @@ public static class ScriptFileEditor
             while (contentEnd > start + 1 && string.IsNullOrWhiteSpace(lines[contentEnd - 1]))
                 contentEnd--;
 
-            contents.Add(lines.GetRange(start, contentEnd - start));
-            closings.Add(lines.GetRange(contentEnd, end - contentEnd));
+            var content = lines.GetRange(start, contentEnd - start);
+            sections.Add(new Section(start, ScriptFileParser.ReadGroup(content), content, lines.GetRange(contentEnd, end - contentEnd)));
         }
 
-        (contents[current], contents[target]) = (contents[target], contents[current]);
+        return (lines.GetRange(0, headerIndexes[0]), sections);
+    }
 
-        var result = lines.GetRange(0, headerIndexes[0]);
+    /// <summary>Writes <paramref name="contents"/> back slot by slot: the
+    /// blank lines closing a slot stay where they are, so the spacing
+    /// between sections and the file's final newline do not move with the
+    /// sections.</summary>
+    private static string JoinSections(List<string> prefix, List<Section> sections, List<List<string>> contents, string lineEnding)
+    {
+        var result = new List<string>(prefix);
         for (var i = 0; i < contents.Count; i++)
         {
             result.AddRange(contents[i]);
-            result.AddRange(closings[i]);
+            result.AddRange(sections[i].Closing);
         }
 
         return string.Join(lineEnding, result);
@@ -203,3 +283,7 @@ public static class ScriptFileEditor
         return (matches[0], headerIndexes.FirstOrDefault(index => index > matches[0], lines.Count));
     }
 }
+
+/// <summary>One pending change of a script: its new body and, optionally,
+/// its new name (see <see cref="ScriptFileEditor.ReplaceBody"/>).</summary>
+public sealed record ScriptEdit(string ScriptName, string NewBody, string? NewName = null);

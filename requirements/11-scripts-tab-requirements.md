@@ -52,6 +52,7 @@ The scripts live in a separate ini-like text file (path: `ScriptsFile`, see
   | `@description` | free text | empty | Shown under the name in the list. |
   | `@stop-on-error` | `true` / `false` | `true` | Whether `set -e` is prepended (FR-51.2). |
   | `@confirm` | `true` / `false` | `false` | Ask for confirmation before running (FR-53.1). |
+  | `@group` | free text (case-sensitive) | empty | Group of the script. The list is a tree, one level: collapsed group nodes in order of first appearance in the file, then the scripts without a group at the top level. A click on a group name opens/closes it. ▲/▼ move a script within its group, or a whole group past the neighbouring group (its scripts become contiguous in the file). |
 
 - FR-48.6: Line endings: both `\r\n` and `\n` are accepted in the file;
   the body is always sent to bash with `\n` only (a stray `\r` breaks bash).

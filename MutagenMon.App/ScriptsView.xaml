@@ -1,6 +1,7 @@
 <UserControl x:Class="MutagenMon.App.ScriptsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:MutagenMon.App">
     <Grid Margin="8">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -35,17 +36,27 @@
                 <ColumnDefinition Width="*" MinWidth="200" />
             </Grid.ColumnDefinitions>
 
-            <!-- Script list, with buttons to move the selected script up or down in the file. -->
+            <!-- Script tree (groups, then ungrouped scripts), with buttons to move the selected script or group up or down. -->
             <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
-                <ListBox x:Name="ScriptList" SelectionMode="Single"
-                         HorizontalContentAlignment="Stretch"
-                         SelectionChanged="OnScriptListSelectionChanged">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
+                <TreeView x:Name="ScriptTree" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                          SelectedItemChanged="OnScriptTreeSelectedItemChanged"
+                          PreviewMouseLeftButtonDown="OnScriptTreePreviewMouseLeftButtonDown">
+                    <TreeView.ItemContainerStyle>
+                        <Style TargetType="TreeViewItem">
+                            <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
+                            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                        </Style>
+                    </TreeView.ItemContainerStyle>
+                    <TreeView.Resources>
+                        <!-- Group node: bold name and script count; its scripts are the children. -->
+                        <HierarchicalDataTemplate DataType="{x:Type local:ScriptGroupNode}" ItemsSource="{Binding Children}">
+                            <TextBlock Text="{Binding Header}" FontWeight="Bold" Margin="2" />
+                        </HierarchicalDataTemplate>
+                        <DataTemplate DataType="{x:Type local:ScriptListItem}">
                             <StackPanel Margin="2">
                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
                                 <TextBlock Text="{Binding Detail}" TextWrapping="Wrap">
@@ -62,8 +73,8 @@
                                 </TextBlock>
                             </StackPanel>
                         </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+                    </TreeView.Resources>
+                </TreeView>
                 <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,6,0,0">
                     <Button x:Name="MoveUpButton" Content="&#x25B2;" Width="40" IsEnabled="False"
                             ToolTip="Move up" Click="OnMoveUpClick" />

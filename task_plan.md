@@ -4,10 +4,10 @@
 Add a "Scripts" tab listing scripts defined in a separate ini-like file. The user selects a script and runs it; the whole script is executed in one SSH connection on a Linux server. First use case: start a detached tmux session running `claude --remote-control`.
 
 ## Next Step
-Phase 4: Tests and user tests. Not started; waits for an explicit request.
+Plan complete. Remaining (outside the plan): bring requirements/11-scripts-tab-requirements.md up to date with the implemented behaviour.
 
 ## Current Phase
-Phases 1-3 complete; Phase 4 pending
+Phases 1-4 complete
 
 ## Phases
 
@@ -31,10 +31,10 @@ Phases 1-3 complete; Phase 4 pending
 - **Status:** complete
 
 ### Phase 4: Tests and user tests
-- [ ] 4.1 Unit tests: parser (including `[ -f x ]` / `[[ ... ]]` not treated as headers), runner with fake ssh
-- [ ] 4.2 Update `requirements/UserTests.md`
-- [ ] 4.3 Build/test per project on Linux (never the .sln)
-- **Status:** pending
+- [x] 4.1 Unit tests: parser (including `[ -f x ]` / `[[ ... ]]` not treated as headers), runner with fake ssh
+- [x] 4.2 Update `requirements/UserTests.md`
+- [x] 4.3 Build/test per project on Linux (never the .sln)
+- **Status:** complete
 
 ## Decisions Made
 | Decision | Rationale |

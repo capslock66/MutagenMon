@@ -1399,10 +1399,9 @@ Covered above by UT-7.4.
 
 **UT-44.1 — Error and Critical rows in red, Warning rows in orange (FR-44)** ✅
 
-* Trigger at least one `Error`-level log line (e.g. "Open log file" when
-  the log file doesn't exist yet logs at Information — instead, trigger
-  a real error path, such as FR-42.1/42.2's failure branches, or any
-  Error-level entry already visible from normal operation) and at least
+* Trigger at least one `Error`-level log line (a real error path, such
+  as FR-42.2's failure branch, or any Error-level entry already visible
+  from normal operation) and at least
   one `Critical`-level line (e.g. UT-45.1 below).
 * In the grid, both rows' text is red.
 * Trigger at least one `Warning`-level line (e.g. the "Failed to update
@@ -1415,12 +1414,12 @@ Covered above by UT-7.4.
 
 * With `ShowGenerateException` absent or `false` in
   `config/config_mutagenmon.json`, open the "Logs" tab.
-* No "Generate exception" button is present in the toolbar (only Clear,
-  Open log file, Clear log file).
+* No "Generate exception" button is present in the toolbar (only Clear
+  and Clear log file).
 * Stop MutagenMon. In the "Mutagen monitor Configuration" tab (or
   directly in the config file), set `ShowGenerateException` to `true`,
   save, and restart MutagenMon.
-* Open the "Logs" tab — a fourth toolbar button, "Generate exception",
+* Open the "Logs" tab — a third toolbar button, "Generate exception",
   is now visible. In the "Mutagen monitor Configuration" tab, the "Show
   'Generate exception' button" checkbox is checked, matching the config
   value.
@@ -1476,6 +1475,248 @@ Covered above by UT-7.4.
 * Trigger a new log line.
 * It appears and is immediately visible without any manual scrolling —
   auto-scroll is back on.
+
+## FR-47/FR-48/FR-49/FR-50/FR-51/FR-52/FR-53/FR-54 — Scripts tab
+
+Specified in [11-scripts-tab-requirements.md](11-scripts-tab-requirements.md).
+These tests need an SSH server reachable with key authentication and a
+non-interactive `ssh` (no password prompt), configured in `~/.ssh/config`
+under an alias used below as `robbie` — replace it with your own. `SshPath`
+in `config/config_mutagenmon.json` must point at the `ssh` binary.
+
+**UT-47.1 — The Scripts tab, its place and its toolbar (FR-47)** ✅
+
+* Open the status window. The tabs, left to right, are "Sync", "Scripts",
+  "Mutagen Configuration", "Mutagen monitor Configuration", "Logs".
+* Open "Scripts". From top to bottom: a link showing the full path of the
+  scripts file, a toolbar with **Reload, Add, Delete, Save, Run, Cancel**
+  (in that order), then the script list on the left (with ▲ ▼ buttons
+  under it; groups, then ungrouped scripts, FR-48.5) and, on the right, a "Name:" box, the script text, the output
+  pane and a status line.
+* With nothing selected, Delete, Save, Run, Cancel, ▲ and ▼ are disabled.
+
+**UT-48.1 — Reading the scripts file: sections, directives, bash tests (FR-48)** ✅
+
+* Close the app. Put this in `config/scripts.ini`, replacing `robbie`:
+
+  ```
+  ignored line before the first header
+
+  [hello]
+  # @host: robbie
+  # @description: Prints a greeting
+  if [ -f /etc/hostname ]; then echo "has hostname"; fi
+  [[ -n "$HOME" ]] && echo "home is set"
+  echo hello
+
+  [no-host]
+  echo missing host
+  ```
+* Start the app and open "Scripts". The list shows two entries: "hello"
+  with the detail "robbie — Prints a greeting", and "no-host" with a red
+  "Invalid: missing @host directive". The line before the first header is
+  not shown anywhere, and the two `[ ... ]` / `[[ ... ]]` lines are part
+  of the "hello" text, not new entries.
+* Select "hello". The text box shows its body starting at `# @host: robbie`
+  (directive comments included).
+* Select "no-host". Run is disabled.
+
+**UT-49.1 — Reload, selection kept, missing file (FR-49.1/FR-49.2)** ✅
+
+* Select "hello". With the scripts file open in an editor (click the link
+  at the top of the tab), add a new section at the end and save the file.
+* The list is unchanged until you click **Reload**; after Reload the new
+  script is listed and "hello" is still selected.
+* Close the app, rename `config/scripts.ini`, restart and open "Scripts".
+  A message "Scripts file not found: <path>" is shown, the list is empty,
+  and no error dialog appears. Rename the file back and click Reload: the
+  scripts come back.
+* Make the file duplicate a name (two `[hello]` sections) and Reload: both
+  entries are marked invalid with "duplicate script name 'hello'" and Run
+  is disabled for them.
+
+**UT-50.1 — Running a script: one connection, shared shell state (FR-50/FR-51/FR-52)** ✅
+
+* Add this script, then Reload and select it:
+
+  ```
+  [shell-state]
+  # @host: robbie
+  cd /tmp
+  X=42
+  pwd
+  echo "X=$X"
+  echo "to stderr" >&2
+  ```
+* Click **Run**. While it runs, Cancel is enabled and the status line shows
+  "Running 'shell-state' on robbie...".
+* The output pane shows `/tmp`, `X=42` and, in red, `to stderr`. The
+  status line ends with "Exit code 0 (N.Ns)" in the normal text colour.
+  The tray icon and the Sync tab keep refreshing during the run.
+
+**UT-51.1 — stop-on-error and exit codes (FR-51.2)** ✅
+
+* Script A: `# @host: robbie`, then `false`, then `echo "after false"`.
+  Run it: "after false" is **not** printed; the status line shows a
+  non-zero exit code (`Exit code 1`) in red.
+* Add `# @stop-on-error: false` to script A, save, and run again:
+  "after false" is printed this time, and the exit code is 0.
+
+**UT-51.2 — Cancel and timeout (FR-51.4/FR-51.5)** ✅
+
+* Script `sleeper`: `# @host: robbie`, then `sleep 120`. Run it, wait a few
+  seconds, click **Cancel**. The status line turns red with "Cancelled
+  after N.Ns. The local ssh connection was closed; processes the script
+  already detached on the server keep running."
+* Set the script timeout to 5 (see UT-51.3), restart or reload the config,
+  run `sleeper` again and do nothing. After about 5 seconds the status
+  line shows "Timed out after 5.0s. ..." in red. The Logs tab has a
+  Warning line "Script 'sleeper' on robbie ended: TimedOut ...".
+
+**UT-51.3 — Script timeout setting (FR-51.4, config `ScriptTimeoutSeconds`)** ✅
+
+* Open "Mutagen monitor Configuration" > "General". A field "Script timeout
+  (seconds)" shows 300 (the default).
+* Type `abc` and click Save: a red message says "'Script timeout' must be
+  a whole number" and nothing is saved. Type 5 and Save; the value is
+  written to `config/config_mutagenmon.json` as `ScriptTimeoutSeconds`.
+
+**UT-52.1 — Output is capped and per script (FR-52.4)** ✅
+
+* Script `chatty`: `# @host: robbie`, then `seq 1 20000`. Run it. The
+  output pane ends with `20000` and holds at most 5000 lines (scroll to
+  the top: it starts at 15001).
+* Run `shell-state` after it, then select `chatty` again: each script
+  shows its own last output and status line, restored when you come back.
+* Start `sleeper`, switch to another script while it runs, and switch back
+  after a few seconds: the pane shows the output accumulated meanwhile.
+
+**UT-53.1 — Confirmation before running (FR-53.1)** ✅
+
+* Add `# @confirm: true` to `shell-state` and save. Click Run.
+* A confirmation "Run script 'shell-state' on robbie?" with "Run" and
+  "Cancel" buttons is shown. "Cancel" runs nothing; "Run" runs the script.
+
+**UT-54.1 — Run logging, without script output (FR-54)** ✅
+
+* Run `shell-state`, then open the Logs tab.
+* It shows "Script 'shell-state' starting on robbie" and "Script
+  'shell-state' on robbie ended: Completed (exit code 0) after ...".
+  A script ending with a non-zero exit code is logged at Warning (orange).
+* The script's own output (`X=42`...) appears in no log line and not in
+  `mutagenMon.log`.
+* Set `SshPath` to a non-existent file, restart, run a script: the status
+  line shows "Failed to start ssh: ..." and an Error line is logged.
+
+**UT-55.1 — Editing a script's text, Save, tab marker (Scripts tab editing)** ✅
+
+* Select `shell-state` and type something in the text box. Save becomes
+  enabled and the tab title turns bold: "**Scripts \***". Run stays
+  enabled and runs the text as displayed (e.g. an added `echo extra` line
+  is printed) even though it is not saved.
+* Switch to another script and back: the edit is still there (kept as a
+  draft) and the tab keeps its "*".
+* Click **Save**. The file now contains the edit (check it with the link),
+  Save is disabled again and the tab title is plain "Scripts". The other
+  scripts, blank lines between sections and any text before the first
+  header are untouched.
+* Edit two different scripts (switch between them without saving) and
+  click **Save** once: both edits are in the file, Save is disabled and
+  the tab title is plain. If one of the pending names is invalid or
+  duplicated, an error says so and nothing is written (the edits stay
+  pending). Save is also enabled while a group is selected if some script
+  has pending edits.
+* Edit again and click **Reload**: a confirmation warns that unsaved
+  changes are discarded; "Cancel" keeps them, "Reload" discards them.
+
+**UT-55.2 — Renaming a script (Name box)** ✅
+
+* Select `shell-state`, change the name to `renamed script` and click
+  Save. The list shows the new name, the script stays selected, its last
+  output and status line are still displayed, and the file has
+  `[renamed script]` as its header.
+* Type a name already used by another script: a red message "A script
+  named '...' already exists." appears and Save is disabled. Type `a]b`
+  or clear the box: a red message explains the problem and Save stays
+  disabled.
+* Start `sleeper`, then change its name: Save is disabled with "A script
+  is running: it cannot be renamed until it ends."; the Name box is
+  read-only while it runs.
+
+**UT-55.3 — Add (Scripts tab)** ✅
+
+* In "Mutagen monitor Configuration" > "SSH servers" make sure the first
+  host is `robbie`. In "Scripts" click **Add**.
+* A script `new-script` is appended to the file and selected, with the
+  text `# @host: robbie` and `# @description: TODO`. Click Add again:
+  `new-script-2` is created.
+* Remove all SSH servers, save, restart, and click Add: the new script has
+  `# @host: TODO` instead.
+
+**UT-55.4 — Delete (Scripts tab)** ✅
+
+* Select a script and click **Delete**. A confirmation names the script
+  and the file: "Delete the script '<name>'?". "Cancel" does nothing.
+  "Delete" removes the section from the file (check with the link) and
+  from the list; nothing is selected afterwards.
+* While a script runs, Delete is disabled.
+
+**UT-55.5 — Move up / down (Scripts tab)** ✅
+
+* With at least three scripts, select the middle one and click ▲: it moves
+  above the first one, stays selected, and the file's section order
+  changed. Click ▼ twice: it ends up last.
+* ▲ is disabled for the first script, ▼ for the last one. The spacing
+  between sections in the file is unchanged.
+
+**UT-55.6 — Scripts file path in the monitor configuration (config `ScriptsFile`)** ✅
+
+* In "Mutagen monitor Configuration" > "Paths", a "Scripts file" field
+  shows `config/scripts.ini`. Its "..." button opens a file dialog titled
+  "Select scripts file". Choose another file, Save, reload the config:
+  the Scripts tab link and list now use that file.
+* Each other path in that section has a "..." button too, with the
+  titles "Select Mutagen.exe path", "Select Mutagen Session .bat file",
+  "Select merge .exe file", "Select Scp path", "Select Ssh path",
+  "Select Log path" and "Select Mutagen Profile directory" (the last two
+  are folder pickers). "Log path" is in this section, not under
+  "Logging & notifications".
+
+**UT-55.7 — File links on top of the tabs (Scripts, Mutagen monitor Configuration, Logs)** ✅
+
+* Each of the three tabs shows the full path of its file as a link above
+  the toolbar/fields: the scripts file, `config_mutagenmon.json`, and the
+  current log file. Clicking a link opens the file in the default editor;
+  if the file does not exist a message says so.
+* The Logs toolbar has no "Open log file" button any more (Clear and
+  Clear log file remain).
+
+**UT-55.8 — Script groups in the tree (`# @group:`)** ✅
+
+* In `config/scripts.ini` give two scripts `# @group: appman`, one
+  `# @group: other`, and leave one with no `@group`. Click Reload. The list
+  is a tree: nodes "appman (2)" and "other (1)" in bold, all collapsed,
+  then the ungrouped script at the top level, after the groups.
+* A single click on a group's name opens it, a second click closes it
+  (also with the arrow). Opening a group never starts a run. The groups
+  you opened stay open after Reload, Save, Add or a move.
+* Selecting a group disables Delete, Run, Save and clears the editor;
+  selecting a script in it shows the script as before. Groups are
+  case-sensitive: `Appman` and `appman` are two groups.
+* Edit a script's `# @group:` line to another group and Save: after the
+  reload the script sits in the new group, which is opened, and the
+  script stays selected. Removing the line moves it to the top level.
+
+**UT-55.9 — Moving scripts and groups (▲ ▼ with groups)** ✅
+
+* Select a script in a group: ▲ ▼ move it within that group only (the
+  section order in the file changes; the other groups are unaffected). ▲
+  is disabled for the first script of the group, ▼ for the last one.
+  Ungrouped scripts move among themselves.
+* Select a group: ▲ ▼ move the whole group before/after the neighbouring
+  group, ▲ is disabled for the first group, ▼ for the last. Open the file:
+  the group's scripts are now one contiguous block, and the ungrouped
+  scripts come after all groups. The group stays selected.
 
 ## Appendix — known, accepted gaps (do not report as bugs)
 
