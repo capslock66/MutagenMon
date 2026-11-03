@@ -88,6 +88,17 @@ public partial class StatusWindow : Window
         ScriptsViewControl.HasUnsavedChangesChanged += (_, hasUnsavedChanges) => UpdateScriptsTabHeader(hasUnsavedChanges);
     }
 
+    /// <summary>F5 runs the selected script, only while the Scripts tab is
+    /// displayed (the key keeps its default behaviour on the other tabs).</summary>
+    private void OnWindowPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.F5 || !ScriptsTab.IsSelected)
+            return;
+
+        e.Handled = true;
+        ScriptsViewControl.RunSelectedScript();
+    }
+
     /// <summary>"Scripts", or a bold "Scripts *" while a script has unsaved changes.</summary>
     private void UpdateScriptsTabHeader(bool hasUnsavedChanges)
     {

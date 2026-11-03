@@ -1718,6 +1718,17 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   the group's scripts are now one contiguous block, and the ungrouped
   scripts come after all groups. The group stays selected.
 
+**UT-55.10 — Run icon and F5 shortcut (Scripts tab)** ✅
+
+* The Run button shows a green ▶ triangle before "Run" (gray while the
+  button is disabled); its tooltip says "Run (F5)".
+* Select a valid script on the Scripts tab and press **F5**: it runs
+  exactly as if Run was clicked (including the confirmation when
+  `@confirm: true`). With nothing selected, a group selected, an invalid
+  script, or a script already running, F5 does nothing.
+* On any other tab ("Sync", the two configuration tabs, "Logs"), F5 does
+  not run a script, even if a script was selected earlier in the Scripts tab.
+
 ## Appendix — known, accepted gaps (do not report as bugs)
 
 These are documented, intentional limitations of the current phase, not

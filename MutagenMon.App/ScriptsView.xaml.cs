@@ -658,6 +658,14 @@ public partial class ScriptsView : UserControl
         return target >= 0 && target < siblings.Count;
     }
 
+    /// <summary>Same as clicking Run (F5 shortcut): does nothing when Run
+    /// is disabled.</summary>
+    public void RunSelectedScript()
+    {
+        if (RunButton.IsEnabled)
+            OnRunClick(RunButton, new RoutedEventArgs());
+    }
+
     private async void OnRunClick(object sender, RoutedEventArgs e)
     {
         if (_isRunning || GetRunnableScript() is not { } script)
@@ -824,9 +832,8 @@ public sealed class ScriptGroupNode(string name) : ScriptTreeNode
     public string Header => $"{Name} ({Children.Count})";
 }
 
-/// <summary>Tree row for one script: the name, and either the host and
-/// description or, for an invalid script, the reason it cannot run
-/// (FR-49.2).</summary>
+/// <summary>Tree row for one script: the name, and either the description
+/// or, for an invalid script, the reason it cannot run (FR-49.2).</summary>
 public sealed class ScriptListItem(ScriptDefinition script) : ScriptTreeNode
 {
     public ScriptDefinition Script { get; } = script;
@@ -835,7 +842,5 @@ public sealed class ScriptListItem(ScriptDefinition script) : ScriptTreeNode
 
     public bool IsInvalid => !Script.IsValid;
 
-    public string Detail => Script.IsValid
-        ? (Script.Description.Length == 0 ? Script.Host! : $"{Script.Host} — {Script.Description}")
-        : $"Invalid: {Script.ValidationError}";
+    public string Detail => Script.IsValid ? Script.Description : $"Invalid: {Script.ValidationError}";
 }

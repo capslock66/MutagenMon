@@ -4,9 +4,9 @@
              xmlns:local="clr-namespace:MutagenMon.App">
     <Grid Margin="8">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -21,7 +21,24 @@
             <Button x:Name="AddButton" Content="Add" Width="90" Margin="8,0,0,0" Click="OnAddClick" />
             <Button x:Name="DeleteButton" Content="Delete" Width="90" Margin="8,0,0,0" IsEnabled="False" Click="OnDeleteClick" />
             <Button x:Name="SaveButton" Content="Save" Width="90" Margin="8,0,0,0" IsEnabled="False" Click="OnSaveClick" />
-            <Button x:Name="RunButton" Content="Run" Width="90" Margin="8,0,0,0" IsEnabled="False" Click="OnRunClick" />
+            <Button x:Name="RunButton" Width="90" Margin="8,0,0,0" IsEnabled="False" Click="OnRunClick" ToolTip="Run (F5)">
+                <StackPanel Orientation="Horizontal">
+                    <!-- Green "play" triangle, grayed while the button is disabled. -->
+                    <TextBlock Text="&#x25B6;" Margin="0,0,6,0" VerticalAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="#2E9E3E" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsEnabled, RelativeSource={RelativeSource AncestorType=Button}}" Value="False">
+                                        <Setter Property="Foreground" Value="Gray" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <TextBlock Text="Run" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
             <Button x:Name="CancelButton" Content="Cancel" Width="90" Margin="8,0,0,0" IsEnabled="False" Click="OnCancelClick" />
         </StackPanel>
 
@@ -66,6 +83,14 @@
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding IsInvalid}" Value="True">
                                                     <Setter Property="Foreground" Value="Red" />
+                                                </DataTrigger>
+                                                <!-- Empty description: no second line. -->
+                                                <DataTrigger Binding="{Binding Detail}" Value="">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                                <!-- Gray is unreadable on the selection's blue background. -->
+                                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=TreeViewItem}}" Value="True">
+                                                    <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.HighlightTextBrushKey}}" />
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>

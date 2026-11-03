@@ -6,6 +6,7 @@
         Title="MutagenMon" Height="480" Width="900"
         MinHeight="320" MinWidth="640"
         ResizeMode="CanResize"
+        PreviewKeyDown="OnWindowPreviewKeyDown"
         Icon="pack://siteoforigin:,,,/Assets/Icons/app_icon_monitor.ico">
     <Window.Resources>
         <local:IconKeyToImageSourceConverter x:Key="IconKeyToImageSourceConverter" />
