@@ -66,16 +66,18 @@ public class ScriptRunner
         if (_timeout > TimeSpan.Zero)
             runSource.CancelAfter(_timeout);
 
+        // ConfigureAwait(false) throughout: after a cancellation the continuation kills the ssh process tree and waits for it,
+        // which can take seconds — it must not be posted back to a caller's UI thread (the output callback is thread-agnostic).
         ScriptRunResult result;
         try
         {
-            await WriteScriptAsync(process, BuildScriptText(script), runSource.Token);
-            await process.WaitForExitAsync(runSource.Token);
+            await WriteScriptAsync(process, BuildScriptText(script), runSource.Token).ConfigureAwait(false);
+            await process.WaitForExitAsync(runSource.Token).ConfigureAwait(false);
             result = new ScriptRunResult(ScriptRunOutcome.Completed, process.ExitCode, stopwatch.Elapsed);
         }
         catch (OperationCanceledException)
         {
-            await KillAndDrainAsync(process);
+            await KillAndDrainAsync(process).ConfigureAwait(false);
             var outcome = cancellationToken.IsCancellationRequested ? ScriptRunOutcome.Cancelled : ScriptRunOutcome.TimedOut;
             result = new ScriptRunResult(outcome, null, stopwatch.Elapsed);
         }
@@ -119,7 +121,7 @@ public class ScriptRunner
     {
         try
         {
-            await process.StandardInput.WriteAsync(scriptText.AsMemory(), cancellationToken);
+            await process.StandardInput.WriteAsync(scriptText.AsMemory(), cancellationToken).ConfigureAwait(false);
             process.StandardInput.Close();
         }
         catch (IOException)
@@ -155,7 +157,7 @@ public class ScriptRunner
         using var drainSource = new CancellationTokenSource(PostKillDrainTimeout);
         try
         {
-            await process.WaitForExitAsync(drainSource.Token);
+            await process.WaitForExitAsync(drainSource.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {

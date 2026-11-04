@@ -722,7 +722,20 @@ public partial class ScriptsView : UserControl
         // The run only reports "Cancelled" once ssh is killed and has exited: say so right away.
         SetStatus(_runningView, "Cancelling...", isError: false);
         CancelButton.IsEnabled = false;
-        _runSource.Cancel();
+        var source = _runSource;
+        // Cancel() runs the cancellation callbacks on the calling thread, and the run's continuation (kill ssh, wait for it to exit,
+        // which can take seconds) may be inlined there: on the UI thread that would freeze the window before "Cancelling..." is painted.
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                source.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // The run ended on its own in the meantime.
+            }
+        });
     }
 
     /// <summary>Records the status in the cache and, when that script is the
