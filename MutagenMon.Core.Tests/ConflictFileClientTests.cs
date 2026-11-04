@@ -108,4 +108,90 @@ public class ConflictFileClientTests
 
         Assert.Equal("content", File.ReadAllText(Path.Combine(destinationRoot, "a.txt")));
     }
+
+    [Theory]
+    [InlineData("plain.txt", "'plain.txt'")]
+    [InlineData("it's.txt", "'it'\\''s.txt'")]
+    [InlineData("a'; rm -rf ~; echo '.txt", "'a'\\''; rm -rf ~; echo '\\''.txt'")]
+    [InlineData("$(reboot).txt", "'$(reboot).txt'")]
+    [InlineData("`id`.txt", "'`id`.txt'")]
+    public void ShellQuoteKeepsHostileFileNamesAsOneLiteralWord(string fileName, string expected)
+    {
+        Assert.Equal(expected, ConflictFileClient.ShellQuote(fileName));
+    }
+
+    [Fact]
+    public void BuildDeleteCommandQuotesThePathAndEndsOptionParsing()
+    {
+        var command = ConflictFileClient.BuildDeleteCommand("/data/a'; touch x; '.txt");
+
+        Assert.Equal("rm -rf -- '/data/a'\\''; touch x; '\\''.txt'", command);
+    }
+
+    [Fact]
+    public void BuildDeleteCommandDoesNotLetADashNamedFileBecomeAnOption()
+    {
+        Assert.Equal("rm -rf -- '/data/-rf'", ConflictFileClient.BuildDeleteCommand("/data/-rf"));
+    }
+
+    [Fact]
+    public void BuildStatAndKindCommandsQuoteEveryOccurrenceOfThePath()
+    {
+        const string remotePath = "/data/it's $(id).txt";
+        const string quoted = "'/data/it'\\''s $(id).txt'";
+
+        var statCommand = ConflictFileClient.BuildStatCommand(remotePath);
+        var kindCommand = ConflictFileClient.BuildKindCommand(remotePath);
+
+        Assert.Equal(4, statCommand.Split(quoted).Length - 1);
+        Assert.Equal(2, kindCommand.Split(quoted).Length - 1);
+        Assert.DoesNotContain("'" + remotePath + "'", statCommand);
+        Assert.DoesNotContain("'" + remotePath + "'", kindCommand);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(".")]
+    [InlineData("/")]
+    [InlineData("docs/../../etc")]
+    [InlineData("..\\secrets.txt")]
+    public void EnsureSafeRelativePathRejectsRootAndTraversal(string relativePath)
+    {
+        Assert.Throws<ArgumentException>(() => ConflictFileClient.EnsureSafeRelativePath(relativePath));
+    }
+
+    [Theory]
+    [InlineData("notes..v2.txt")]
+    [InlineData("..hidden")]
+    [InlineData("sub/it's.txt")]
+    public void EnsureSafeRelativePathAcceptsDotsInsideNames(string relativePath)
+    {
+        Assert.Null(Record.Exception(() => ConflictFileClient.EnsureSafeRelativePath(relativePath)));
+    }
+
+    [Fact]
+    public async Task CopyBetweenEndpointsRefusesToReplaceTheEndpointRootDirectory()
+    {
+        var sourceRoot = NewSyncRoot();
+        var destinationRoot = NewSyncRoot();
+        File.WriteAllText(Path.Combine(destinationRoot, "keep.txt"), "data");
+
+        await Assert.ThrowsAsync<ArgumentException>(() => NewClient().CopyBetweenEndpointsAsync(
+            LocalEndpoint(sourceRoot), LocalEndpoint(destinationRoot), "", CancellationToken.None));
+
+        Assert.True(File.Exists(Path.Combine(destinationRoot, "keep.txt")));
+    }
+
+    [Fact]
+    public async Task CopyBetweenEndpointsRefusesToMirrorAMissingRootOntoTheDestinationRoot()
+    {
+        var sourceRoot = Path.Combine(NewSyncRoot(), "missing");
+        var destinationRoot = NewSyncRoot();
+        File.WriteAllText(Path.Combine(destinationRoot, "keep.txt"), "data");
+
+        await Assert.ThrowsAsync<ArgumentException>(() => NewClient().CopyBetweenEndpointsAsync(
+            LocalEndpoint(sourceRoot), LocalEndpoint(destinationRoot), "", CancellationToken.None));
+
+        Assert.True(File.Exists(Path.Combine(destinationRoot, "keep.txt")));
+    }
 }

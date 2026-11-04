@@ -57,12 +57,7 @@ public class ConflictFileClient
         // the stat info, rather than probing the kind first and stat-ing
         // separately (twice the SSH latency for the common file case).
         var remotePath = JoinPath(endpoint.RemoteDirectory!, relativePath);
-        var output = (await RunSshAsync(
-            endpoint.Server!,
-            $"if [ -d '{remotePath}' ]; then echo DIR $(stat -c '%Y' '{remotePath}'); " +
-            $"elif [ -e '{remotePath}' ]; then echo FILE $(stat -c '%Y %s' '{remotePath}'); " +
-            $"else echo MISSING; fi",
-            cancellationToken)).Trim();
+        var output = (await RunSshAsync(endpoint.Server!, BuildStatCommand(remotePath), cancellationToken)).Trim();
 
         var tokens = output.Split(' ');
         return tokens[0] switch
@@ -155,10 +150,7 @@ public class ConflictFileClient
         }
 
         var remotePath = JoinPath(endpoint.RemoteDirectory!, relativePath);
-        var output = (await RunSshAsync(
-            endpoint.Server!,
-            $"if [ -d '{remotePath}' ]; then echo DIR; elif [ -e '{remotePath}' ]; then echo FILE; else echo MISSING; fi",
-            cancellationToken)).Trim();
+        var output = (await RunSshAsync(endpoint.Server!, BuildKindCommand(remotePath), cancellationToken)).Trim();
         return output switch
         {
             "DIR" => PathKind.Directory,
@@ -169,14 +161,70 @@ public class ConflictFileClient
 
     private async Task DeleteAsync(SessionEndpoint endpoint, string relativePath, CancellationToken cancellationToken)
     {
+        // Destructive operation: refuse anything that could resolve to the
+        // endpoint root or escape it, before building any path or command.
+        EnsureSafeRelativePath(relativePath);
+
         if (endpoint.Transport == TransportKind.Local)
         {
             DeleteLocalPathIfExists(JoinPath(endpoint.Url, relativePath));
             return;
         }
 
-        await RunSshAsync(endpoint.Server!, $"rm -rf '{JoinPath(endpoint.RemoteDirectory!, relativePath)}'", cancellationToken);
+        await RunSshAsync(endpoint.Server!, BuildDeleteCommand(JoinPath(endpoint.RemoteDirectory!, relativePath)), cancellationToken);
     }
+
+    /// <summary>Quotes a value as ONE literal word for the remote POSIX
+    /// shell. ssh joins its arguments into a string that the remote shell
+    /// re-parses, so the local <see cref="ProcessStartInfo.ArgumentList"/>
+    /// offers no protection there. Inside single quotes nothing is special
+    /// except the single quote itself, which is written as <c>'\''</c>
+    /// (close quote, escaped quote, reopen quote).
+    /// Problematic file names, and their quoted form:
+    /// <c>it's.txt</c> → <c>'it'\''s.txt'</c>;
+    /// <c>a'; rm -rf ~; echo '.txt</c> → <c>'a'\''; rm -rf ~; echo '\''.txt'</c>
+    /// (without the escaping, the middle part would run as a command);
+    /// <c>$(reboot).txt</c> and <c>`id`.txt</c> stay inert inside the quotes.</summary>
+    internal static string ShellQuote(string value) =>
+        "'" + value.Replace("'", "'\\''") + "'";
+
+    /// <summary>Refuses a relative path that is empty, is the root itself
+    /// ('.', '/'), or contains a '..' segment, since it is later used in a
+    /// recursive delete. Examples rejected: <c>""</c>, <c>"."</c>, <c>"/"</c>,
+    /// <c>"docs/../../etc"</c>, <c>"..\\secrets.txt"</c>. A name that merely
+    /// contains dots, like <c>"notes..v2.txt"</c> or <c>"..hidden"</c>, is
+    /// accepted because only whole segments are compared.</summary>
+    internal static void EnsureSafeRelativePath(string relativePath)
+    {
+        var segments = relativePath.Split('/', '\\').Where(segment_ => segment_.Length > 0).ToArray();
+        if (segments.Length == 0 || segments.Any(segment_ => segment_ is "." or ".."))
+            throw new ArgumentException($"Unsafe relative path '{relativePath}': it is empty, designates the root, or contains a '..' segment.", nameof(relativePath));
+    }
+
+    /// <summary>Remote command reporting DIR/FILE/MISSING plus stat info.
+    /// <paramref name="remotePath"/> is quoted: a path such as
+    /// <c>/data/it's here/$(id).txt</c> stays a single literal word.</summary>
+    internal static string BuildStatCommand(string remotePath)
+    {
+        var quotedPath = ShellQuote(remotePath);
+        return $"if [ -d {quotedPath} ]; then echo DIR $(stat -c '%Y' {quotedPath}); " +
+               $"elif [ -e {quotedPath} ]; then echo FILE $(stat -c '%Y %s' {quotedPath}); " +
+               "else echo MISSING; fi";
+    }
+
+    /// <summary>Remote command reporting DIR/FILE/MISSING. Quoted like
+    /// <see cref="BuildStatCommand"/>.</summary>
+    internal static string BuildKindCommand(string remotePath)
+    {
+        var quotedPath = ShellQuote(remotePath);
+        return $"if [ -d {quotedPath} ]; then echo DIR; elif [ -e {quotedPath} ]; then echo FILE; else echo MISSING; fi";
+    }
+
+    /// <summary>Remote recursive delete. '--' ends option parsing so a path
+    /// starting with '-' (e.g. a file named <c>-rf</c>) is never taken as an
+    /// option; the path is quoted so <c>a'; touch x; '.txt</c> stays a name.</summary>
+    internal static string BuildDeleteCommand(string remotePath) =>
+        $"rm -rf -- {ShellQuote(remotePath)}";
 
     private static void CopyLocalDirectoryRecursive(string sourceDir, string destinationDir)
     {
@@ -261,6 +309,9 @@ public class ConflictFileClient
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+        // '--' ends option parsing: a server value such as "-oProxyCommand=calc"
+        // must not be read as an ssh option.
+        psi.ArgumentList.Add("--");
         psi.ArgumentList.Add(server);
         psi.ArgumentList.Add(remoteCommand);
 
@@ -292,6 +343,9 @@ public class ConflictFileClient
         };
         if (recursive)
             psi.ArgumentList.Add("-r");
+        // '--' ends option parsing: a source such as "-oProxyCommand=calc:/x"
+        // must not be read as an scp option.
+        psi.ArgumentList.Add("--");
         psi.ArgumentList.Add(source);
         psi.ArgumentList.Add(destination);
 
