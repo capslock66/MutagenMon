@@ -397,6 +397,32 @@ public partial class App //: Application
     private ScriptRunner CreateScriptRunner() =>
         new(Options.Create(_options!), _host!.Services.GetRequiredService<ILogger<ScriptRunner>>());
 
+    /// <summary>Saves the status window's new size into the configuration
+    /// file, rewriting only those two keys. Skipped when it equals the size
+    /// already in the options, which is what a restore at startup or a
+    /// maximize/restore produces.</summary>
+    private void OnStatusWindowSizeSettled(object? sender, Size size)
+    {
+        var width = (int)Math.Round(size.Width);
+        var height = (int)Math.Round(size.Height);
+        if (_options is null || (_options.StatusWindowWidth == width && _options.StatusWindowHeight == height))
+            return;
+
+        var configPath = Path.Combine(AppContext.BaseDirectory, "config", "config_mutagenmon.json");
+        try
+        {
+            ConfigLoader.SaveWindowSize(configPath, width, height);
+            _options.StatusWindowWidth = width;
+            _options.StatusWindowHeight = height;
+            _logger?.LogDebug("Status window size saved: {Width}x{Height}", width, height);
+        }
+        catch (Exception ex)
+        {
+            // Not worth a dialog: the window size is a convenience, and the next resize retries.
+            _logger?.LogWarning(ex, "Failed to save the status window size to '{Path}'", configPath);
+        }
+    }
+
     private void ShowStatusWindow()
     {
         if (_statusWindow is null)
@@ -412,6 +438,9 @@ public partial class App //: Application
             _statusWindow.ViewSyncStatusRequested += OnViewSyncStatusRequested;
             _statusWindow.EditSessionRequested += OnEditSessionRequested;
             _statusWindow.DeleteSessionRequested += OnDeleteSessionRequested;
+            _statusWindow.SizeSettled += OnStatusWindowSizeSettled;
+            if (_options is not null)
+                _statusWindow.RestoreSize(_options.StatusWindowWidth, _options.StatusWindowHeight);
         }
         if (_stateStore is not null)
             _statusWindow.UpdateContent(_stateStore.Get(), _sessionNames, _trayIconController?.IsReloadInProgress ?? false);

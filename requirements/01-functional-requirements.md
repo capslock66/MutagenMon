@@ -245,6 +245,18 @@ The full specification lives in
     by every tab, below the `TabControl` — see the FR-16 revision note in
     07-session-management-requirements.md for the current layout.
 
+- FR-8.6: The status window's size (width and height, not its position)
+  MUST be saved to the configuration file (`StatusWindowWidth`,
+  `StatusWindowHeight`, see
+  [06-configuration-reference.md](06-configuration-reference.md)) each time
+  the user resizes it — once the resize has stopped (about 0.5 s), and
+  only while the window is in its normal state — and restored at the next
+  launch, clamped between the window's minimum size and the screen's work
+  area. Saving rewrites only those two keys, so the rest of the file,
+  `#` comments included, is left untouched. The values are not shown in the
+  "Mutagen monitor Configuration" tab, and saving that tab keeps the
+  window size currently in the file.
+
 ## FR-9 — Manual conflict resolution
 
 - FR-9.1: "Resolve conflicts" MUST open a single window (title

@@ -455,6 +455,27 @@ Covered above by UT-7.1.
   "Exit MutagenMon" would (FR-7.4) — see UT-7.4/UT-7.6 for the
   confirmation step itself.
 
+**UT-8.6 — Status window size is saved and restored (FR-8.6)** ✅
+
+* Open the status window and drag its corner to a clearly different size
+  (e.g. 1100 × 600). Wait one second, then open
+  `config/config_mutagenmon.json`: `StatusWindowWidth` and
+  `StatusWindowHeight` hold the new size, and every other key and `#`
+  comment line is unchanged. Move the window without resizing it: the file
+  does not change.
+* Exit MutagenMon from the status window and start it again, then open the
+  status window: it has the saved size (at the position Windows chooses —
+  the position is not restored).
+* Maximize the window, then restore it: the saved size is still the
+  normal size, not the screen size.
+* Make the window as small as possible and as large as possible: it never
+  goes below the minimum size (640 × 320). Edit the file to
+  `"StatusWindowWidth": 99999`, restart: the window opens no larger than
+  the screen's work area.
+* Open "Mutagen monitor Configuration": there is no field for the window
+  size. Resize the window while that tab is open, change another setting
+  and click Save: the file keeps the newest window size.
+
 ## FR-18 — Add/Edit window: identity fields
 
 **UT-18.5 — Local folder browse button next to Alpha/Beta (FR-18.5)** ✅

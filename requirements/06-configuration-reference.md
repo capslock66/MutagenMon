@@ -46,6 +46,8 @@ stated otherwise, and all "period"/"age" values are in the unit given.
 | `SshServers` | array of `{Host}` | `[]` | — | Known SSH servers/aliases, offered as a picklist by the Add/Edit session window's "Browse SSH server…" flow. `Host` is the token used before the `:` in a Mutagen endpoint (e.g. `"robbie"` in `robbie:sources/appman`). | FR-18.5 |
 | `ScriptsFile` | string (path) | `config/scripts.ini` | — | Path to the ini-like file defining the scripts listed in the Scripts tab (`[name]` header, then the bash body, with optional `# @host:` / `@description` / `@stop-on-error` / `@confirm` directives). Read on tab open and on "Reload". | FR-47, FR-48, FR-49 |
 | `ScriptTimeoutSeconds` | integer | `300` | seconds | Maximum duration of one script run; past it the local `ssh` process is killed and the run is reported as timed out. Processes the script detached on the server keep running. | FR-51.4 |
+| `StatusWindowWidth` | integer | `900` | pixels | Width of the status window, restored at each launch. Written by the application itself when the user resizes the window (only these two keys are rewritten; `#` comments are kept); not shown in the configuration editor. | FR-8.6 |
+| `StatusWindowHeight` | integer | `480` | pixels | Height of the status window — same as `StatusWindowWidth`. The window position is never saved. | FR-8.6 |
 
 ## Notes for the rewrite
 

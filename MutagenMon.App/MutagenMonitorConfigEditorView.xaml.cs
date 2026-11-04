@@ -238,6 +238,18 @@ public partial class MutagenMonitorConfigEditorView : UserControl
 
         try
         {
+            // The window size changes on its own while this tab is open: keep the file's current values, not the ones loaded earlier.
+            var current = ConfigLoader.Load(_path);
+            options.StatusWindowWidth = current.StatusWindowWidth;
+            options.StatusWindowHeight = current.StatusWindowHeight;
+        }
+        catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException)
+        {
+            _logger.LogWarning(ex, "Could not re-read the config file before saving; keeping the window size loaded earlier");
+        }
+
+        try
+        {
             ConfigLoader.Save(_path, options);
         }
         catch (Exception ex)
@@ -308,6 +320,9 @@ public partial class MutagenMonitorConfigEditorView : UserControl
         options = new MutagenMonOptions
         {
             DebugLevel = _loadedOptions.DebugLevel,
+            // Not editable here: the application saves the window size itself.
+            StatusWindowWidth = _loadedOptions.StatusWindowWidth,
+            StatusWindowHeight = _loadedOptions.StatusWindowHeight,
             ScriptTimeoutSeconds = ParseInt(ScriptTimeoutSecondsBox, "Script timeout", errors),
             StartEnabled = StartEnabledCheck.IsChecked == true,
             ShowMainScreenAtStartup = ShowMainScreenAtStartupCheck.IsChecked == true,

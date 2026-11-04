@@ -81,6 +81,15 @@ public sealed class MutagenMonOptions
     /// local ssh process is killed (FR-51.4).</summary>
     public int ScriptTimeoutSeconds { get; set; } = 300;
 
+    /// <summary>Width of the status window, restored at each launch and
+    /// saved by the application itself when the user resizes the window
+    /// (not exposed in the configuration editor; the position is not
+    /// saved).</summary>
+    public int StatusWindowWidth { get; set; } = 900;
+
+    /// <summary>Height of the status window — see <see cref="StatusWindowWidth"/>.</summary>
+    public int StatusWindowHeight { get; set; } = 480;
+
     /// <summary>Number of pollings with "not connected" errors to allow
     /// before restarting a mutagen session.</summary>
     public int SessionMaxErrors { get; set; } = 30000;

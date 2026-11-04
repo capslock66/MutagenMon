@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Microsoft.Extensions.Logging;
 using MutagenMon.Core.Monitoring;
 using MutagenMon.Core.Mutagen;
@@ -42,6 +43,11 @@ public partial class StatusWindow : Window
     /// which owns the host lifetime.</summary>
     public event EventHandler? ExitRequested;
 
+    /// <summary>Raised once the user has stopped resizing the window, with
+    /// its new size — handled by App.xaml.cs, which saves it to the
+    /// configuration file.</summary>
+    public event EventHandler<Size>? SizeSettled;
+
     /// <summary>Raised when the user clicks the toolbar's "Add" action
     /// (FR-16.1) — handled by App.xaml.cs, which owns
     /// <c>SessionEditingService</c> and the session definitions.</summary>
@@ -72,11 +78,25 @@ public partial class StatusWindow : Window
     /// when nothing actually changed.</summary>
     private readonly ObservableCollection<SessionSummaryRow> _sessionRows = new();
     private readonly ILogger _logger;
+    /// <summary>Waits for a resize to stop before <see cref="SizeSettled"/>:
+    /// a drag raises <see cref="FrameworkElement.SizeChanged"/> many times a
+    /// second, which must not become as many writes of the config file.</summary>
+    private readonly DispatcherTimer _sizeSettledTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
 
     public StatusWindow(ILogger logger, IconImageCache iconCache, FileLoggerProvider loggerProvider, bool showGenerateException,
         Func<string> scriptsPathProvider, Func<ScriptRunner> scriptRunnerFactory, Func<string?> defaultScriptHostProvider)
     {
         InitializeComponent();
+        _sizeSettledTimer.Tick += (_, _) => RaiseSizeSettled();
+        SizeChanged += (_, _) =>
+        {
+            // A maximized or minimized window's size is not the user's chosen size.
+            if (WindowState == WindowState.Normal)
+            {
+                _sizeSettledTimer.Stop();
+                _sizeSettledTimer.Start();
+            }
+        };
         Title = $"MutagenMon {App.AppVersion}";
         SessionsGrid.ItemsSource = _sessionRows;
         ((IconKeyToImageSourceConverter)Resources["IconKeyToImageSourceConverter"]).Cache = iconCache;
@@ -256,7 +276,28 @@ public partial class StatusWindow : Window
     protected override void OnClosing(CancelEventArgs e)
     {
         e.Cancel = true;
+        // A resize just before closing must not be lost to the timer.
+        if (_sizeSettledTimer.IsEnabled)
+            RaiseSizeSettled();
         Hide();
+    }
+
+    /// <summary>Sets the window size restored from the configuration,
+    /// clamped between the window's minimum size and the screen's work area
+    /// so a stale or hand-edited value cannot make it unusable. The position
+    /// is left to Windows.</summary>
+    public void RestoreSize(int width, int height)
+    {
+        var workArea = SystemParameters.WorkArea;
+        Width = Math.Clamp(width, MinWidth, Math.Max(MinWidth, workArea.Width));
+        Height = Math.Clamp(height, MinHeight, Math.Max(MinHeight, workArea.Height));
+    }
+
+    private void RaiseSizeSettled()
+    {
+        _sizeSettledTimer.Stop();
+        if (WindowState == WindowState.Normal)
+            SizeSettled?.Invoke(this, new Size(ActualWidth, ActualHeight));
     }
 
     /// <summary>One row per session (FR-8.1), in <paramref name="sessionNames"/>
