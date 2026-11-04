@@ -9,11 +9,16 @@ namespace MutagenMon.Core.Scripts;
 /// </summary>
 public static partial class ScriptFileParser
 {
+    // Matches a whole-line section header such as "[appman-ls]" (the line is trimmed first).
+    // Group 1 = the script name — access via match.Groups[1].Value.
     // FR-48.1 / FR-48.3: the first character after '[' cannot be a space or
     // '[', so bash tests such as `[ -f x ]` or `[[ -n "$x" ]]` never match.
     [GeneratedRegex(@"^\[([A-Za-z0-9_.\-][A-Za-z0-9_.\- ]*)\]$")]
     private static partial Regex HeaderRegex();
 
+    // Matches a directive comment such as "# @host: robbie" (the line is trimmed first).
+    // Groups: 1 = the directive key ("host"), 2 = its value ("robbie", may be empty)
+    // — access via match.Groups[n].Value.
     [GeneratedRegex(@"^#\s*@([A-Za-z\-]+)\s*:\s*(.*)$")]
     private static partial Regex DirectiveRegex();
 

@@ -68,6 +68,8 @@ public static class ConfigLoader
         if (existing.IsMatch(text))
             return existing.Replace(text, m_ => m_.Groups[1].Value + value, 1);
 
+        // Matches up to and including the first "{" of a line that is not a "#" comment line, i.e. the root object's
+        // opening brace; no capture groups — the end of the match (Index + Length) is the insertion point.
         var open = Regex.Match(text, @"(?m)^[^#\r\n]*?\{");
         if (!open.Success)
             throw new InvalidDataException("Config file has no root object to add the window size to.");
