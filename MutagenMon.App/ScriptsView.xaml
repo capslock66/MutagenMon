@@ -88,10 +88,15 @@
                                                 <DataTrigger Binding="{Binding Detail}" Value="">
                                                     <Setter Property="Visibility" Value="Collapsed" />
                                                 </DataTrigger>
-                                                <!-- Gray is unreadable on the selection's blue background. -->
-                                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=TreeViewItem}}" Value="True">
+                                                <!-- Gray is unreadable on the selection's blue background. When the window is not
+                                                     active the selection is light gray instead, and the highlight text (white) would be unreadable. -->
+                                                <MultiDataTrigger>
+                                                    <MultiDataTrigger.Conditions>
+                                                        <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=TreeViewItem}}" Value="True" />
+                                                        <Condition Binding="{Binding IsSelectionActive, RelativeSource={RelativeSource AncestorType=TreeViewItem}}" Value="True" />
+                                                    </MultiDataTrigger.Conditions>
                                                     <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.HighlightTextBrushKey}}" />
-                                                </DataTrigger>
+                                                </MultiDataTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </TextBlock.Style>
