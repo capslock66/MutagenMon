@@ -54,6 +54,9 @@ public partial class ScriptsView : UserControl
     private readonly Dictionary<string, ScriptDraft> _drafts = new();
     private bool _isLoaded;
     private bool _isRunning;
+    private bool _isCancelling;
+    /// <summary>Cached view of the run in progress, so Cancel can update its status line.</summary>
+    private ScriptRunView? _runningView;
     private bool _isReloading;
     private bool _lastHasUnsavedChanges;
     private bool _suppressTextChanged;
@@ -632,7 +635,7 @@ public partial class ScriptsView : UserControl
             _lastHasUnsavedChanges = hasUnsavedChanges;
             HasUnsavedChangesChanged?.Invoke(this, hasUnsavedChanges);
         }
-        CancelButton.IsEnabled = _isRunning;
+        CancelButton.IsEnabled = _isRunning && !_isCancelling;
     }
 
     /// <summary>True when the selected script has a neighbour to swap with
@@ -682,6 +685,7 @@ public partial class ScriptsView : UserControl
         // A new run replaces the cached view of this script (FR-52.4: the pane is cleared at the start of each run).
         var runView = new ScriptRunView(script.Name);
         _runViews[script.Name] = runView;
+        _runningView = runView;
         OutputBox.Document.Blocks.Clear();
         SetStatus(runView, $"Running '{script.Name}' on {script.Host}...", isError: false);
 
@@ -701,7 +705,9 @@ public partial class ScriptsView : UserControl
         {
             _runSource.Dispose();
             _runSource = null;
+            _runningView = null;
             _isRunning = false;
+            _isCancelling = false;
             UpdateButtons();
         }
     }
@@ -709,7 +715,14 @@ public partial class ScriptsView : UserControl
     private void OnCancelClick(object sender, RoutedEventArgs e)
     {
         _logger.LogInformation("User action: Scripts Cancel clicked");
-        _runSource?.Cancel();
+        if (_runSource is null || _runningView is null || _isCancelling)
+            return;
+
+        _isCancelling = true;
+        // The run only reports "Cancelled" once ssh is killed and has exited: say so right away.
+        SetStatus(_runningView, "Cancelling...", isError: false);
+        CancelButton.IsEnabled = false;
+        _runSource.Cancel();
     }
 
     /// <summary>Records the status in the cache and, when that script is the
