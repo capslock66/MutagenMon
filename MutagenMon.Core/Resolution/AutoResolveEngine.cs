@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 using MutagenMon.Core.Configuration;
 using MutagenMon.Core.Mutagen;
 
@@ -25,13 +26,16 @@ public sealed class AutoResolveEngine
     private readonly IReadOnlyList<AutoResolveRule> _rules;
     private readonly TimeSpan _historyAge;
     private readonly ConflictResolutionService _resolutionService;
+    private readonly ILogger _logger;
     private readonly Dictionary<string, (DateTimeOffset When, bool Resolved)> _history = new();
 
-    public AutoResolveEngine(IReadOnlyList<AutoResolveRule> rules, TimeSpan historyAge, ConflictResolutionService resolutionService)
+    public AutoResolveEngine(
+        IReadOnlyList<AutoResolveRule> rules, TimeSpan historyAge, ConflictResolutionService resolutionService, ILogger logger)
     {
         _rules = rules;
         _historyAge = historyAge;
         _resolutionService = resolutionService;
+        _logger = logger;
     }
 
     public event EventHandler<AutoResolvedEventArgs>? ConflictAutoResolved;
@@ -95,7 +99,7 @@ public sealed class AutoResolveEngine
 
         foreach (var rule in _rules)
         {
-            if (string.IsNullOrEmpty(rule.FilePath) || !Regex.IsMatch(conflict.AlphaName, rule.FilePath))
+            if (string.IsNullOrEmpty(rule.FilePath) || !IsRuleMatch(rule, sessionName, conflict.AlphaName))
                 continue;
 
             var choice = rule.Resolve.StartsWith("B wins", StringComparison.OrdinalIgnoreCase)
@@ -103,12 +107,55 @@ public sealed class AutoResolveEngine
                 : ConflictResolutionChoice.AWins;
 
             var pending = new PendingConflict(sessionName, conflict.AlphaName, status.Alpha, status.Beta);
-            await _resolutionService.ResolveAsync(pending, choice, nowUtc, cancellationToken, automatic: true);
+            try
+            {
+                await _resolutionService.ResolveAsync(pending, choice, nowUtc, cancellationToken, automatic: true);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // A failure on one file must never abort the whole poll: the
+                // snapshot (and so the tray icon's freshness) depends on it.
+                // Typical causes: a locally locked file (e.g. "report (1).xlsx"
+                // open in Excel, File.Copy throws IOException), scp/ssh failing
+                // on "it's here.txt", or the path guard rejecting "..\x.txt".
+                // The failure is cached as "not resolved" by the caller, so it
+                // is not retried every poll, and the conflict stays available
+                // for manual resolution.
+                // The winning side and both URLs are logged because an
+                // interrupted copy may have partially overwritten the
+                // destination (NFR-8).
+                _logger.LogWarning(ex,
+                    "Auto-resolve failed for {Session}:{File} (rule '{Rule}', {Resolve}, alpha={AlphaUrl}, beta={BetaUrl}); " +
+                    "leaving the conflict for manual resolution",
+                    sessionName, conflict.AlphaName, rule.FilePath, choice == ConflictResolutionChoice.BWins ? "B wins" : "A wins",
+                    status.Alpha.Url, status.Beta.Url);
+                return false;
+            }
 
             ConflictAutoResolved?.Invoke(this, new AutoResolvedEventArgs(sessionName, conflict.AlphaName, rule.Resolve));
             return true;
         }
 
         return false;
+    }
+
+    /// <summary>Unanchored regex search of the rule against the file name.
+    /// An invalid pattern (e.g. an unclosed bracket like <c>[abc</c> typed by
+    /// hand in the config file) throws <see cref="ArgumentException"/>; it is
+    /// logged and treated as a non-match so the remaining rules still apply
+    /// and the poll is not aborted.</summary>
+    private bool IsRuleMatch(AutoResolveRule rule, string sessionName, string fileName)
+    {
+        try
+        {
+            return Regex.IsMatch(fileName, rule.FilePath);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex,
+                "Ignoring invalid AutoResolve regex '{Rule}' (checked against {Session}:{File})",
+                rule.FilePath, sessionName, fileName);
+            return false;
+        }
     }
 }

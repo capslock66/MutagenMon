@@ -14,6 +14,7 @@ public class AutoResolveEngineTests
         : ConflictFileClient(Options.Create(new MutagenMonOptions()), NullLogger<ConflictFileClient>.Instance)
     {
         public readonly List<(SessionEndpoint Source, SessionEndpoint Destination, string RelativePath)> Copies = new();
+        public string? ThrowOnPath;
 
         public override Task<FileStat> StatAsync(SessionEndpoint endpoint, string relativePath, CancellationToken cancellationToken) =>
             Task.FromResult(new FileStat(1, DateTimeOffset.UtcNow));
@@ -21,6 +22,8 @@ public class AutoResolveEngineTests
         public override Task CopyBetweenEndpointsAsync(SessionEndpoint source, SessionEndpoint destination, string relativePath, CancellationToken cancellationToken)
         {
             Copies.Add((source, destination, relativePath));
+            if (relativePath == ThrowOnPath)
+                throw new IOException($"The process cannot access the file '{relativePath}' because it is being used by another process.");
             return Task.CompletedTask;
         }
 
@@ -47,11 +50,19 @@ public class AutoResolveEngineTests
     private static (AutoResolveEngine Engine, FakeConflictFileClient Client, CapturingLogger<ConflictResolutionService> Logger) Build(
         IReadOnlyList<AutoResolveRule> rules, TimeSpan? historyAge = null)
     {
+        var (engine, client, logger, _) = BuildWithEngineLog(rules, historyAge);
+        return (engine, client, logger);
+    }
+
+    private static (AutoResolveEngine Engine, FakeConflictFileClient Client, CapturingLogger<ConflictResolutionService> Logger, CapturingLogger<AutoResolveEngine> EngineLogger) BuildWithEngineLog(
+        IReadOnlyList<AutoResolveRule> rules, TimeSpan? historyAge = null)
+    {
         var client = new FakeConflictFileClient();
         var logger = new CapturingLogger<ConflictResolutionService>();
         var resolutionService = new ConflictResolutionService(client, logger);
-        var engine = new AutoResolveEngine(rules, historyAge ?? TimeSpan.FromSeconds(30), resolutionService);
-        return (engine, client, logger);
+        var engineLogger = new CapturingLogger<AutoResolveEngine>();
+        var engine = new AutoResolveEngine(rules, historyAge ?? TimeSpan.FromSeconds(30), resolutionService, engineLogger);
+        return (engine, client, logger, engineLogger);
     }
 
     private static Dictionary<string, IReadOnlyList<ConflictRecord>> OneConflict(bool autoResolved = false) =>
@@ -96,6 +107,76 @@ public class AutoResolveEngineTests
         Assert.Equal(LocalAlpha, client.Copies[0].Source);
         Assert.Equal(SshBeta, client.Copies[0].Destination);
         Assert.Contains(logger.Messages, m => m.Contains("[AUTO]") && m.Contains("A wins"));
+    }
+
+    [Fact]
+    public async Task FailingResolutionDoesNotThrowAndLeavesConflictUnresolved()
+    {
+        var (engine, client, _, engineLogger) = BuildWithEngineLog(new[] { Rule("shared", "A wins") });
+        client.ThrowOnPath = "shared.txt";
+
+        var result = await engine.ApplyAsync(OneConflict(), SessionStatuses, DateTimeOffset.UtcNow, CancellationToken.None);
+
+        Assert.False(result["alpha-sync"][0].AutoResolved);
+        Assert.Contains(engineLogger.Messages, m => m.Contains("Auto-resolve failed") && m.Contains("A wins") && m.Contains("alpha-sync:shared.txt"));
+    }
+
+    [Fact]
+    public async Task FailureLogNamesTheEffectiveSideEvenWhenTheRuleValueIsMalformed()
+    {
+        var (engine, client, _, engineLogger) = BuildWithEngineLog(new[] { Rule("shared", "B-wins") });
+        client.ThrowOnPath = "shared.txt";
+
+        await engine.ApplyAsync(OneConflict(), SessionStatuses, DateTimeOffset.UtcNow, CancellationToken.None);
+
+        Assert.Contains(engineLogger.Messages, m => m.Contains("Auto-resolve failed") && m.Contains("A wins") && !m.Contains("B-wins"));
+    }
+
+    [Fact]
+    public async Task FailingResolutionIsNotRetriedWithinTheHistoryAge()
+    {
+        var (engine, client, _) = Build(new[] { Rule("shared", "A wins") });
+        client.ThrowOnPath = "shared.txt";
+        var now = DateTimeOffset.UtcNow;
+
+        await engine.ApplyAsync(OneConflict(), SessionStatuses, now, CancellationToken.None);
+        await engine.ApplyAsync(OneConflict(), SessionStatuses, now.AddSeconds(5), CancellationToken.None);
+
+        Assert.Single(client.Copies);
+    }
+
+    [Fact]
+    public async Task FailingResolutionDoesNotPreventOtherConflictsFromBeingResolved()
+    {
+        var (engine, client, _) = Build(new[] { Rule("shared", "A wins"), Rule("other", "A wins") });
+        var conflicts = new Dictionary<string, IReadOnlyList<ConflictRecord>>
+        {
+            ["alpha-sync"] = new[]
+            {
+                new ConflictRecord("shared.txt", "shared.txt", "modified", "modified", false),
+                new ConflictRecord("other.txt", "other.txt", "modified", "modified", false),
+            },
+        };
+        client.ThrowOnPath = "shared.txt";
+
+        var result = await engine.ApplyAsync(conflicts, SessionStatuses, DateTimeOffset.UtcNow, CancellationToken.None);
+
+        Assert.False(result["alpha-sync"][0].AutoResolved);
+        Assert.True(result["alpha-sync"][1].AutoResolved);
+        Assert.Equal(2, client.Copies.Count);
+    }
+
+    [Fact]
+    public async Task InvalidRegexRuleIsSkippedAndTheNextRuleStillApplies()
+    {
+        var (engine, client, _, engineLogger) = BuildWithEngineLog(new[] { Rule("[shared", "B wins"), Rule("shared", "A wins") });
+
+        var result = await engine.ApplyAsync(OneConflict(), SessionStatuses, DateTimeOffset.UtcNow, CancellationToken.None);
+
+        Assert.Contains(engineLogger.Messages, m => m.Contains("Ignoring invalid AutoResolve regex") && m.Contains("[shared"));
+        Assert.True(result["alpha-sync"][0].AutoResolved);
+        Assert.Single(client.Copies);
+        Assert.Equal(LocalAlpha, client.Copies[0].Source);
     }
 
     [Fact]

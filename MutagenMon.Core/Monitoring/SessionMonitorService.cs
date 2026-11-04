@@ -93,7 +93,7 @@ public sealed partial class SessionMonitorService : BackgroundService
         _sessionMaxErrors = opts.SessionMaxErrors;
         _profileWatcher = new SessionProfileWatcher(timestampProvider, opts.MutagenProfileDir, opts.MutagenProfileGraceSeconds);
         _autoResolveEngine = new AutoResolveEngine(
-            opts.AutoResolve, TimeSpan.FromSeconds(opts.AutoResolveHistoryAgeSeconds), conflictResolutionService);
+            opts.AutoResolve, TimeSpan.FromSeconds(opts.AutoResolveHistoryAgeSeconds), conflictResolutionService, logger);
         _notificationDispatcher = new NotificationDispatcher(
             notificationQueue, opts.NotifyConflicts, opts.NotifyAutoresolve, opts.NotifyMutagenProfileUpdate,
             opts.NotifyRestartConnection);

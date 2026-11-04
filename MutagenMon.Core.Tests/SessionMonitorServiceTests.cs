@@ -62,6 +62,7 @@ public class SessionMonitorServiceTests
         : ConflictFileClient(Options.Create(new MutagenMonOptions()), NullLogger<ConflictFileClient>.Instance)
     {
         public readonly List<(SessionEndpoint Source, SessionEndpoint Destination, string RelativePath)> Copies = new();
+        public string? ThrowOnPath;
 
         public override Task<FileStat> StatAsync(SessionEndpoint endpoint, string relativePath, CancellationToken cancellationToken) =>
             Task.FromResult(new FileStat(1, DateTimeOffset.UtcNow));
@@ -69,6 +70,8 @@ public class SessionMonitorServiceTests
         public override Task CopyBetweenEndpointsAsync(SessionEndpoint source, SessionEndpoint destination, string relativePath, CancellationToken cancellationToken)
         {
             Copies.Add((source, destination, relativePath));
+            if (relativePath == ThrowOnPath)
+                throw new IOException($"The process cannot access the file '{relativePath}' because it is being used by another process.");
             return Task.CompletedTask;
         }
 
@@ -376,6 +379,29 @@ public class SessionMonitorServiceTests
         var messages = queue.DrainAll();
         var autoResolveMessage = Assert.Single(messages, m => m.Title == "Conflict auto-resolved");
         Assert.Equal("alpha-sync:shared.txt — A wins", autoResolveMessage.Body);
+    }
+
+    [Fact]
+    public async Task AFailingAutoResolveStillPublishesTheSnapshotWithTheConflictUnresolved()
+    {
+        var cli = new FakeMutagenCliClient();
+        cli.Enqueue(ConflictedSession("alpha-sync", "id-a") + "\n" + ReadySession("beta-sync", "id-b"));
+        var store = new SessionStateStore();
+        var sessions = new[] { new SessionDefinition("alpha-sync", "..."), new SessionDefinition("beta-sync", "...") };
+        var rules = new[] { new AutoResolveRule { FilePath = "shared", Resolve = "A wins" } };
+        var fileClient = new RecordingConflictFileClient { ThrowOnPath = "shared.txt" };
+        var logger = new CapturingLogger<SessionMonitorService>();
+        var service = BuildService(cli, store, sessions, autoResolveRules: rules, conflictFileClient: fileClient, logger: logger);
+
+        await service.PollOnceAsync(CancellationToken.None);
+
+        Assert.Contains(logger.Messages, m => m.Contains("Auto-resolve failed"));
+        Assert.DoesNotContain(logger.Messages, m => m.Contains("Mutagen status poll failed"));
+
+        // An auto-resolve failure must not prevent the snapshot from being published (tray freshness).
+        var snapshot = store.Get();
+        Assert.Equal(SessionStatusCode.Conflicts, snapshot.WorstCode);
+        Assert.False(Assert.Single(snapshot.Conflicts["alpha-sync"]).AutoResolved);
     }
 
     [Fact]
