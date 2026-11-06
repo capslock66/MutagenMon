@@ -1,10 +1,10 @@
 # Scripts Tab — Requirements & Design
 
-This document specifies a new capability: a fifth status-window tab that
-lists user-defined bash scripts, lets the user select one and run it on a
-remote Linux server over SSH, and shows its output.
+This document specifies a status-window tab that lists user-defined bash
+scripts, lets the user select one, edit it and run it on a remote Linux
+server over SSH, and shows its output.
 
-**Status: planned (not implemented).** Continues the FR numbering from
+**Status: implemented.** Continues the FR numbering from
 [10-logs-tab-requirements.md](10-logs-tab-requirements.md)'s FR-46, as FR-47
 through FR-54.
 
@@ -19,12 +19,43 @@ execution is fully asynchronous and shares no state with them (NFR-1).
 
 ## FR-47 — Tab
 
-- FR-47.1: `StatusWindow` gains a fifth tab, **"Scripts"**, alongside "Sync",
-  "Mutagen Configuration", "Mutagen monitor Configuration" and "Logs".
-- FR-47.2: The tab's toolbar has the actions **Run**, **Cancel** (enabled
-  only while a script is running) and **Reload** (FR-49.3).
-- FR-47.3: Layout: script list on the left; on the right, the selected
-  script's text (read-only) above a read-only output pane (FR-52).
+- FR-47.1: `StatusWindow` has a **"Scripts"** tab, second from the left:
+  "Sync", "Scripts", "Mutagen Configuration", "Mutagen monitor
+  Configuration", "Logs". While a script has unsaved changes (FR-47.5) the
+  tab header shows a bold "Scripts *".
+- FR-47.2: Above the toolbar, a link shows the full path of the scripts
+  file and opens it in the OS default editor. The toolbar has, in this
+  order, **Reload** (FR-49.1), **Add** and **Delete** (FR-47.6), **Save**
+  (FR-47.5), **Run** (green ▶, also bound to **F5** while the Scripts tab is
+  selected) and **Cancel** (enabled only while a script is running).
+- FR-47.3: Layout: the script tree on the left, with ▲/▼ buttons under it
+  (FR-48.5); on the right, a **Name** box and the selected script's text
+  (both editable, FR-47.4) above the output pane (FR-52) and the status line
+  (FR-52.3). A message line above the layout shows the information messages
+  of FR-49.2.
+- FR-47.4: The script's name and text are editable whenever a script is
+  selected (the name box and the text are read-only while nothing is
+  selected; the name box is also read-only while a script runs). The name
+  must be non-empty, valid under FR-48.1, unique in the file and the script
+  must not be running; otherwise the reason is shown in red under the box
+  and **Save** is disabled.
+- FR-47.5: **Unsaved edits.** Edits of a script are kept as a draft when
+  another script is selected, when the list is rebuilt (add, delete, move)
+  and are shown until saved. **Save** writes every script with unsaved
+  changes (the displayed one and all drafts) to the file in a single write
+  through `ScriptFileEditor`: the rest of the file (other scripts, comments
+  before the first header, blank lines between sections, encoding and line
+  ending style) is left untouched; if any edit fails, nothing is written
+  and an error dialog is shown. A renamed script keeps its last run output
+  and status. **Reload** with unsaved changes asks for confirmation
+  ("Reloading discards them").
+- FR-47.6: **Add** appends a new section named `new-script` (or
+  `new-script-2`, ... when taken) with `# @host:` set to the first
+  configured SSH server (`TODO` when there is none) and
+  `# @description: TODO`, creating the file when it does not exist, then
+  selects it. **Delete** removes the selected script's section after a
+  confirmation dialog (cannot be undone); it is disabled while a script
+  runs. File write errors show an error dialog.
 
 ## FR-48 — Scripts file format
 
@@ -52,8 +83,12 @@ The scripts live in a separate ini-like text file (path: `ScriptsFile`, see
   | `@description` | free text | empty | Shown under the name in the list. |
   | `@stop-on-error` | `true` / `false` | `true` | Whether `set -e` is prepended (FR-51.2). |
   | `@confirm` | `true` / `false` | `false` | Ask for confirmation before running (FR-53.1). |
-  | `@group` | free text (case-sensitive) | empty | Group of the script. The list is a tree, one level: collapsed group nodes in order of first appearance in the file, then the scripts without a group at the top level. A click on a group name opens/closes it. ▲/▼ move a script within its group, or a whole group past the neighbouring group (its scripts become contiguous in the file). |
+  | `@group` | free text (case-sensitive) | empty | Group of the script. The list is a tree, one level: collapsed group nodes (shown as "name (count)", in order of first appearance in the file), then the scripts without a group at the top level. A click on a group name opens/closes it; the expanded groups are kept across a reload. ▲/▼ move a script within its group, or a whole group past the neighbouring group (its scripts become contiguous in the file); at either end they do nothing. |
 
+  Directive keys are case-insensitive; when a key appears several times,
+  the first occurrence wins. A `@stop-on-error` or `@confirm` value that is
+  neither `true` nor `false` (case-insensitive) makes the script invalid
+  (FR-49.2).
 - FR-48.6: Line endings: both `\r\n` and `\n` are accepted in the file;
   the body is always sent to bash with `\n` only (a stray `\r` breaks bash).
 
@@ -73,27 +108,32 @@ tmux has-session -t appman-rc 2>/dev/null || tmux new -d -s appman-rc "$CCD --re
 
 ## FR-49 — Loading
 
-- FR-49.1: The file is read when the tab is first shown and when the user
-  clicks **Reload** — not watched (no `FileSystemWatcher`). The list is
-  rebuilt; the previous selection is kept if a script of the same name still
-  exists.
-- FR-49.2: A script with no `@host`, or with a duplicate name, is still
-  listed but marked invalid with the reason; **Run** is disabled for it.
-  A missing or unreadable file shows an informational message in the tab
-  and an empty list, never an exception dialog.
+- FR-49.1: The file is read when the tab is first shown, when the user
+  clicks **Reload**, and after each Add, Delete, Save or move — not watched
+  (no `FileSystemWatcher`). The list is rebuilt; the previous selection is
+  kept if a script of the same name still exists.
+- FR-49.2: A script with no `@host`, with a duplicate name or with an
+  invalid `@stop-on-error`/`@confirm` value is still listed but marked
+  invalid with the reason (shown in red under its name in place of the
+  description); **Run** is disabled for it. A missing or unreadable file
+  shows an informational message in the tab and an empty list, never an
+  exception dialog.
 - FR-49.3: A running script is unaffected by a Reload: it keeps the body it
   was started with.
 
 ## FR-50 — Execution target
 
-- FR-50.1: The script runs on the server named by `@host`, using the
-  system `ssh` binary (`SshPath`) and the connection settings resolved from
-  `~/.ssh/config` / default keys by the existing SSH resolution
-  (`SshConnectionResolver`), exactly like the other SSH features (FR-9, FR-18).
+- FR-50.1: The script runs on the host named by `@host`, using the system
+  `ssh` binary (`SshPath`), which resolves the alias, user and keys itself
+  from `~/.ssh/config` and the default keys (the application does not
+  resolve the host).
 - FR-50.2: Arguments are passed as `ProcessStartInfo.ArgumentList` entries,
-  never through a shell command string.
+  never through a shell command string: `-o BatchMode=yes -T -- <host>
+  bash -s` (the `--` keeps a host starting with `-` from being read as an
+  option).
 - FR-50.3: **One SSH connection per run.** The whole script is written to
-  the standard input of a single `ssh <host> bash -s` process. Bash executes
+  the standard input of a single `ssh <host> bash -s` process, encoded in
+  UTF-8 without a BOM. Bash executes
   the lines sequentially, each waiting for the previous one, in one shell
   (so `cd` and variables persist). The application does not drive the
   script line by line.
@@ -104,7 +144,11 @@ tmux has-session -t appman-rc 2>/dev/null || tmux new -d -s appman-rc "$CCD --re
 ## FR-51 — Run
 
 - FR-51.1: **Run** is enabled when a valid script is selected and no script
-  is running. Only one script runs at a time.
+  is running. Only one script runs at a time. When the selected script has
+  unsaved edits, the run uses the edited text, parsed like the file (an
+  edited `@host`, `@confirm` or `@stop-on-error` applies); Run is disabled
+  when the edited text is invalid or contains a line that looks like a
+  section header.
 - FR-51.2: When `@stop-on-error` is `true` (default), the application
   prepends `set -e` to the body; the first failing command ends the script
   with its exit code. When `false`, bash's default applies (execution
@@ -114,7 +158,12 @@ tmux has-session -t appman-rc 2>/dev/null || tmux new -d -s appman-rc "$CCD --re
 - FR-51.4: A run ends when the `ssh` process exits (exit code recorded),
   when the user clicks **Cancel** (the `ssh` process is killed), or when the
   timeout `ScriptTimeoutSeconds` elapses (process killed, run marked
-  "timed out").
+  "timed out"; a value of 0 disables the timeout). **Cancel** shows
+  "Cancelling..." immediately, and the ssh process is killed (with its
+  process tree) off the UI thread; the run reports "cancelled" once ssh has
+  exited (the application waits at most 5 s for it).
+  If `ssh` cannot be started, the run ends as "failed to start" with the
+  error message.
 - FR-51.5: Killing the `ssh` process ends the local connection only;
   processes the script already detached on the server (e.g. a `tmux`
   session) keep running. The UI states this in the Cancel/timeout message.
@@ -123,22 +172,31 @@ tmux has-session -t appman-rc 2>/dev/null || tmux new -d -s appman-rc "$CCD --re
 
 - FR-52.1: Standard output and standard error of the `ssh` process are
   appended to a read-only pane as they arrive (streamed, not buffered until
-  exit), stderr visually distinguished.
+  exit), stderr in red.
 - FR-52.2: Output is produced on background threads; every UI update is
   marshaled to the UI thread (same constraint as FR-40.3).
-- FR-52.3: When the run ends, a final line shows the outcome: exit code,
-  "cancelled" or "timed out", and the duration.
+- FR-52.3: The outcome of the run is shown in the status line under the
+  pane (not in the streamed output): "Running '<name>' on <host>..." while
+  running, then "Exit code N (x.xs)", "Cancelled after x.xs" or "Timed out
+  after x.xs" (the last two add that processes already detached on the
+  server keep running, FR-51.5), or "Failed to start ssh: <error>". A
+  non-zero exit code, cancellation, timeout or failure is shown as an
+  error.
 - FR-52.4: The pane is cleared at the start of each run. The pane is capped
-  (last 5000 lines) so a chatty script cannot exhaust memory.
+  (last 5000 lines) so a chatty script cannot exhaust memory. The last run
+  (output and status) of each script is kept in memory while the
+  application runs: selecting another script and coming back shows that
+  script's own last run, and a run in progress keeps accumulating its
+  output while another script is displayed.
 - FR-52.5: There is no embedded terminal. Observing a long-lived session
   (e.g. the tmux session started by the script) is done outside the
   application, or by a script that prints it (`tmux capture-pane -p -t <name>`).
 
 ## FR-53 — Safety
 
-- FR-53.1: When `@confirm` is `true`, a Yes/No confirmation naming the
-  script and host is shown before running (`GenericMessageDialog.ShowConfirm`,
-  same pattern as session deletion).
+- FR-53.1: When `@confirm` is `true`, a confirmation ("Run script '<name>'
+  on <host>?", buttons Run / Cancel) is shown before running
+  (`GenericMessageDialog.ShowConfirm`, same pattern as session deletion).
 - FR-53.2: The file is user-authored local configuration, trusted at the
   same level as `~/.ssh/config`. The application never interpolates any
   external value (session names, paths, conflict data) into a script body.
@@ -154,20 +212,21 @@ tmux has-session -t appman-rc 2>/dev/null || tmux new -d -s appman-rc "$CCD --re
 - FR-54.2: Script output is **not** copied into the application log (it may
   be large or sensitive); only the pane shows it.
 
-## Implementation (planned)
+## Implementation
 
-- `MutagenMon.Core/Configuration/MutagenMonOptions.cs`: add `ScriptsFile`
-  and `ScriptTimeoutSeconds`.
-- `MutagenMon.Core/Scripts/` (new): `ScriptDefinition` (name, host,
-  description, stop-on-error, confirm, body, validation error),
-  `ScriptFileParser` (FR-48, FR-49.2; pure, testable), `ScriptRunner`
-  (FR-50, FR-51; streams output via a callback/event, takes cancellation,
-  timeout; testable with a fake `ssh`, like `ConflictFileClient`).
-- `MutagenMon.App/ScriptsView.xaml`/`.xaml.cs` (new): the tab, hosted in
-  `StatusWindow.xaml` and initialised the same way as `LogsView`.
-- `MutagenMon.App/config/scripts.ini` (new): shipped sample file with the
-  example above.
-- Tests: `MutagenMon.Core.Tests` — parser (headers, `[ -f x ]` / `[[ ... ]]`
-  inside a body, directives, CRLF, duplicates, missing host) and runner
-  (stdin content, `set -e` prefix, exit code, cancel, timeout).
-- `requirements/UserTests.md`: new UT entries for FR-47 through FR-54.
+- `MutagenMon.Core/Configuration/MutagenMonOptions.cs`: `ScriptsFile`
+  (default `config/scripts.ini`) and `ScriptTimeoutSeconds` (default 300).
+- `MutagenMon.Core/Scripts/`: `ScriptDefinition` (name, host, description,
+  stop-on-error, confirm, group, body, validation error), `ScriptFileParser`
+  (FR-48, FR-49.2; pure), `ScriptFileEditor` (FR-47.5, FR-47.6, FR-48.5:
+  rewrites, adds, removes and moves sections without touching the rest of
+  the file), `ScriptRunner` (FR-50, FR-51; streams output through a
+  callback, takes cancellation and timeout; testable with a fake `ssh`) and
+  `ScriptRunResult`.
+- `MutagenMon.App/ScriptsView.xaml`/`.xaml.cs`: the tab, hosted in
+  `StatusWindow.xaml` (second tab); `StatusWindow` routes F5 and shows the
+  "Scripts *" header.
+- `MutagenMon.App/config/scripts.ini`: shipped sample file.
+- Tests: `MutagenMon.Core.Tests` — `ScriptFileParserTests`,
+  `ScriptFileEditorTests`, `ScriptRunnerTests`.
+- `requirements/UserTests.md`: UT-47.x through UT-54.x.
