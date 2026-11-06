@@ -254,6 +254,23 @@ from sleep/hibernate)** ✅
   catch up automatically once the tray icon becomes valid again, with no
   error dialog and no app restart.
 
+**UT-T.15 — Native icon that cannot be recreated triggers a self-restart (TIC-9 / FR-6.4)**
+
+* Not deterministically reproducible on demand. Case 1: Explorer is
+  running but the icon cannot be recreated for about one minute (no known
+  trigger). Case 2: kill `explorer.exe` and do not restart it.
+* Case 1: `log/mutagenMon.log` shows a `[WRN] Failed to recreate the native
+  tray icon ... (retry count: N)` line per tick, then, at retry count 60,
+  `[ERR] Native tray icon could not be recreated after 60 consecutive
+  attempts; triggering self-restart (TIC-9)`, and the process restarts
+  itself (new process id).
+* Case 2: after 60 failures the log shows `[WRN] ... the taskbar
+  (Shell_TrayWnd) is absent: a self-restart would not help, still
+  retrying`; no restart happens, and the icon is recreated as soon as
+  Explorer is back.
+* If Explorer comes back before 60 failures, the icon is recreated and no
+  restart happens.
+
 ## FR-6 — Staleness detection & self-restart
 
 Covered above by UT-T.10 and UT-T.11.

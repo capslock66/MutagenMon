@@ -173,7 +173,12 @@ pending.
 - TIC-9: If the OS fails to (re-)install the tray icon after a `set icon`
   call, the application MUST treat this as fatal for the current process
   and trigger a full self-restart (new process spawned, current one
-  exits) rather than continuing with a missing/broken icon.
+  exits) rather than continuing with a missing/broken icon. The
+  application treats 60 consecutive failed recreations of the native icon
+  (one attempt per 1 s tick, so at least about one minute) as such a failure; until
+  then it retries every tick. When the taskbar window (`Shell_TrayWnd`) is
+  absent (Explorer not running), a restart cannot help: the application
+  logs a warning and keeps retrying instead of restarting in a loop.
 - TIC-10: If the background poller's last successful update exceeds the
   `Restart` staleness threshold (default 90s), the application MUST
   self-restart even if the tray icon itself still looks fine — a

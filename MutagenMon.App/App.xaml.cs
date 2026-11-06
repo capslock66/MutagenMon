@@ -271,7 +271,7 @@ public partial class App //: Application
 
     private void OnSelfRestartNeeded()
     {
-        _logger?.LogWarning("Status has been stale past the Restart threshold; restarting");
+        _logger?.LogWarning("Self-restart requested (cause logged by the tray icon controller); restarting");
         // Hand the single-instance mutex over first: otherwise the new
         // process sees it held, signals us and exits, and this one then
         // shuts down too — leaving no process (and no tray icon) at all.

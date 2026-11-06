@@ -40,7 +40,8 @@ public sealed class TrayIconController
     /// <summary>The icon/tooltip state as of the last tick — lets a caller
     /// (e.g. opening the status view on demand) show the same icon the tray
     /// currently displays without duplicating <see cref="TrayIconStateResolver"/>
-    /// resolution. Null only before the very first tick.</summary>
+    /// resolution. Null only before the very first tick. The icon itself may
+    /// lag behind if its asset failed to load.</summary>
     public TrayIconState? CurrentState => _lastState;
 
     private readonly TaskbarIcon _taskbarIcon;
@@ -107,6 +108,12 @@ public sealed class TrayIconController
     private int _startupRecreatesScheduled;
     // Failed recreate attempts since the last successful one.
     private int _recreateRetryCount;
+    // TIC-9 / FR-6.4: a native icon that cannot be recreated in this many
+    // consecutive attempts (one per tick, so at least about one minute; more
+    // if Shell_NotifyIcon blocks the UI thread) is fatal for the process,
+    // which restarts itself — unless the taskbar itself is absent, where a
+    // restart cannot help.
+    private const int MaxConsecutiveRecreateFailures = 60;
 
     /// <summary>True from <see cref="RequestReload"/> until every configured
     /// session has stopped reporting a status and the in-place reload has
@@ -219,6 +226,10 @@ public sealed class TrayIconController
     [DllImport("user32.dll")]
     private static extern bool GetCursorPos(out NativePoint point);
 
+    // Finds the taskbar window: absent while Explorer is not running.
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr FindWindow(string className, string? windowName);
+
     // Shell_NotifyIconGetRect: HRESULT, 0 (S_OK) when the icon exists in the
     // notification area (or its overflow chevron) and the rectangle is valid.
     [DllImport("shell32.dll")]
@@ -321,6 +332,28 @@ public sealed class TrayIconController
         ScheduleStartupRecreate();
 
         var iconRecreated = _recreateIconRequested && TryRecreateNativeIcon();
+
+        if (!_restartTriggered && _recreateRetryCount >= MaxConsecutiveRecreateFailures)
+        {
+            // A restart cannot fix a missing shell (Explorer not running, not
+            // yet started at logon): the new process would hit the same
+            // condition and the app would restart in a loop. Keep retrying.
+            if (FindWindow("Shell_TrayWnd", null) == IntPtr.Zero)
+            {
+                _logger.LogWarning("Native tray icon could not be recreated after {RetryCount} attempts, but the taskbar (Shell_TrayWnd) is absent: a self-restart would not help, still retrying", _recreateRetryCount);
+                _recreateRetryCount = 0;
+                return;
+            }
+
+            // Nothing can be shown on a missing native icon, so the queued
+            // notifications are not drained here (they are lost with the process).
+            _logger.LogError("Native tray icon could not be recreated after {RetryCount} consecutive attempts; triggering self-restart (TIC-9)", _recreateRetryCount);
+            _restartTriggered = true;
+            Stop();
+            _onSelfRestartNeeded();
+            return;
+        }
+
         ShowPendingNotifications();
 
         if (!iconRecreated && _lastState is { } last && last.IconKey == state.IconKey && last.Tooltip == state.Tooltip)
@@ -330,14 +363,16 @@ public sealed class TrayIconController
 
         try
         {
+            // Tooltip first: if the icon cannot be loaded below, the tooltip
+            // still shows the real state.
+            _taskbarIcon.ToolTipText = state.Tooltip;
+
             if (iconRecreated || _lastState?.IconKey != state.IconKey)
             {
                 if (_lastState?.IconKey != state.IconKey)
                     _logger.LogInformation("Tray icon changed: {PreviousIconKey} -> {IconKey}", _lastState?.IconKey, state.IconKey);
                 _taskbarIcon.Icon = _iconCache.Get(state.IconKey);
             }
-
-            _taskbarIcon.ToolTipText = state.Tooltip;
         }
         catch (InvalidOperationException ex)
         {
@@ -352,6 +387,13 @@ public sealed class TrayIconController
             _recreateIconRequested = true;
             _logger.LogWarning(ex, "Failed to update the tray icon/tooltip; recreating the native icon next tick");
             return;
+        }
+        catch (Exception ex)
+        {
+            // Not a stale native icon (e.g. a missing .ico file): recreating
+            // would not help and rethrowing would show a dialog every tick.
+            // _lastState is set so the failure is logged once per change.
+            _logger.LogError(ex, "Failed to apply the tray icon '{IconKey}'; keeping the previous icon", state.IconKey);
         }
 
         _lastState = state;
