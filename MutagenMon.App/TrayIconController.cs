@@ -81,6 +81,16 @@ public sealed class TrayIconController
     // waiting on a busy Explorer, or a CPU/disk-saturated logon).
     private static readonly TimeSpan TickLagWarningThreshold = TimeSpan.FromSeconds(5);
     private static long _processFirstControllerTimestamp;
+    // After a recreate, the shell is asked where the icon is
+    // (Shell_NotifyIconGetRect). A rectangle means the icon is registered in
+    // the notification area; it is NOT a proof that mouse messages reach the
+    // icon's message window (the failure this mechanism targets), so the value
+    // of this signal must be validated against field logs. After this many
+    // consecutive confirmations the startup recreations stop. Static like the
+    // window anchor: a config reload must not restart the schedule.
+    private const int RequiredVisibilityConfirmations = 3;
+    private static int _consecutiveVisibilityConfirmations;
+    private static volatile bool _startupRecreationConfirmed;
     private TimeSpan _nextStartupRecreateAt;
     private long _lastTickTimestamp;
     // Set from the SystemEvents thread on resume: the next tick gap is the
@@ -208,6 +218,31 @@ public sealed class TrayIconController
 
     [DllImport("user32.dll")]
     private static extern bool GetCursorPos(out NativePoint point);
+
+    // Shell_NotifyIconGetRect: HRESULT, 0 (S_OK) when the icon exists in the
+    // notification area (or its overflow chevron) and the rectangle is valid.
+    [DllImport("shell32.dll")]
+    private static extern int Shell_NotifyIconGetRect(ref NotifyIconIdentifier identifier, out NativeRect iconLocation);
+
+    // NOTIFYICONIDENTIFIER. H.NotifyIcon registers its icon with a GUID, so
+    // the GUID identifies it (the shell then ignores window handle and id).
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NotifyIconIdentifier
+    {
+        public uint Size;
+        public IntPtr WindowHandle;
+        public uint IconId;
+        public Guid IconGuid;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeRect
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     private struct NativePoint
@@ -376,12 +411,14 @@ public sealed class TrayIconController
             if (!_startupWindowEndLogged && _startupRecreatesScheduled > 0)
             {
                 _startupWindowEndLogged = true;
-                _logger.LogInformation("Startup tray icon recreation window ended after {Count} scheduled recreate(s)", _startupRecreatesScheduled);
+                _logger.LogInformation(
+                    "Startup tray icon recreation window ended after {Count} scheduled recreate(s){Early}",
+                    _startupRecreatesScheduled, _startupRecreationConfirmed ? " (stopped early after visibility confirmation)" : "");
             }
             return;
         }
 
-        if (_recreateIconRequested || elapsed < _nextStartupRecreateAt)
+        if (_startupRecreationConfirmed || _recreateIconRequested || elapsed < _nextStartupRecreateAt)
             return;
 
         if (_lastNotificationTimestamp != 0 && Stopwatch.GetElapsedTime(_lastNotificationTimestamp) < NotificationGracePeriod)
@@ -390,6 +427,72 @@ public sealed class TrayIconController
         _startupRecreatesScheduled++;
         _recreateIconRequested = true;
         _logger.LogInformation("Startup tray icon recreate attempt #{Count} ({Elapsed:F0}s after startup)", _startupRecreatesScheduled, elapsed.TotalSeconds);
+    }
+
+    private bool IsStartupScheduleActive() =>
+        !_startupRecreationConfirmed && ElapsedSinceProcessFirstController() < StartupRecreateWindow;
+
+    /// <summary>Asks the shell where the native icon is, and logs the answer.
+    /// While the startup schedule is active it counts consecutive positive
+    /// answers; once <see cref="RequiredVisibilityConfirmations"/> is reached
+    /// the startup recreations stop (the icon is demonstrably registered in
+    /// the notification area). A negative or failed check resets the count
+    /// and the periodic recreation goes on. Once the schedule is over (after
+    /// confirmation or after the window) the result is only logged,
+    /// neutrally. Any recreate during the window counts, whatever triggered it
+    /// (schedule, resume, failed update). The call is a synchronous round trip
+    /// to Explorer on the UI thread, like Shell_NotifyIcon, hence the logged
+    /// duration.</summary>
+    private void CheckNativeIconVisibility(bool startupScheduleActive)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            var trayIcon = _taskbarIcon.TrayIcon;
+            var identifier = new NotifyIconIdentifier
+            {
+                Size = (uint)Marshal.SizeOf<NotifyIconIdentifier>(),
+                WindowHandle = trayIcon.WindowHandle,
+                IconId = 0,
+                IconGuid = trayIcon.Id,
+            };
+            var result = Shell_NotifyIconGetRect(ref identifier, out var rect);
+            var isVisible = result == 0 && rect.Right > rect.Left && rect.Bottom > rect.Top;
+
+            if (!startupScheduleActive)
+            {
+                _logger.LogInformation(
+                    "Tray icon visibility check after recreate: {Visibility} (HRESULT 0x{Result:X8}, {ElapsedMs} ms)",
+                    isVisible ? "visible" : "NOT visible", result, stopwatch.ElapsedMilliseconds);
+                return;
+            }
+
+            if (!isVisible)
+            {
+                _consecutiveVisibilityConfirmations = 0;
+                _logger.LogInformation(
+                    "Tray icon visibility check: NOT visible yet (HRESULT 0x{Result:X8}, {ElapsedMs} ms); recreations continue",
+                    result, stopwatch.ElapsedMilliseconds);
+                return;
+            }
+
+            _consecutiveVisibilityConfirmations++;
+            _logger.LogInformation(
+                "Tray icon visibility check: visible at ({Left},{Top})-({Right},{Bottom}), confirmation {Count}/{Required} ({ElapsedMs} ms)",
+                rect.Left, rect.Top, rect.Right, rect.Bottom, _consecutiveVisibilityConfirmations, RequiredVisibilityConfirmations, stopwatch.ElapsedMilliseconds);
+
+            if (_consecutiveVisibilityConfirmations >= RequiredVisibilityConfirmations)
+            {
+                _startupRecreationConfirmed = true;
+                _logger.LogInformation("Tray icon confirmed visible {Required} times in a row; startup recreations stop", RequiredVisibilityConfirmations);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Diagnostic only: an unavailable API must not break the tick.
+            _consecutiveVisibilityConfirmations = 0;
+            _logger.LogWarning(ex, "Tray icon visibility check failed after {ElapsedMs} ms; recreations continue", stopwatch.ElapsedMilliseconds);
+        }
     }
 
     /// <summary>Plans the next startup recreate one fixed interval after
@@ -419,11 +522,13 @@ public sealed class TrayIconController
             _recreateRetryCount = 0;
             // Any successful recreate satisfies the current schedule slot.
             OnStartupRecreateDone();
+            CheckNativeIconVisibility(IsStartupScheduleActive());
             return true;
         }
         catch (InvalidOperationException ex)
         {
             _recreateRetryCount++;
+            _consecutiveVisibilityConfirmations = 0;
             _logger.LogWarning(ex, "Failed to recreate the native tray icon after {ElapsedMs} ms (retry count: {RetryCount}); will retry next tick", stopwatch.ElapsedMilliseconds, _recreateRetryCount);
             return false;
         }
