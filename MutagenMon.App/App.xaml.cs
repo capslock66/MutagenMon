@@ -71,6 +71,7 @@ public partial class App //: Application
     private IReadOnlyList<SessionDefinition> _sessionDefinitions = Array.Empty<SessionDefinition>();
     private IReadOnlyList<string> _sessionNames = Array.Empty<string>();
     private MutagenMonOptions? _options;
+    private bool _startupIconCreateFailed;
     private NotificationQueue? _notificationQueue;
 
     protected override async void OnStartup(StartupEventArgs e)
@@ -150,30 +151,59 @@ public partial class App //: Application
             // (lightgray-init) state is exactly the right placeholder here —
             // it already means "no poll result yet", which is true at this
             // point by construction.
+            // Each step is timed: at logon on a saturated machine this block
+            // once took ~6 minutes, and without these lines nothing says which
+            // call is the slow one (the UI thread is blocked, so nothing else logs).
+            var startupStopwatch = Stopwatch.StartNew();
             var iconCache = new IconImageCache(Path.Combine(baseDir, "Assets", "Icons"));
             _iconCache = iconCache;
+            _logger.LogInformation("Startup step: icon cache created ({ElapsedMs} ms)", startupStopwatch.ElapsedMilliseconds);
 
             // _logger and _iconCache (both required by ShowStatusWindow) are
             // ready as of this point, so it's now safe to start reacting to
             // a second instance's signal.
             new Thread(WatchForShowStatusRequests) { IsBackground = true, Name = "MutagenMon-ShowStatusWatcher" }.Start();
 
+            _logger.LogInformation("Startup step: instantiating the TrayIcon resource");
+            startupStopwatch.Restart();
             var trayIcon = (TaskbarIcon)Resources["TrayIcon"];
+            _logger.LogInformation("Startup step: TrayIcon resource instantiated ({ElapsedMs} ms)", startupStopwatch.ElapsedMilliseconds);
             // With no main window, TaskbarIcon's native icon is never created
             // implicitly (it normally happens on Loaded, when a control enters
             // a live visual tree — which never happens for a resource that is
             // only ever referenced from code). ForceCreate() is the pattern
             // H.NotifyIcon's own "windowless" sample app uses for exactly this
             // case; without it, the app runs with no visible tray icon at all.
-            trayIcon.ForceCreate();
-            trayIcon.Icon = iconCache.Get("lightgray-init");
-            _logger.LogInformation("Tray icon shown early (lightgray-init, waiting for status)");
+            _logger.LogInformation("Startup step: creating the native tray icon (Shell_NotifyIcon waits for Explorer)");
+            startupStopwatch.Restart();
+            // enablesEfficiencyMode: false — H.NotifyIcon's default turns on
+            // Efficiency Mode (IDLE priority class + EcoQoS) for the WHOLE
+            // process, which starves the UI thread and the poller (and the
+            // mutagen/ssh children inheriting the priority) on a machine that
+            // is saturated at logon.
+            try
+            {
+                trayIcon.ForceCreate(enablesEfficiencyMode: false);
+                _logger.LogInformation("Startup step: native tray icon created ({ElapsedMs} ms)", startupStopwatch.ElapsedMilliseconds);
+                startupStopwatch.Restart();
+                trayIcon.Icon = iconCache.Get("lightgray-init");
+                _logger.LogInformation("Tray icon shown early (lightgray-init, waiting for status; icon assigned in {ElapsedMs} ms)", startupStopwatch.ElapsedMilliseconds);
+            }
+            catch (InvalidOperationException ex)
+            {
+                // The shell is not ready (logon on a saturated machine): do not
+                // abort the whole startup. The tray icon controller recreates
+                // the native icon every 10 s during the first minutes.
+                _startupIconCreateFailed = true;
+                _logger.LogWarning(ex, "Startup step: native tray icon creation failed after {ElapsedMs} ms; it will be retried by the tray icon controller", startupStopwatch.ElapsedMilliseconds);
+            }
 
             var sessionsPath = Path.Combine(baseDir, options.MutagenSessionsBatFile.Replace('/', Path.DirectorySeparatorChar));
             _logger.LogInformation("Loading session definitions from {SessionsPath}", sessionsPath);
+            startupStopwatch.Restart();
             var sessionResult = SessionDefinitionLoader.ParseFile(sessionsPath);
-            _logger.LogInformation("Loaded {SessionCount} session definition(s): {SessionNames}",
-                sessionResult.Sessions.Count, string.Join(", ", sessionResult.Sessions.Select(s => s.Name)));
+            _logger.LogInformation("Loaded {SessionCount} session definition(s): {SessionNames} ({ElapsedMs} ms)",
+                sessionResult.Sessions.Count, string.Join(", ", sessionResult.Sessions.Select(s => s.Name)), startupStopwatch.ElapsedMilliseconds);
             foreach (var duplicate in sessionResult.DuplicateNames)
                 _logger.LogWarning("Duplicate session name in {File}: {Name}", sessionsPath, duplicate);
 
@@ -194,10 +224,13 @@ public partial class App //: Application
             builder.Services.AddSingleton(sp => new SessionEditingService(
                 sp.GetRequiredService<MutagenCliClient>(), sessionsPath, sp.GetRequiredService<ILogger<SessionEditingService>>()));
 
+            startupStopwatch.Restart();
             _host = builder.Build();
+            _logger.LogInformation("Application host built ({ElapsedMs} ms)", startupStopwatch.ElapsedMilliseconds);
             _logger.LogInformation("Starting background session monitor");
+            startupStopwatch.Restart();
             await _host.StartAsync();
-            _logger.LogInformation("Background session monitor started");
+            _logger.LogInformation("Background session monitor started ({ElapsedMs} ms)", startupStopwatch.ElapsedMilliseconds);
 
             _sessionDefinitions = sessionResult.Sessions;
             _sessionNames = sessionResult.Sessions.Select(s => s.Name).ToArray();
@@ -210,8 +243,9 @@ public partial class App //: Application
             _conflictResolutionControllerLogger = _host.Services.GetRequiredService<ILogger<ConflictResolutionController>>();
             _notificationQueue = _host.Services.GetRequiredService<NotificationQueue>();
 
+            startupStopwatch.Restart();
             _trayIconController = BuildAndStartTrayIconController(options, _sessionNames);
-            _logger.LogInformation("MutagenMon startup complete — tray icon is live");
+            _logger.LogInformation("MutagenMon startup complete — tray icon is live (controller started in {ElapsedMs} ms)", startupStopwatch.ElapsedMilliseconds);
 
             // FR-15.3: off-by-default opt-out of "no window shown at startup".
             if (options.ShowMainScreenAtStartup)
@@ -262,6 +296,12 @@ public partial class App //: Application
             trayIcon, _stateStore!, _iconCache!, options.TrayTooltip, options.StatusMaxLag.ToLagThresholds(),
             sessionNames, _notificationQueue!, OnSelfRestartNeeded, OnReloadReady, trayIconLogger);
         controller.Polled += OnPolled;
+        if (_startupIconCreateFailed)
+        {
+            _startupIconCreateFailed = false;
+            controller.RequestRecreate();
+        }
+
         controller.Start();
         return controller;
     }

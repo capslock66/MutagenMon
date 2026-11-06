@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Threading;
@@ -57,17 +58,43 @@ public sealed class TrayIconController
     private bool _restartTriggered;
     private bool _reloadRequested;
     private bool _isReopeningContextMenu;
-    // Set from the SystemEvents thread (resume) and the UI thread (failed
-    // update), consumed by Tick on the UI thread.
+    // Set from the SystemEvents thread (resume), the UI thread (failed
+    // update, startup schedule, failed initial creation), consumed by Tick on
+    // the UI thread.
     private volatile bool _recreateIconRequested;
     private DateTimeOffset _resumedUtc = DateTimeOffset.MinValue;
     // At auto-start on logon, the icon can be created before Explorer's
     // notification area is ready: it is shown but never receives clicks, and
     // no error or TaskbarCreated message ever signals it. The native icon is
-    // therefore recreated at these offsets after startup (cheap, idempotent).
-    private static readonly TimeSpan[] StartupRecreateDelays = [TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(60)];
-    private readonly DateTimeOffset _startedUtc = DateTimeOffset.UtcNow;
-    private int _startupRecreatesDone;
+    // therefore recreated every StartupRecreateInterval during the first
+    // StartupRecreateWindow after the FIRST controller of the process was
+    // created (cheap, idempotent). The window is long because logon on a
+    // saturated machine can keep Explorer busy for several minutes (a 6 minute
+    // gap was observed). It is anchored on the process, not on this instance:
+    // an in-place config reload builds a new controller, and must not replay
+    // the logon recreations. Monotonic clock, so sleep or an NTP jump at
+    // logon cannot freeze or cut the window short.
+    private static readonly TimeSpan StartupRecreateInterval = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan StartupRecreateWindow = TimeSpan.FromMinutes(10);
+    // A tick arriving later than this after the previous one means the UI
+    // thread was blocked (typically a synchronous Shell_NotifyIcon call
+    // waiting on a busy Explorer, or a CPU/disk-saturated logon).
+    private static readonly TimeSpan TickLagWarningThreshold = TimeSpan.FromSeconds(5);
+    private static long _processFirstControllerTimestamp;
+    private TimeSpan _nextStartupRecreateAt;
+    private long _lastTickTimestamp;
+    // Set from the SystemEvents thread on resume: the next tick gap is the
+    // sleep itself, not a blocked UI thread.
+    private volatile bool _resumedSinceLastTick;
+    // True between Suspend and Resume: unlike the flag above it is not reset
+    // by Tick, since ticks can still fire in the seconds before the OS sleeps.
+    private volatile bool _isSuspended;
+    // A startup recreate deletes the native icon, which can dismiss a
+    // balloon still on screen: none is armed shortly after a notification.
+    private static readonly TimeSpan NotificationGracePeriod = TimeSpan.FromSeconds(30);
+    private static long _lastNotificationTimestamp;
+    private bool _startupWindowEndLogged;
+    private int _startupRecreatesScheduled;
     // Failed recreate attempts since the last successful one.
     private int _recreateRetryCount;
 
@@ -99,6 +126,8 @@ public sealed class TrayIconController
         _onSelfRestartNeeded = onSelfRestartNeeded;
         _onReloadReady = onReloadReady;
         _logger = logger;
+        Interlocked.CompareExchange(ref _processFirstControllerTimestamp, Stopwatch.GetTimestamp(), 0);
+        _nextStartupRecreateAt = ElapsedSinceProcessFirstController() + StartupRecreateInterval;
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) => Tick();
     }
@@ -193,10 +222,19 @@ public sealed class TrayIconController
     /// resume instant until the first fresh poll lands.</summary>
     private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
     {
+        // The timer does not tick during sleep: the next tick gap is the
+        // sleep itself. Flagged on Suspend too, because on wake the timer
+        // can fire before the Resume event reaches this thread.
+        if (e.Mode == PowerModes.Suspend)
+            _isSuspended = true;
+
         if (e.Mode != PowerModes.Resume)
             return;
 
+        _isSuspended = false;
+
         _resumedUtc = DateTimeOffset.UtcNow;
+        _resumedSinceLastTick = true;
         // The shell may have dropped the native tray icon while the system
         // was down; recreating it is cheap, and the de-duplicated update
         // path would otherwise never notice (no update, no error).
@@ -206,17 +244,24 @@ public sealed class TrayIconController
 
     private void Tick()
     {
-        foreach (var message in _notificationQueue.DrainAll())
-            _taskbarIcon.ShowNotification(message.Title, message.Body);
-
         var snapshot = _stateStore.Get();
         var now = DateTimeOffset.UtcNow;
+        var tickTimestamp = Stopwatch.GetTimestamp();
+        if (_lastTickTimestamp != 0 && !_resumedSinceLastTick && !_isSuspended)
+        {
+            var tickGap = Stopwatch.GetElapsedTime(_lastTickTimestamp, tickTimestamp);
+            if (tickGap >= TickLagWarningThreshold)
+                _logger.LogWarning("Tray icon tick delayed by {Lag:F1}s: the UI thread was blocked or starved", tickGap.TotalSeconds);
+        }
+        _resumedSinceLastTick = false;
+        _lastTickTimestamp = tickTimestamp;
         var lastPollUtc = snapshot.LastSuccessfulPollUtc > _resumedUtc ? snapshot.LastSuccessfulPollUtc : _resumedUtc;
 
         if (!_restartTriggered && IsBeyondRestartThreshold(lastPollUtc, now, _lagThresholds))
         {
             _logger.LogWarning("Status stale past the Restart threshold; triggering self-restart");
             _restartTriggered = true;
+            ShowPendingNotifications();
             Stop();
             _onSelfRestartNeeded();
             return;
@@ -226,6 +271,7 @@ public sealed class TrayIconController
         {
             _logger.LogInformation("Every session has stopped; reloading config");
             _reloadRequested = false;
+            ShowPendingNotifications();
             Stop();
             _onReloadReady();
             return;
@@ -237,13 +283,10 @@ public sealed class TrayIconController
 
         Polled?.Invoke(snapshot, state);
 
-        if (_startupRecreatesDone < StartupRecreateDelays.Length && now - _startedUtc >= StartupRecreateDelays[_startupRecreatesDone])
-        {
-            _startupRecreatesDone++;
-            _recreateIconRequested = true;
-        }
+        ScheduleStartupRecreate();
 
         var iconRecreated = _recreateIconRequested && TryRecreateNativeIcon();
+        ShowPendingNotifications();
 
         if (!iconRecreated && _lastState is { } last && last.IconKey == state.IconKey && last.Tooltip == state.Tooltip)
             return;
@@ -254,7 +297,8 @@ public sealed class TrayIconController
         {
             if (iconRecreated || _lastState?.IconKey != state.IconKey)
             {
-                _logger.LogInformation("Tray icon changed: {PreviousIconKey} -> {IconKey}", _lastState?.IconKey, state.IconKey);
+                if (_lastState?.IconKey != state.IconKey)
+                    _logger.LogInformation("Tray icon changed: {PreviousIconKey} -> {IconKey}", _lastState?.IconKey, state.IconKey);
                 _taskbarIcon.Icon = _iconCache.Get(state.IconKey);
             }
 
@@ -278,25 +322,109 @@ public sealed class TrayIconController
         _lastState = state;
     }
 
+    /// <summary>Drains and shows the queued notifications. Called after the
+    /// native icon was possibly recreated (deleting the native icon can
+    /// dismiss a balloon shown just before), and drained only here so that an
+    /// exception earlier in the tick cannot lose already-drained
+    /// messages.</summary>
+    private void ShowPendingNotifications()
+    {
+        // Left queued while the native icon is missing (recreate pending or
+        // failed): showing on it throws, and the messages are already drained.
+        if (_recreateIconRequested || !_taskbarIcon.TrayIcon.IsCreated)
+            return;
+
+        var messages = _notificationQueue.DrainAll();
+        for (var i = 0; i < messages.Count; i++)
+        {
+            try
+            {
+                _taskbarIcon.ShowNotification(messages[i].Title, messages[i].Body);
+                _lastNotificationTimestamp = Stopwatch.GetTimestamp();
+            }
+            catch (InvalidOperationException ex)
+            {
+                // Never throws out of here: this runs ahead of the
+                // self-restart and reload hand-offs. The messages not shown
+                // yet go back to the queue for the next tick.
+                _logger.LogWarning(ex, "Failed to show notification '{Title}'; native icon will be recreated and the remaining messages re-queued", messages[i].Title);
+                _recreateIconRequested = true;
+                for (var j = i; j < messages.Count; j++)
+                    _notificationQueue.Enqueue(messages[j]);
+                return;
+            }
+        }
+    }
+
+    /// <summary>Arms a native icon recreate on the next tick (used when the
+    /// initial creation at startup failed because the shell was not
+    /// ready).</summary>
+    public void RequestRecreate() => _recreateIconRequested = true;
+
+    private static TimeSpan ElapsedSinceProcessFirstController() =>
+        Stopwatch.GetElapsedTime(Interlocked.Read(ref _processFirstControllerTimestamp));
+
+    /// <summary>Arms a native icon recreate when the startup schedule says
+    /// so. Pure function of the monotonic elapsed time; never stacks on a
+    /// recreate that is still pending (e.g. failing and retried every
+    /// tick).</summary>
+    private void ScheduleStartupRecreate()
+    {
+        var elapsed = ElapsedSinceProcessFirstController();
+        if (elapsed >= StartupRecreateWindow)
+        {
+            if (!_startupWindowEndLogged && _startupRecreatesScheduled > 0)
+            {
+                _startupWindowEndLogged = true;
+                _logger.LogInformation("Startup tray icon recreation window ended after {Count} scheduled recreate(s)", _startupRecreatesScheduled);
+            }
+            return;
+        }
+
+        if (_recreateIconRequested || elapsed < _nextStartupRecreateAt)
+            return;
+
+        if (_lastNotificationTimestamp != 0 && Stopwatch.GetElapsedTime(_lastNotificationTimestamp) < NotificationGracePeriod)
+            return;
+
+        _startupRecreatesScheduled++;
+        _recreateIconRequested = true;
+        _logger.LogInformation("Startup tray icon recreate attempt #{Count} ({Elapsed:F0}s after startup)", _startupRecreatesScheduled, elapsed.TotalSeconds);
+    }
+
+    /// <summary>Plans the next startup recreate one fixed interval after
+    /// this one finished (never replaying the ones missed while the UI
+    /// thread was blocked). The interval is deliberately constant, with no
+    /// backoff.</summary>
+    private void OnStartupRecreateDone()
+    {
+        _nextStartupRecreateAt = ElapsedSinceProcessFirstController() + StartupRecreateInterval;
+    }
+
     /// <summary>Drops the (possibly stale) native tray icon and adds a fresh
     /// one. Returns false — leaving the request armed for the next tick — if
     /// the shell isn't ready yet (typical right after a resume). The caller
     /// must re-apply the icon and tooltip after a successful recreate.</summary>
     private bool TryRecreateNativeIcon()
     {
+        var stopwatch = Stopwatch.StartNew();
         try
         {
             _taskbarIcon.TrayIcon.TryRemove();
-            _taskbarIcon.ForceCreate();
+            // See App.OnStartup: the default would put the whole process in
+            // Efficiency Mode (IDLE priority) at every recreate.
+            _taskbarIcon.ForceCreate(enablesEfficiencyMode: false);
             _recreateIconRequested = false;
-            _logger.LogInformation("Native tray icon recreated (retry count: {RetryCount})", _recreateRetryCount);
+            _logger.LogInformation("Native tray icon recreated in {ElapsedMs} ms (retry count: {RetryCount})", stopwatch.ElapsedMilliseconds, _recreateRetryCount);
             _recreateRetryCount = 0;
+            // Any successful recreate satisfies the current schedule slot.
+            OnStartupRecreateDone();
             return true;
         }
         catch (InvalidOperationException ex)
         {
             _recreateRetryCount++;
-            _logger.LogWarning(ex, "Failed to recreate the native tray icon (retry count: {RetryCount}); will retry next tick", _recreateRetryCount);
+            _logger.LogWarning(ex, "Failed to recreate the native tray icon after {ElapsedMs} ms (retry count: {RetryCount}); will retry next tick", stopwatch.ElapsedMilliseconds, _recreateRetryCount);
             return false;
         }
     }
