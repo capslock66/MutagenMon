@@ -6,10 +6,10 @@ Source of truth: `plan-script-macros.md` (validated design, decisions 1-18). Thi
 Scripts of the Scripts tab can use `{{env:…}}`, `{{session:…}}`, `{{reg:…:…}}`, `{{cred:…}}` and `{{secret:…}}` macros (optional `|quote`), expanded locally just before the ssh run, with values masked in the output and logs, and no secret stored in the scripts file.
 
 ## Next Step
-Task 3.1: `MutagenMon.Core/Scripts/ScriptMacro.cs` (only when the user asks to start Phase 3).
+Task 4.1: registry reader for `env` and `reg` (only when the user asks to start Phase 4).
 
 ## Current Phase
-Phase 3 (not started)
+Phase 4 (not started)
 
 ## Working rules (from CLAUDE.md / memory)
 - Work on `main`; commit only when asked, via `/eortc-git-push` (no body, no footer, no trailers).
@@ -36,12 +36,12 @@ Phase 3 (not started)
 - **Status:** complete
 
 ### Phase 3: Core parser, expander, masker
-- [ ] 3.1 `MutagenMon.Core/Scripts/ScriptMacro.cs`: record and commented regex parser `Find(text)`, distinct `secret` labels
-- [ ] 3.2 Shared shell-quote helper (extracted from `ConflictFileClient.ShellQuote`)
-- [ ] 3.3 `ScriptMacroExpander.Expand(...)`: delegates for env, reg, cred, secret; selected session record; errors; values to mask; line break/NUL refused
-- [ ] 3.4 Output masker (`***`, exact match)
-- [ ] 3.5 Unit tests in `MutagenMon.Core.Tests` (plan section 6)
-- **Status:** pending
+- [x] 3.1 `MutagenMon.Core/Scripts/ScriptMacro.cs`: record and commented regex parser `Find(text)`, distinct `secret` labels
+- [x] 3.2 Shared shell-quote helper (extracted from `ConflictFileClient.ShellQuote` into `MutagenMon.Core/Ssh/ShellQuoting.cs`)
+- [x] 3.3 `ScriptMacroExpander.Expand(...)`: delegates for env, reg, cred, secret; selected session record; errors; values to mask; line break/NUL refused
+- [x] 3.4 Output masker (`***`, exact match) in `ScriptOutputMasker.cs`
+- [x] 3.5 Unit tests in `MutagenMon.Core.Tests` (386 tests pass)
+- **Status:** complete (review loop: 3 iterations, then a pre-commit review that approved the last fix; see progress.md)
 
 ### Phase 4: Windows readers
 - [ ] 4.1 Registry reader: `env` (HKCU then HKLM, `REG_EXPAND_SZ`, process-environment fallback) and `reg` (hives, value types), `null` off Windows

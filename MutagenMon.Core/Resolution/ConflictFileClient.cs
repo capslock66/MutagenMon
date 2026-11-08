@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MutagenMon.Core.Configuration;
 using MutagenMon.Core.Mutagen;
+using MutagenMon.Core.Ssh;
 
 namespace MutagenMon.Core.Resolution;
 
@@ -174,20 +175,6 @@ public class ConflictFileClient
         await RunSshAsync(endpoint.Server!, BuildDeleteCommand(JoinPath(endpoint.RemoteDirectory!, relativePath)), cancellationToken);
     }
 
-    /// <summary>Quotes a value as ONE literal word for the remote POSIX
-    /// shell. ssh joins its arguments into a string that the remote shell
-    /// re-parses, so the local <see cref="ProcessStartInfo.ArgumentList"/>
-    /// offers no protection there. Inside single quotes nothing is special
-    /// except the single quote itself, which is written as <c>'\''</c>
-    /// (close quote, escaped quote, reopen quote).
-    /// Problematic file names, and their quoted form:
-    /// <c>it's.txt</c> → <c>'it'\''s.txt'</c>;
-    /// <c>a'; rm -rf ~; echo '.txt</c> → <c>'a'\''; rm -rf ~; echo '\''.txt'</c>
-    /// (without the escaping, the middle part would run as a command);
-    /// <c>$(reboot).txt</c> and <c>`id`.txt</c> stay inert inside the quotes.</summary>
-    internal static string ShellQuote(string value) =>
-        "'" + value.Replace("'", "'\\''") + "'";
-
     /// <summary>Refuses a relative path that is empty, is the root itself
     /// ('.', '/'), or contains a '..' segment, since it is later used in a
     /// recursive delete. Examples rejected: <c>""</c>, <c>"."</c>, <c>"/"</c>,
@@ -206,7 +193,7 @@ public class ConflictFileClient
     /// <c>/data/it's here/$(id).txt</c> stays a single literal word.</summary>
     internal static string BuildStatCommand(string remotePath)
     {
-        var quotedPath = ShellQuote(remotePath);
+        var quotedPath = ShellQuoting.Quote(remotePath);
         return $"if [ -d {quotedPath} ]; then echo DIR $(stat -c '%Y' {quotedPath}); " +
                $"elif [ -e {quotedPath} ]; then echo FILE $(stat -c '%Y %s' {quotedPath}); " +
                "else echo MISSING; fi";
@@ -216,7 +203,7 @@ public class ConflictFileClient
     /// <see cref="BuildStatCommand"/>.</summary>
     internal static string BuildKindCommand(string remotePath)
     {
-        var quotedPath = ShellQuote(remotePath);
+        var quotedPath = ShellQuoting.Quote(remotePath);
         return $"if [ -d {quotedPath} ]; then echo DIR; elif [ -e {quotedPath} ]; then echo FILE; else echo MISSING; fi";
     }
 
@@ -224,7 +211,7 @@ public class ConflictFileClient
     /// starting with '-' (e.g. a file named <c>-rf</c>) is never taken as an
     /// option; the path is quoted so <c>a'; touch x; '.txt</c> stays a name.</summary>
     internal static string BuildDeleteCommand(string remotePath) =>
-        $"rm -rf -- {ShellQuote(remotePath)}";
+        $"rm -rf -- {ShellQuoting.Quote(remotePath)}";
 
     private static void CopyLocalDirectoryRecursive(string sourceDir, string destinationDir)
     {

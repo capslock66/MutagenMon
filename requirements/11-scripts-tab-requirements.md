@@ -246,7 +246,9 @@ scripts file.
 - FR-55.3: **`{{session:<property>}}`** is the value of that property of the
   session row selected in the Sync grid (e.g. `{{session:name}}`). Every
   property of the session row is supported; the property names are those of
-  the session model behind the Sync grid.
+  the session model behind the Sync grid, matched **ignoring case** (the
+  property `Name` is read by `{{session:name}}`), unlike the macro type which
+  is case-sensitive.
 - FR-55.4: **Raw insertion by default**: the value is inserted verbatim, no
   quote added; the script author chooses the quoting around the macro (e.g.
   `mysql -p'{{env:DB_PWD}}'`). A value containing `$`, `` ` ``, `"`, `'`,
@@ -277,14 +279,19 @@ scripts file.
   wherever it appears in the output pane (stdout and stderr) and in anything
   logged from the output. The match is exact, best effort: it covers
   `set -x`, `echo` and error messages, not a transformed secret (base64,
-  partial value). Session property values are not masked.
+  partial value). A value containing a single quote is masked in both its raw
+  and its escaped form (each `'` written as `'\''`), with or without `|quote`,
+  since `set -x` traces it that way, quoting the whole word (`a'b` is traced as
+  `'a'\''b'`, and `-pa'b` as `'-pa'\''b'`). A very short secret
+  (one or two characters) is replaced everywhere it appears, which can make the
+  output hard to read. Session property values are not masked.
 - FR-55.9: **`{{reg:<key>:<value name>}}`** is the data of a value of a
   registry key of the **Windows workstation**, e.g.
   `{{reg:HKCU\Software\MyApp:DbPassword}}`. The text between `reg:` and the
   **last `:`** is the key, the rest is the value name (so a value name cannot
   contain `:`); neither may be empty. Hives: `HKCU` and `HKLM` (the long
-  names `HKEY_CURRENT_USER` and `HKEY_LOCAL_MACHINE` are also accepted), any
-  other hive is an error; the 64-bit registry view is read. The value is
+  names `HKEY_CURRENT_USER` and `HKEY_LOCAL_MACHINE` are also accepted, the
+  hive name being matched ignoring case), any other hive is an error; the 64-bit registry view is read. The value is
   read just before each run. Supported value types: `REG_SZ` (verbatim),
   `REG_EXPAND_SZ` (expanded), `REG_DWORD` and `REG_QWORD` (decimal text);
   `REG_BINARY`, `REG_MULTI_SZ` and any other type are an error. A missing
@@ -330,5 +337,6 @@ scripts file.
   "Scripts *" header.
 - `MutagenMon.App/config/scripts.ini`: shipped sample file.
 - Tests: `MutagenMon.Core.Tests` — `ScriptFileParserTests`,
-  `ScriptFileEditorTests`, `ScriptRunnerTests`.
+  `ScriptFileEditorTests`, `ScriptRunnerTests`, `ScriptMacroTests`,
+  `ScriptMacroExpanderTests`, `ScriptOutputMaskerTests`, `ShellQuotingTests`.
 - `requirements/UserTests.md`: UT-47.x through UT-54.x.

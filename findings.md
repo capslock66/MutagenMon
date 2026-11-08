@@ -19,6 +19,15 @@
 | One grid dialog for all `secret` labels | One interaction, one cancel, no half-asked state |
 | Windows readers return `null` off Windows | Core tests run on Linux |
 
+## Open points carried from the Phase 3 reviews
+| Point | For |
+|-------|-----|
+| The delegates of `ScriptMacroSources` must return `null` instead of throwing (`SecurityException`, `UnauthorizedAccessException`...): readers catch their own errors | Phase 4 (4.1, 4.2) |
+| `{{session:LastChangedDisplay}}` uses the local time zone and culture; document in FR-55.3 that `LastChangedUtc` (ISO 8601) is preferable | Task 4.3 |
+| The secret dialog is shown before `Expand`: a missing env variable or no selected session makes the user type secrets for nothing; consider a pre-validation without the `Secret` delegate | Phase 5 |
+| The masker works line by line: `ScriptRunner` must pass whole lines, not stream chunks | Task 5.1 |
+| `GetProperty(..., IgnoreCase)` would throw if `SessionSummaryRow` ever gets two properties differing only by case | If the record changes |
+
 ## Issues Encountered
 | Issue | Resolution |
 |-------|------------|
