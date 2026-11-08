@@ -6,10 +6,10 @@ Source of truth: `plan-script-macros.md` (validated design, decisions 1-18). Thi
 Scripts of the Scripts tab can use `{{env:…}}`, `{{session:…}}`, `{{reg:…:…}}`, `{{cred:…}}` and `{{secret:…}}` macros (optional `|quote`), expanded locally just before the ssh run, with values masked in the output and logs, and no secret stored in the scripts file.
 
 ## Next Step
-Task 4.1: registry reader for `env` and `reg` (only when the user asks to start Phase 4).
+Task 5.1: `ScriptRunner.RunAsync` takes the expanded text and the values to mask (only when the user asks to start Phase 5).
 
 ## Current Phase
-Phase 4 (not started)
+Phase 5 (not started)
 
 ## Working rules (from CLAUDE.md / memory)
 - Work on `main`; commit only when asked, via `/eortc-git-push` (no body, no footer, no trailers).
@@ -44,10 +44,10 @@ Phase 4 (not started)
 - **Status:** complete (review loop: 3 iterations, then a pre-commit review that approved the last fix; see progress.md)
 
 ### Phase 4: Windows readers
-- [ ] 4.1 Registry reader: `env` (HKCU then HKLM, `REG_EXPAND_SZ`, process-environment fallback) and `reg` (hives, value types), `null` off Windows
-- [ ] 4.2 Credential Manager reader (`CredReadW` P/Invoke, generic credential, UTF-16 blob), `null` off Windows
-- [ ] 4.3 Enumerate the session properties from the Sync grid model and write the list into FR-55
-- **Status:** pending
+- [x] 4.1 Registry reader: `env` (HKCU then HKLM, `REG_EXPAND_SZ`, process-environment fallback) and `reg` (hives, value types), `null` off Windows
+- [x] 4.2 Credential Manager reader (`CredReadW` P/Invoke, generic credential, UTF-16 blob), `null` off Windows
+- [x] 4.3 Enumerate the session properties from the Sync grid model and write the list into FR-55 (table in FR-55.3)
+- **Status:** complete (review loop: 3 iterations plus a pre-commit review, no 🔴/🟠; tests run on Windows by the maintainer: 0 failed; see progress.md)
 
 ### Phase 5: Runner and App integration
 - [ ] 5.1 `ScriptRunner.RunAsync`: receive expanded text and values to mask; mask output before `onOutput` and logs; logs keep the macro form

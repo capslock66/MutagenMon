@@ -1792,6 +1792,21 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   the macro.
 * The application log (`mutagenMon.log`) and the editor never contain the
   expanded value (FR-54.3).
+* Environment expansion (FR-55.2): create a user variable `MM_ROOT=C:\apps`
+  and a user variable `MM_TOOLS` of type `REG_EXPAND_SZ` with the value
+  `%MM_ROOT%\tools` (create it in the registry, `HKCU\Environment`). A script
+  with `echo "{{env:MM_TOOLS}}"` prints `***` and the real value reaching
+  bash is `C:\apps\tools` (check with a script that compares it instead of
+  printing it). A user variable `MM_PATH` defined as `%MM_PATH%;C:\tools`
+  (`REG_EXPAND_SZ`) gives `%MM_PATH%;C:\tools`, without a repeated tail:
+  `[ '{{env:MM_PATH}}' = '%MM_PATH%;C:\tools' ] && echo same || echo different`
+  prints `same`.
+* A variable defined both as a user and as a machine variable gives the user
+  value (FR-55.2): use a script that compares the value instead of printing
+  it (the output would only show `***`), e.g.
+  `[ "{{env:MM_BOTH}}" = "user-value" ] && echo same || echo different`.
+* `{{session:LastChangedUtc}}` prints the ISO 8601 UTC date of the selected
+  session (`2026-11-08T12:30:00.0000000+00:00`, FR-55.3, not masked).
 
 **UT-55.12 — `{{reg:…}}` macro (FR-55.9)** ⏳
 
@@ -1807,6 +1822,15 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   the macro.
 * `{{reg:HKEY_LOCAL_MACHINE\Software\MyApp:X}}` is accepted like the `HKLM`
   short name.
+* Add a `REG_EXPAND_SZ` value `Home=%USERPROFILE%\bin`, a `REG_QWORD` value
+  `Big=5000000000` and a `REG_DWORD` value set to `0xFFFFFFFF`. The output
+  only shows `***` (masking), so check the values with a script that compares
+  them: `Home` gives `C:\Users\<user>\bin`, `Big` gives `5000000000`, the
+  DWORD gives `4294967295`, e.g.
+  `[ "{{reg:HKCU\Software\MyApp:Big}}" = "5000000000" ] && echo same || echo different`.
+  `{{reg:HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion:CurrentBuild}}`
+  is readable without elevation: compare it with the build number shown by
+  `winver`.
 
 **UT-55.13 — `{{cred:…}}` macro (FR-55.10)** ⏳
 
@@ -1819,6 +1843,10 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   does not start, and the status line names the macro, never a value.
 * Delete the entry with `cmdkey /delete:MyApp/DbPassword`, run again: the run
   does not start (target not found).
+* Create an entry whose password has non-ASCII characters (for instance
+  `pässwörd`) with the Windows Credential Manager UI: the script receives it
+  intact. An entry of the "Windows credentials" (domain) type on the same
+  target, or with an empty password, is reported as not found / empty.
 
 **UT-55.14 — `{{secret:…}}` macro and the single grid dialog (FR-55.11)** ⏳
 

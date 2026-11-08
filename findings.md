@@ -28,6 +28,14 @@
 | The masker works line by line: `ScriptRunner` must pass whole lines, not stream chunks | Task 5.1 |
 | `GetProperty(..., IgnoreCase)` would throw if `SessionSummaryRow` ever gets two properties differing only by case | If the record changes |
 
+## Open questions for the maintainer (from the Phase 4 reviews)
+| Question | Current behaviour |
+|----------|-------------------|
+| `{{env:Path}}`: Windows builds a new process `Path` as machine value then user value, concatenated | The user value alone when it exists (FR-55.2 "user overrides machine") |
+| A `%X%` reference inside a machine value is resolved user-first | Same lookup for every reference (FR-55.2 "read the same way") |
+| Two references stuck together after an unknown one (`%NOPE%HOME%`): the closing `%` is reused as the next opening one | The rule of the managed `Environment.ExpandEnvironmentVariables`, not compared with the Windows `ExpandEnvironmentStrings` |
+| An empty user `REG_SZ` variable | Returned as an empty string (does not fall back to the machine value); the expander then reports it as unresolved |
+
 ## Issues Encountered
 | Issue | Resolution |
 |-------|------------|

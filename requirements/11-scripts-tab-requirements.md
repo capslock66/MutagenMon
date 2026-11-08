@@ -241,14 +241,41 @@ scripts file.
   `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment`;
   the user value overrides the machine value), so a variable created or
   changed after MutagenMon started is seen without a restart. `REG_EXPAND_SZ`
-  values are expanded. A variable absent from the registry falls back to the
-  process environment of MutagenMon.
+  values are expanded: a `%OTHER%` reference is replaced by the value of that
+  variable read the same way (registry, then process environment), a
+  reference to an unknown variable stays as written, and a `%` that does not
+  open a known reference stays as written (`50% of %HOME%` expands
+  `%HOME%`). A reference to a variable that is already being expanded is not
+  followed and stays as written (a `Path` defined as `%Path%;C:\tools` gives
+  `%Path%;C:\tools`), and the chain of references stops after five levels.
+  A value of the process environment is not expanded again. A registry value
+  of an unsupported type (`REG_BINARY`, `REG_MULTI_SZ`) is ignored, as if it
+  was absent. A variable absent from the registry falls back to the process
+  environment of MutagenMon. A registry that cannot be read falls back to the
+  process environment too.
 - FR-55.3: **`{{session:<property>}}`** is the value of that property of the
   session row selected in the Sync grid (e.g. `{{session:name}}`). Every
   property of the session row is supported; the property names are those of
   the session model behind the Sync grid, matched **ignoring case** (the
   property `Name` is read by `{{session:name}}`), unlike the macro type which
-  is case-sensitive.
+  is case-sensitive. The properties of the session row
+  (`SessionSummaryRow`, the model of the Sync grid) are:
+
+  | Property | Value |
+  |---|---|
+  | `Name` | session name (the Name column) |
+  | `Status` | status text (the Status column) |
+  | `AlphaUrl` | alpha endpoint URL (the Alpha column) |
+  | `BetaUrl` | beta endpoint URL (the Beta column) |
+  | `ConflictCount` | number of unresolved conflicts, as a number |
+  | `ConflictDisplay` | the Conflict column: the number, empty when there is none |
+  | `LastChangedUtc` | last change as ISO 8601 (`2026-11-08T12:30:00.0000000+00:00`), empty when unknown |
+  | `LastChangedDisplay` | the "Last changed" column (`yyyy-MM-dd HH:mm:ss`, local time zone, `—` when unknown): prefer `LastChangedUtc` in a script, it does not depend on the workstation time zone |
+  | `IconKey` | internal key of the tray icon image of the session (not meant for scripts) |
+
+  The list follows the row model: a property added to it is available
+  without a change to the macro code. A session value is context, not a
+  secret: it may be empty and is not masked (FR-55.8).
 - FR-55.4: **Raw insertion by default**: the value is inserted verbatim, no
   quote added; the script author chooses the quoting around the macro (e.g.
   `mysql -p'{{env:DB_PWD}}'`). A value containing `$`, `` ` ``, `"`, `'`,
@@ -293,7 +320,8 @@ scripts file.
   names `HKEY_CURRENT_USER` and `HKEY_LOCAL_MACHINE` are also accepted, the
   hive name being matched ignoring case), any other hive is an error; the 64-bit registry view is read. The value is
   read just before each run. Supported value types: `REG_SZ` (verbatim),
-  `REG_EXPAND_SZ` (expanded), `REG_DWORD` and `REG_QWORD` (decimal text);
+  `REG_EXPAND_SZ` (expanded as in FR-55.2), `REG_DWORD` and `REG_QWORD`
+  (unsigned decimal text);
   `REG_BINARY`, `REG_MULTI_SZ` and any other type are an error. A missing
   key or value, an unsupported type or an empty value is unresolved
   (FR-55.6).
@@ -302,7 +330,10 @@ scripts file.
   Windows user running MutagenMon, e.g. `{{cred:MyApp/DbPassword}}`. All the
   text after `cred:` is the target name (it may contain `:`, `/` and `\`); an
   empty target is an error. The user name stored with the credential is
-  ignored; only the password is used. It is read just before each run.
+  ignored; only the password is used, read as UTF-16 text (what `cmdkey` and
+  the Windows Credential Manager write; trailing null characters are
+  dropped, and a password of odd size, which cannot be UTF-16, is
+  unreadable). It is read just before each run.
   MutagenMon only reads credentials: they are created and edited with the
   Windows Credential Manager or `cmdkey`. A target not found, an empty
   password or an unreadable password is unresolved (FR-55.6). The secret is
@@ -332,11 +363,21 @@ scripts file.
   the file), `ScriptRunner` (FR-50, FR-51; streams output through a
   callback, takes cancellation and timeout; testable with a fake `ssh`) and
   `ScriptRunResult`.
+- `MutagenMon.Core/Scripts/` (macros, FR-55; Core stays testable):
+  `ScriptMacro` (token parser `Find`, `SecretLabels`), `ScriptMacroExpander`
+  (`Expand`, with the values passed as delegates in `ScriptMacroSources`),
+  `ScriptOutputMasker` (FR-55.8) and `WindowsMacroValueReader` (the Windows
+  readers for `env`, `reg` and `cred`: registry and Credential Manager,
+  `null` for anything missing or unreadable, passed to `ScriptMacroSources`
+  by the application); `MutagenMon.Core/Ssh/ShellQuoting.cs`: the shell
+  quoting shared with `ConflictFileClient` (`|quote`, FR-55.4).
 - `MutagenMon.App/ScriptsView.xaml`/`.xaml.cs`: the tab, hosted in
   `StatusWindow.xaml` (second tab); `StatusWindow` routes F5 and shows the
   "Scripts *" header.
 - `MutagenMon.App/config/scripts.ini`: shipped sample file.
 - Tests: `MutagenMon.Core.Tests` — `ScriptFileParserTests`,
   `ScriptFileEditorTests`, `ScriptRunnerTests`, `ScriptMacroTests`,
-  `ScriptMacroExpanderTests`, `ScriptOutputMaskerTests`, `ShellQuotingTests`.
-- `requirements/UserTests.md`: UT-47.x through UT-54.x.
+  `ScriptMacroExpanderTests`, `ScriptOutputMaskerTests`, `ShellQuotingTests`,
+  `WindowsMacroValueReaderTests` (the tests that need the registry or the
+  Credential Manager skip themselves off Windows).
+- `requirements/UserTests.md`: UT-47.x through UT-55.x.
