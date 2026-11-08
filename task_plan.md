@@ -6,10 +6,10 @@ Source of truth: `plan-script-macros.md` (validated design, decisions 1-18). Thi
 Scripts of the Scripts tab can use `{{env:…}}`, `{{session:…}}`, `{{reg:…:…}}`, `{{cred:…}}` and `{{secret:…}}` macros (optional `|quote`), expanded locally just before the ssh run, with values masked in the output and logs, and no secret stored in the scripts file.
 
 ## Next Step
-Task 5.1: `ScriptRunner.RunAsync` takes the expanded text and the values to mask (only when the user asks to start Phase 5).
+Tasks 5.2 and 5.3 as one batch: the `secret` dialog and the `ScriptsView` integration (only when the user asks).
 
 ## Current Phase
-Phase 5 (not started)
+Phase 5 (5.1 done)
 
 ## Working rules (from CLAUDE.md / memory)
 - Work on `main`; commit only when asked, via `/eortc-git-push` (no body, no footer, no trailers).
@@ -50,10 +50,10 @@ Phase 5 (not started)
 - **Status:** complete (review loop: 3 iterations plus a pre-commit review, no 🔴/🟠; tests run on Windows by the maintainer: 0 failed; see progress.md)
 
 ### Phase 5: Runner and App integration
-- [ ] 5.1 `ScriptRunner.RunAsync`: receive expanded text and values to mask; mask output before `onOutput` and logs; logs keep the macro form
+- [x] 5.1 `ScriptRunner.RunAsync`: receive expanded text and values to mask; mask output before `onOutput` and logs; logs keep the macro form (optional last parameter `ScriptMacroExpansion? expansion`; a failed expansion is refused)
 - [ ] 5.2 `secret` dialog: one WPF dialog with a grid (one row per distinct label, `PasswordBox`, OK/Cancel)
-- [ ] 5.3 `ScriptsView`: selected session, expander call on Run, errors in `StatusText`, no run on error or cancel; `@confirm` shows the unexpanded script
-- **Status:** pending
+- [ ] 5.3 `ScriptsView`: selected session, expander call on Run, errors in `StatusText`, no run on error or cancel; `@confirm` shows the unexpanded script. Expand exactly the `Body` of the `ScriptDefinition` passed to `RunAsync` (the edited draft, FR-51.1), not the text of the file
+- **Status:** in_progress (5.1 done and reviewed; 5.2 and 5.3 are one batch, to be started on request)
 
 ### Phase 6: Testing & Verification
 - [ ] 6.1 `dotnet test` on `MutagenMon.Core.Tests` and `dotnet build` on `MutagenMon.App` (each with `-m:1`)

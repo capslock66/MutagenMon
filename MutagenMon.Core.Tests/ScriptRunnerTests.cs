@@ -50,6 +50,8 @@ public class ScriptRunnerTests
         return ScriptFileParser.ParseLines(lines).Single();
     }
 
+    private static ScriptMacroExpansion Expanded(string text, params string[] secretsToMask) => new(text, [], secretsToMask);
+
     [Fact]
     public void BuildScriptTextPrependsSetEWhenStoppingOnError()
     {
@@ -173,5 +175,59 @@ public class ScriptRunnerTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => NewRunner("unused").RunAsync(invalid, _ => { }, CancellationToken.None));
+    }
+
+    [Fact]
+    public void BuildScriptTextSendsTheExpandedTextInPlaceOfTheBody()
+    {
+        Assert.Equal("set -e\necho expanded\n", ScriptRunner.BuildScriptText(NewScript(), Expanded("echo expanded")));
+    }
+
+    [Fact]
+    public async Task RefusesAFailedExpansion()
+    {
+        var failed = new ScriptMacroExpansion("", ["{{env:X}}: environment variable 'X' is not defined or is empty"], []);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => NewRunner("unused").RunAsync(NewScript(), _ => { }, CancellationToken.None, failed));
+    }
+
+    [Fact]
+    public async Task SendsTheExpandedTextOnStdin()
+    {
+        var ssh = CreateFakeSsh("exit 0");
+
+        await NewRunner(ssh.Path).RunAsync(NewScript(), _ => { }, CancellationToken.None, Expanded("echo s3cret-value"));
+
+        Assert.Equal("set -e\necho s3cret-value\n", ssh.Stdin);
+    }
+
+    [Fact]
+    public async Task MasksTheSecretsInStdoutAndStderrBeforeTheyReachTheCaller()
+    {
+        var ssh = CreateFakeSsh("echo password=s3cret\necho err s3cret >&2\necho nothing here\nexit 0");
+        var output = new ConcurrentQueue<ScriptOutputLine>();
+
+        await NewRunner(ssh.Path).RunAsync(NewScript(), output.Enqueue, CancellationToken.None, Expanded("echo hi", "s3cret"));
+
+        var lines = output.ToArray();
+        Assert.Contains(new ScriptOutputLine("password=***", false), lines);
+        Assert.Contains(new ScriptOutputLine("err ***", true), lines);
+        Assert.Contains(new ScriptOutputLine("nothing here", false), lines);
+        Assert.DoesNotContain(lines, line_ => line_.Text.Contains("s3cret"));
+    }
+
+    [Fact]
+    public async Task NeverLogsTheExpandedTextOrTheSecrets()
+    {
+        var ssh = CreateFakeSsh("echo s3cret\nexit 0");
+        var logger = new CapturingLogger<ScriptRunner>();
+        var runner = new ScriptRunner(
+            Options.Create(new MutagenMonOptions { SshPath = ssh.Path, ScriptTimeoutSeconds = 30 }), logger);
+
+        await runner.RunAsync(NewScript(), _ => { }, CancellationToken.None, Expanded("echo s3cret-value", "s3cret-value"));
+
+        Assert.NotEmpty(logger.Messages);
+        Assert.DoesNotContain(logger.Messages, message_ => message_.Contains("s3cret"));
     }
 }

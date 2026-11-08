@@ -34,20 +34,32 @@ public class ScriptRunner
     /// exited, been cancelled via <paramref name="cancellationToken"/>, or
     /// hit the configured timeout. <paramref name="onOutput"/> is invoked on
     /// background threads (FR-52.2) and must not throw. Script output is
-    /// never logged (FR-54.2).</summary>
+    /// never logged (FR-54.2).
+    /// <para>When <paramref name="expansion"/> is given (FR-55), its
+    /// <see cref="ScriptMacroExpansion.Text"/> is sent in place of the body of
+    /// <paramref name="script"/> (the macros are already replaced by their
+    /// values), and every value of <see cref="ScriptMacroExpansion.SecretsToMask"/>
+    /// is replaced by <c>***</c> in the output lines before they reach
+    /// <paramref name="onOutput"/> (FR-55.8). The expanded text is never
+    /// logged (FR-54.3): the logs of the run only carry the script name, the
+    /// host and the outcome. An expansion that failed must not be run.</para></summary>
     public async Task<ScriptRunResult> RunAsync(
-        ScriptDefinition script, Action<ScriptOutputLine> onOutput, CancellationToken cancellationToken)
+        ScriptDefinition script, Action<ScriptOutputLine> onOutput, CancellationToken cancellationToken,
+        ScriptMacroExpansion? expansion = null)
     {
         if (!script.IsValid)
             throw new InvalidOperationException($"Script '{script.Name}' cannot run: {script.ValidationError}");
+        if (expansion is { IsSuccess: false })
+            throw new InvalidOperationException($"Script '{script.Name}' cannot run: its macros were not all resolved.");
 
         var host = script.Host!;
         var stopwatch = Stopwatch.StartNew();
         _logger.LogInformation("Script '{Script}' starting on {Host}", script.Name, host);
 
+        var publishOutput = expansion is null ? onOutput : MaskOutput(onOutput, new ScriptOutputMasker(expansion.SecretsToMask));
         using var process = new Process { StartInfo = BuildStartInfo(host) };
-        process.OutputDataReceived += (_, e) => Publish(e.Data, isError: false, onOutput);
-        process.ErrorDataReceived += (_, e) => Publish(e.Data, isError: true, onOutput);
+        process.OutputDataReceived += (_, e) => Publish(e.Data, isError: false, publishOutput);
+        process.ErrorDataReceived += (_, e) => Publish(e.Data, isError: true, publishOutput);
 
         try
         {
@@ -71,7 +83,7 @@ public class ScriptRunner
         ScriptRunResult result;
         try
         {
-            await WriteScriptAsync(process, BuildScriptText(script), runSource.Token).ConfigureAwait(false);
+            await WriteScriptAsync(process, BuildScriptText(script, expansion), runSource.Token).ConfigureAwait(false);
             await process.WaitForExitAsync(runSource.Token).ConfigureAwait(false);
             result = new ScriptRunResult(ScriptRunOutcome.Completed, process.ExitCode, stopwatch.Elapsed);
         }
@@ -86,10 +98,17 @@ public class ScriptRunner
         return result;
     }
 
-    /// <summary>The text sent to bash: the body, with `set -e` prepended
-    /// when the script stops on error (FR-51.2).</summary>
-    internal static string BuildScriptText(ScriptDefinition script) =>
-        (script.StopOnError ? "set -e\n" : "") + script.Body + "\n";
+    /// <summary>The text sent to bash: the body (the expanded text when the
+    /// macros were expanded, FR-55.7), with `set -e` prepended when the script
+    /// stops on error (FR-51.2).</summary>
+    internal static string BuildScriptText(ScriptDefinition script, ScriptMacroExpansion? expansion = null) =>
+        (script.StopOnError ? "set -e\n" : "") + (expansion?.Text ?? script.Body) + "\n";
+
+    /// <summary>Wraps <paramref name="onOutput"/> so that each line goes
+    /// through <paramref name="masker"/> first (FR-55.8). The ssh output events
+    /// deliver whole lines, so a secret is never split between two calls.</summary>
+    private static Action<ScriptOutputLine> MaskOutput(Action<ScriptOutputLine> onOutput, ScriptOutputMasker masker) =>
+        line_ => onOutput(line_ with { Text = masker.Mask(line_.Text) });
 
     private ProcessStartInfo BuildStartInfo(string host)
     {
