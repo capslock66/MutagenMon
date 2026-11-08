@@ -6,7 +6,7 @@ server over SSH, and shows its output.
 
 **Status: implemented.** Continues the FR numbering from
 [10-logs-tab-requirements.md](10-logs-tab-requirements.md)'s FR-46, as FR-47
-through FR-54.
+through FR-55 (FR-55, macros, is specified but not implemented yet).
 
 Motivating use case: from the Windows machine, start a detached `tmux`
 session on a Linux server that runs `claude --remote-control`, so the Claude
@@ -198,10 +198,16 @@ tmux has-session -t appman-rc 2>/dev/null || tmux new -d -s appman-rc "$CCD --re
   on <host>?", buttons Run / Cancel) is shown before running
   (`GenericMessageDialog.ShowConfirm`, same pattern as session deletion).
 - FR-53.2: The file is user-authored local configuration, trusted at the
-  same level as `~/.ssh/config`. The application never interpolates any
-  external value (session names, paths, conflict data) into a script body.
-- FR-53.3: The file MUST NOT hold secrets (NFR-9); authentication relies on
-  the ambient SSH configuration.
+  same level as `~/.ssh/config`. The only external values the application
+  interpolates into a script body are those of the explicit macros
+  `{{env:…}}`, `{{session:…}}`, `{{reg:…}}`, `{{cred:…}}` and
+  `{{secret:…}}` (FR-55), substituted locally at run time; it never
+  interpolates anything else (paths, conflict data, ...), and the text in
+  the file and in the editor is never modified by the expansion.
+- FR-53.3: The file MUST NOT hold secrets (NFR-9): a secret is referenced
+  by a macro (`{{env:NAME}}`, `{{reg:…}}`, `{{cred:…}}` or `{{secret:…}}`,
+  FR-55) and its value is read or typed at run time and never written to
+  the file; other authentication relies on the ambient SSH configuration.
 
 ## FR-54 — Logging
 
@@ -211,6 +217,102 @@ tmux has-session -t appman-rc 2>/dev/null || tmux new -d -s appman-rc "$CCD --re
   exit code or a failure to start `ssh` at `Warning`/`Error`.
 - FR-54.2: Script output is **not** copied into the application log (it may
   be large or sensitive); only the pane shows it.
+- FR-54.3: The expanded script text (FR-55) is never logged or displayed;
+  logs and the editor only ever show the macro form.
+
+## FR-55 — Macros
+
+A **macro** is a placeholder in the script text, replaced by its value when
+the script runs, so that a secret or a context value is not stored in the
+scripts file.
+
+- FR-55.1: **Syntax**: `{{type:name}}`, case-sensitive. The token contains no
+  line break between `{{` and `}}`; it may sit anywhere in a line, with other
+  text around it, and several may appear on one line (e.g.
+  `{{session:name}}-{{env:SUFFIX}}`). Text that merely contains `{{`, or
+  bash constructs such as `${VAR}` or `$(cmd)`, is not a macro. The types are
+  `env` (FR-55.2), `session` (FR-55.3), `reg` (FR-55.9), `cred` (FR-55.10)
+  and `secret` (FR-55.11); an unknown type is an error (FR-55.6), not
+  ignored.
+- FR-55.2: **`{{env:NAME}}`** is the value of the environment variable `NAME`
+  of the **Windows workstation** running MutagenMon, never of the server
+  that executes the script. It is read just before each run, from the
+  registry (`HKEY_CURRENT_USER\Environment`, then
+  `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment`;
+  the user value overrides the machine value), so a variable created or
+  changed after MutagenMon started is seen without a restart. `REG_EXPAND_SZ`
+  values are expanded. A variable absent from the registry falls back to the
+  process environment of MutagenMon.
+- FR-55.3: **`{{session:<property>}}`** is the value of that property of the
+  session row selected in the Sync grid (e.g. `{{session:name}}`). Every
+  property of the session row is supported; the property names are those of
+  the session model behind the Sync grid.
+- FR-55.4: **Raw insertion by default**: the value is inserted verbatim, no
+  quote added; the script author chooses the quoting around the macro (e.g.
+  `mysql -p'{{env:DB_PWD}}'`). A value containing `$`, `` ` ``, `"`, `'`,
+  `\`, `!`, spaces or `;` is interpreted by the remote bash according to
+  where the macro is written. **Opt-in quoting**: `{{type:name|quote}}`
+  inserts the value shell-quoted (single quotes, each `'` written as
+  `'\''`); the author then adds no quotes of their own. `|quote` is
+  supported by every macro type.
+- FR-55.5: A value (from any macro type) containing a line break (`\r`,
+  `\n`) or a NUL character is refused, raw or quoted: the run does not
+  start and the status line names the offending macro (a line break would
+  inject a new command line into the script).
+- FR-55.6: **Failure before the run**: when any macro cannot be resolved
+  (environment variable not found or empty, unknown session property, a
+  `session:*` macro with no session selected, registry value or credential
+  not found or empty or of an unsupported type, `secret` left empty, unknown
+  type), the run does not start, ssh is not launched and the status line
+  shows an error listing every unresolved macro (e.g. `Macro error:
+  environment variable 'DB_PWD' is not defined`). The error names the macro,
+  never its value. Nothing is substituted silently.
+- FR-55.7: **Expansion**: it happens locally, on the text written to the
+  standard input of ssh (FR-50.3), after the `@confirm` check. `@confirm`
+  (FR-53.1) shows the unexpanded script and the resolved session name only.
+  A secret thus travels inside the encrypted ssh stream, never on a command
+  line of the workstation.
+- FR-55.8: **Masking**: every value that came from an `{{env:…}}`,
+  `{{reg:…}}`, `{{cred:…}}` or `{{secret:…}}` macro is replaced by `***`
+  wherever it appears in the output pane (stdout and stderr) and in anything
+  logged from the output. The match is exact, best effort: it covers
+  `set -x`, `echo` and error messages, not a transformed secret (base64,
+  partial value). Session property values are not masked.
+- FR-55.9: **`{{reg:<key>:<value name>}}`** is the data of a value of a
+  registry key of the **Windows workstation**, e.g.
+  `{{reg:HKCU\Software\MyApp:DbPassword}}`. The text between `reg:` and the
+  **last `:`** is the key, the rest is the value name (so a value name cannot
+  contain `:`); neither may be empty. Hives: `HKCU` and `HKLM` (the long
+  names `HKEY_CURRENT_USER` and `HKEY_LOCAL_MACHINE` are also accepted), any
+  other hive is an error; the 64-bit registry view is read. The value is
+  read just before each run. Supported value types: `REG_SZ` (verbatim),
+  `REG_EXPAND_SZ` (expanded), `REG_DWORD` and `REG_QWORD` (decimal text);
+  `REG_BINARY`, `REG_MULTI_SZ` and any other type are an error. A missing
+  key or value, an unsupported type or an empty value is unresolved
+  (FR-55.6).
+- FR-55.10: **`{{cred:<Target>}}`** is the password of the **generic**
+  credential named `<Target>` in the Windows Credential Manager of the
+  Windows user running MutagenMon, e.g. `{{cred:MyApp/DbPassword}}`. All the
+  text after `cred:` is the target name (it may contain `:`, `/` and `\`); an
+  empty target is an error. The user name stored with the credential is
+  ignored; only the password is used. It is read just before each run.
+  MutagenMon only reads credentials: they are created and edited with the
+  Windows Credential Manager or `cmdkey`. A target not found, an empty
+  password or an unreadable password is unresolved (FR-55.6). The secret is
+  kept encrypted by Windows (DPAPI, bound to the user): this is the
+  recommended source for passwords.
+- FR-55.11: **`{{secret:<Label>}}`** is a value typed by the user when the
+  script runs, never stored. All the text after `secret:` is the label
+  (case-sensitive, no line break, not empty); two macros with the same label
+  are the same secret. Before ssh is launched, **one single dialog**
+  containing a grid asks for the values: one row per distinct label, in order
+  of first appearance in the script, each row showing the label and an input
+  that hides the typed characters, with OK and Cancel. A label used several
+  times is asked once per run. The values are kept in memory for this run
+  only: never stored, never logged, never reused by a later run. Cancel (or
+  closing the dialog) cancels the run: it does not start and the status line
+  says it was cancelled. An empty value is unresolved (FR-55.6). A script
+  without a `secret` macro shows no dialog.
 
 ## Implementation
 

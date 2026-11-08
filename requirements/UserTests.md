@@ -1767,6 +1767,76 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
 * On any other tab ("Sync", the two configuration tabs, "Logs"), F5 does
   not run a script, even if a script was selected earlier in the Scripts tab.
 
+**UT-55.11 — `{{env:…}}` and `{{session:…}}` macros (FR-55.1 to FR-55.8)** ⏳
+
+* In a script of `config/scripts.ini`, write `echo "env=[{{env:MM_TEST_VAR}}]"`
+  and `echo "session=[{{session:name}}]"`. Create the Windows user variable
+  `MM_TEST_VAR=hello` **after** MutagenMon started (System Properties →
+  Environment Variables), without restarting MutagenMon. Select a session in
+  the Sync grid, then run the script: the output shows `env=[***]` (masked,
+  FR-55.8) and `session=[<the selected session's name>]` (not masked); the
+  editor still shows the macro form.
+* Run the same script with no session selected in the Sync grid: the run
+  does not start, ssh is not launched and the status line shows a
+  `Macro error:` naming `{{session:name}}`.
+* Replace `MM_TEST_VAR` with a variable that does not exist: the run does not
+  start, the status line names the variable (never a value). Use
+  `{{session:nosuchproperty}}`: same result. Use `{{foo:bar}}`: same result
+  (unknown type).
+* Set `MM_TEST_VAR` to a value containing `'` and `$(id)`. With
+  `echo '{{env:MM_TEST_VAR}}'` the remote bash interprets the value according
+  to where the macro is written (raw insertion, FR-55.4); with
+  `echo {{env:MM_TEST_VAR|quote}}` the value is printed literally (masked).
+* A value containing a line break (a variable set with `` `n `` in
+  PowerShell) is refused: the run does not start and the status line names
+  the macro.
+* The application log (`mutagenMon.log`) and the editor never contain the
+  expanded value (FR-54.3).
+
+**UT-55.12 — `{{reg:…}}` macro (FR-55.9)** ⏳
+
+* Create `HKCU\Software\MyApp` with a `REG_SZ` value `DbPassword=s3cret`, a
+  `REG_DWORD` value `Port=3306` and a `REG_BINARY` value `Blob`. In a
+  script write `echo "{{reg:HKCU\Software\MyApp:DbPassword}}"`,
+  `echo "{{reg:HKCU\Software\MyApp:Port}}"` and run it: the first line is
+  `***` (masked); the second line is `***` too (every registry value is
+  masked), and `set -x` or an error message echoing it also shows `***`.
+* Use `{{reg:HKCU\Software\MyApp:Blob}}` (unsupported type), a missing
+  value name, a missing key, an unknown hive (`HKCR\…`), an empty key or an
+  empty value name: each makes the run not start, and the status line names
+  the macro.
+* `{{reg:HKEY_LOCAL_MACHINE\Software\MyApp:X}}` is accepted like the `HKLM`
+  short name.
+
+**UT-55.13 — `{{cred:…}}` macro (FR-55.10)** ⏳
+
+* In a command prompt run
+  `cmdkey /generic:MyApp/DbPassword /user:x /pass:s3cret`. In a script write
+  `echo "{{cred:MyApp/DbPassword}}"` and run it: the output shows `***`
+  (masked); the script runs with the real password (check on the server, for
+  instance by piping it to a command that compares it).
+* Use a target that does not exist, and `{{cred:}}` (empty target): the run
+  does not start, and the status line names the macro, never a value.
+* Delete the entry with `cmdkey /delete:MyApp/DbPassword`, run again: the run
+  does not start (target not found).
+
+**UT-55.14 — `{{secret:…}}` macro and the single grid dialog (FR-55.11)** ⏳
+
+* Write a script with `echo "a={{secret:Database password}}"`,
+  `echo "b={{secret:API token}}"` and `echo "c={{secret:Database password}}"`.
+  Run it: **one** dialog opens, with exactly two rows, "Database password"
+  then "API token" (order of first appearance), each with an input that
+  hides the characters, and OK / Cancel.
+* Type values and OK: the output shows `a=***`, `b=***` and `c=***` (masked);
+  the same value is used for both uses of "Database password". Run again:
+  the dialog opens again, empty (nothing was kept).
+* Cancel the dialog (or close it): the run does not start and the status line
+  says it was cancelled. Leave one row empty and OK: the run does not start
+  and the status line names the macro.
+* A script without a `secret` macro opens no dialog.
+* Type a value with `'` and `$(id)`: raw insertion interprets it according to
+  where the macro is written; `{{secret:Label|quote}}` inserts it literally.
+
 ## Appendix — known, accepted gaps (do not report as bugs)
 
 These are documented, intentional limitations of the current phase, not
