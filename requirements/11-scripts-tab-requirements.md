@@ -48,7 +48,17 @@ execution is fully asynchronous and shares no state with them (NFR-1).
   ending style) is left untouched; if any edit fails, nothing is written
   and an error dialog is shown. A renamed script keeps its last run output
   and status. **Reload** with unsaved changes asks for confirmation
-  ("Reloading discards them").
+  ("Reloading discards them"). **Run** (FR-51.1) and the application exit
+  (FR-7.4, after the user confirmed it) save every script with unsaved
+  changes first, exactly as **Save** does; when the save is refused (invalid
+  name, a rename while a script runs) or fails, a message says so, the edits
+  stay as drafts and the run does not start, or the application does not
+  exit. Only Save, Run and the confirmed exit save: an automatic restart of
+  the application (tray icon recovery) or the end of the Windows session
+  closes it without saving, and the pending edits are lost. Save does not
+  check the drafts of the other scripts for a line that looks like a
+  section header (such a line creates a new section in the file), and Run
+  and the exit inherit that.
 - FR-47.6: **Add** appends a new section named `new-script` (or
   `new-script-2`, ... when taken) with `# @host:` set to the first
   configured SSH server (`TODO` when there is none) and
@@ -145,10 +155,13 @@ tmux has-session -t appman-rc 2>/dev/null || tmux new -d -s appman-rc "$CCD --re
 
 - FR-51.1: **Run** is enabled when a valid script is selected and no script
   is running. Only one script runs at a time. When the selected script has
-  unsaved edits, the run uses the edited text, parsed like the file (an
-  edited `@host`, `@confirm` or `@stop-on-error` applies); Run is disabled
-  when the edited text is invalid or contains a line that looks like a
-  section header.
+  unsaved edits, **Run saves every script with unsaved changes first**
+  (FR-47.5) and runs the saved script, so the run uses the edited text,
+  parsed like the file (an edited `@host`, `@confirm` or `@stop-on-error`
+  applies) and a renamed script runs under its new name; if the save fails
+  nothing runs. Run is disabled when the edited text is invalid, when it
+  contains a line that looks like a section header, or when the name box is
+  invalid (FR-47.4).
 - FR-51.2: When `@stop-on-error` is `true` (default), the application
   prepends `set -e` to the body; the first failing command ends the script
   with its exit code. When `false`, bash's default applies (execution
@@ -230,7 +243,21 @@ scripts file.
   line break between `{{` and `}}`; it may sit anywhere in a line, with other
   text around it, and several may appear on one line (e.g.
   `{{session:name}}-{{env:SUFFIX}}`). Text that merely contains `{{`, or
-  bash constructs such as `${VAR}` or `$(cmd)`, is not a macro. The types are
+  bash constructs such as `${VAR}` or `$(cmd)`, is not a macro. **A macro in a
+  comment is ignored**: everything to the right of a bash comment marker, up
+  to the end of the line, is neither expanded, nor checked, nor masked, nor
+  asked for by the secret dialog, and stays in the text as written (bash
+  ignores it too). A `#` is a comment marker when it begins a word (start of
+  the line, or right after a space, a tab, `;`, `&`, `|`, `(`, `)`, `<` or
+  `>`; another Unicode space is part of the word) and is not
+  inside single or double quotes or escaped by a backslash; `$#`, `${#var}`
+  and `a#b` are not comments. Quotes are tracked within one line only: a line
+  starting with `#` inside a multi-line quoted string or a here-document is
+  seen as a comment, so a macro there is not expanded; conversely, a quote
+  closed on a later line is read as an opening quote on that line, so a real
+  comment after it is not detected and its macros are expanded and checked.
+  The `$'…'` quoting is not recognised either (`\'` ends the quote). The text of a macro is
+  never read as a quote or a comment marker (`{{secret:Item #2}}`). The types are
   `env` (FR-55.2), `session` (FR-55.3), `reg` (FR-55.9), `cred` (FR-55.10)
   and `secret` (FR-55.11); an unknown type is an error (FR-55.6), not
   ignored.
@@ -258,7 +285,8 @@ scripts file.
   property of the session row is supported; the property names are those of
   the session model behind the Sync grid, matched **ignoring case** (the
   property `Name` is read by `{{session:name}}`), unlike the macro type which
-  is case-sensitive. The properties of the session row
+  is case-sensitive. The row is found by its session name: with two sessions
+  of the same name (a known case, see UT-1.2) the first row is used. The properties of the session row
   (`SessionSummaryRow`, the model of the Sync grid) are:
 
   | Property | Value |
@@ -298,7 +326,9 @@ scripts file.
   never its value. Nothing is substituted silently.
 - FR-55.7: **Expansion**: it happens locally, on the text written to the
   standard input of ssh (FR-50.3), after the `@confirm` check. `@confirm`
-  (FR-53.1) shows the unexpanded script and the resolved session name only.
+  (FR-53.1) keeps its usual text (script name and host) and never shows the
+  expanded script; when the script uses a `session` macro, it adds the
+  resolved session name (`(none)` when no session is selected).
   A secret thus travels inside the encrypted ssh stream, never on a command
   line of the workstation.
 - FR-55.8: **Masking**: every value that came from an `{{env:…}}`,
@@ -309,7 +339,11 @@ scripts file.
   partial value). A value containing a single quote is masked in both its raw
   and its escaped form (each `'` written as `'\''`), with or without `|quote`,
   since `set -x` traces it that way, quoting the whole word (`a'b` is traced as
-  `'a'\''b'`, and `-pa'b` as `'-pa'\''b'`). A very short secret
+  `'a'\''b'`, and `-pa'b` as `'-pa'\''b'`). Other forms of the same value are not masked: a secret
+  containing a control character such as a tab is traced by bash as `$'a\tb'`,
+  and a non-ASCII secret may be traced as octal escapes (`$'p\303\244ss'`) by a
+  remote bash running in the `C` locale. The output is decoded as UTF-8: a
+  remote shell writing another encoding is not masked. A very short secret
   (one or two characters) is replaced everywhere it appears, which can make the
   output hard to read. Session property values are not masked.
 - FR-55.9: **`{{reg:<key>:<value name>}}`** is the data of a value of a
@@ -373,7 +407,15 @@ scripts file.
   quoting shared with `ConflictFileClient` (`|quote`, FR-55.4).
 - `MutagenMon.App/ScriptsView.xaml`/`.xaml.cs`: the tab, hosted in
   `StatusWindow.xaml` (second tab); `StatusWindow` routes F5 and shows the
-  "Scripts *" header.
+  "Scripts *" header. On Run (after `@confirm`) `ScriptsView` expands the
+  body of the script it passes to the runner (the edited draft, FR-51.1)
+  with the session selected in the Sync grid (`StatusWindow` provides it),
+  checks the non-secret macros before asking for the secrets, and shows
+  `Macro error: …` or the cancellation in the status line without starting
+  ssh (FR-55.6, FR-55.11).
+- `MutagenMon.App/SecretValuesDialog.xaml`/`.xaml.cs`: the single dialog
+  of the `secret` macros (FR-55.11), one `PasswordBox` row per distinct
+  label.
 - `MutagenMon.App/config/scripts.ini`: shipped sample file.
 - Tests: `MutagenMon.Core.Tests` — `ScriptFileParserTests`,
   `ScriptFileEditorTests`, `ScriptRunnerTests`, `ScriptMacroTests`,

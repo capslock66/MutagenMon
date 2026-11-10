@@ -120,6 +120,9 @@ public class ScriptRunner
             RedirectStandardError = true,
             // bash must receive UTF-8 without a BOM, whatever the local code page.
             StandardInputEncoding = new UTF8Encoding(false),
+            // The masker compares UTF-16 strings: the remote output must be decoded as UTF-8, not with the console code page.
+            StandardOutputEncoding = new UTF8Encoding(false),
+            StandardErrorEncoding = new UTF8Encoding(false),
             UseShellExecute = false,
             CreateNoWindow = true,
         };

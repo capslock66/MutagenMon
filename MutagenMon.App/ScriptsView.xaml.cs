@@ -12,6 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Media3D;
 using Microsoft.Extensions.Logging;
 using MutagenMon.Core.Scripts;
+using MutagenMon.Core.Status;
 
 namespace MutagenMon.App;
 
@@ -33,6 +34,7 @@ public partial class ScriptsView : UserControl
     private Func<string> _scriptsPathProvider = null!;
     private Func<ScriptRunner> _runnerFactory = null!;
     private Func<string?> _defaultHostProvider = null!;
+    private Func<SessionSummaryRow?> _selectedSessionProvider = null!;
     /// <summary>Every script of the file, in file order (the tree shows them
     /// grouped).</summary>
     private readonly List<ScriptListItem> _items = new();
@@ -78,10 +80,15 @@ public partial class ScriptsView : UserControl
     /// (the runner reads ssh path and timeout once, at construction).</param>
     /// <param name="defaultHostProvider">First host of the configured SSH
     /// servers, or null when there is none — used to prefill a new script.</param>
+    /// <param name="selectedSessionProvider">The session selected in the Sync
+    /// grid, or null when none is — read when Run is clicked, for the
+    /// <c>{{session:…}}</c> macros (FR-55.3).</param>
     public void Initialize(
-        ILogger logger, Func<string> scriptsPathProvider, Func<ScriptRunner> runnerFactory, Func<string?> defaultHostProvider)
+        ILogger logger, Func<string> scriptsPathProvider, Func<ScriptRunner> runnerFactory, Func<string?> defaultHostProvider,
+        Func<SessionSummaryRow?> selectedSessionProvider)
     {
         _defaultHostProvider = defaultHostProvider;
+        _selectedSessionProvider = selectedSessionProvider;
         _logger = logger;
         _scriptsPathProvider = scriptsPathProvider;
         _runnerFactory = runnerFactory;
@@ -273,7 +280,7 @@ public partial class ScriptsView : UserControl
         return parsed.Count == 1 ? parsed[0] : null;
     }
 
-    private bool HasUnsavedChanges() => _drafts.Count > 0 || IsDirty();
+    public bool HasUnsavedChanges() => _drafts.Count > 0 || IsDirty();
 
     /// <summary>True when the displayed name or text differs from the
     /// selected script as saved (line endings and surrounding blank lines of
@@ -352,24 +359,40 @@ public partial class ScriptsView : UserControl
     /// and all the drafts — in a single write.</summary>
     private void OnSaveClick(object sender, RoutedEventArgs e)
     {
-        if (GetNameError() is not null)
-            return;
+        _logger.LogInformation("User action: Scripts Save clicked");
+        TrySaveAll();
+    }
+
+    /// <summary>Saves every script with unsaved changes (FR-47.5). Used by the
+    /// Save button, by Run (FR-51.1) and by the application exit. Returns true
+    /// when everything is saved (or there was nothing to save), false when
+    /// the save was refused or failed (a message says why and the edits stay as
+    /// drafts); the caller must not go on with its own action then.</summary>
+    public bool TrySaveAll()
+    {
+        if (GetNameError() is { } nameError)
+        {
+            _logger.LogWarning("Scripts not saved: {Reason}", nameError);
+            MessageBox.Show(
+                Window.GetWindow(this), $"The scripts were not saved: {nameError}",
+                "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return false;
+        }
 
         // The displayed script's edit joins the drafts of the other scripts.
         CaptureDraft(SelectedScript);
         if (_drafts.Count == 0)
-            return;
+            return true;
 
         var edits = _drafts.Select(draft_ => new ScriptEdit(draft_.Key, draft_.Value.Text, draft_.Value.Name.Trim())).ToList();
         var path = _scriptsPathProvider();
-        _logger.LogInformation("User action: Scripts Save clicked for {Count} script(s)", edits.Count);
         // A run's output is filed under the script's name: renaming mid-run would orphan it.
         if (_isRunning && edits.Any(edit_ => edit_.NewName != edit_.ScriptName))
         {
             MessageBox.Show(
                 Window.GetWindow(this), "A script is running: scripts cannot be renamed until it ends.",
                 "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
+            return false;
         }
 
         try
@@ -382,7 +405,7 @@ public partial class ScriptsView : UserControl
             MessageBox.Show(
                 Window.GetWindow(this), $"MutagenMon could not save the scripts (nothing was written):\n\n{ex.Message}",
                 "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
+            return false;
         }
 
         _logger.LogInformation("{Count} script(s) saved to '{Path}'", edits.Count, path);
@@ -402,6 +425,7 @@ public partial class ScriptsView : UserControl
 
         _drafts.Clear();
         LoadScripts(newSelectedName ?? selectedName);
+        return true;
     }
 
     /// <summary>Rebuilds the list from the file (FR-49), keeping the
@@ -627,7 +651,8 @@ public partial class ScriptsView : UserControl
         DeleteButton.IsEnabled = !_isRunning && selected is not null;
         MoveUpButton.IsEnabled = CanMoveSelectedNode(-1);
         MoveDownButton.IsEnabled = CanMoveSelectedNode(1);
-        RunButton.IsEnabled = !_isRunning && GetRunnableScript() is not null;
+        // An invalid name blocks Run too: Run saves first (FR-51.1) and the save refuses it.
+        RunButton.IsEnabled = !_isRunning && nameError is null && GetRunnableScript() is not null;
 
         var hasUnsavedChanges = HasUnsavedChanges();
         if (hasUnsavedChanges != _lastHasUnsavedChanges)
@@ -675,10 +700,44 @@ public partial class ScriptsView : UserControl
             return;
 
         _logger.LogInformation("User action: Scripts Run clicked for '{Script}' (unsaved edits: {IsDirty})", script.Name, IsDirty());
+        // FR-51.1: Run first saves every script with unsaved changes. The script to run is then the saved one
+        // (a renamed script is run under its new name); when the save fails, nothing runs.
+        if (HasUnsavedChanges())
+        {
+            if (!TrySaveAll())
+                return;
+
+            if (GetRunnableScript() is not { } savedScript)
+            {
+                _logger.LogWarning("Script '{Script}' not run: it is not valid or not found after the save", script.Name);
+                return;
+            }
+
+            script = savedScript;
+        }
+
+        // Read once, now: the macros of this run all see the session selected at the click (FR-55.3).
+        var session = _selectedSessionProvider();
         if (script.Confirm
             && !GenericMessageDialog.ShowConfirm(
-                Window.GetWindow(this), _logger, "Run script", $"Run script '{script.Name}' on {script.Host}?", "Run"))
+                Window.GetWindow(this), _logger, "Run script", DescribeConfirmation(script, session), "Run"))
             return;
+
+        // After the @confirm check (FR-55.7); the script is the one passed to the runner (the edited draft, FR-51.1).
+        // An async void handler: an unexpected failure of a reader or of the dialog is shown in the status line,
+        // not left to the global handler. The messages of these exceptions never carry a macro value.
+        ScriptMacroExpansion? expansion;
+        try
+        {
+            if (!TryExpandMacros(script, session, out expansion))
+                return;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Script '{Script}': the macro expansion failed unexpectedly", script.Name);
+            ShowMacroFailure(script, $"Macro error: {ex.Message}", isError: true, isLogged: false);
+            return;
+        }
 
         _isRunning = true;
         UpdateButtons();
@@ -693,7 +752,7 @@ public partial class ScriptsView : UserControl
         try
         {
             var result = await _runnerFactory().RunAsync(
-                script, line => Dispatcher.BeginInvoke(() => AppendOutput(runView, line)), _runSource.Token);
+                script, line => Dispatcher.BeginInvoke(() => AppendOutput(runView, line)), _runSource.Token, expansion);
             SetStatus(runView, DescribeOutcome(result), isError: result.Outcome != ScriptRunOutcome.Completed || result.ExitCode != 0);
         }
         catch (Exception ex)
@@ -710,6 +769,83 @@ public partial class ScriptsView : UserControl
             _isCancelling = false;
             UpdateButtons();
         }
+    }
+
+    /// <summary>The `@confirm` text (FR-53.1, FR-55.7): the script and its host,
+    /// plus the resolved session name when the script uses a `session` macro.
+    /// Never the expanded text.</summary>
+    private static string DescribeConfirmation(ScriptDefinition script, SessionSummaryRow? session)
+    {
+        var text = $"Run script '{script.Name}' on {script.Host}?";
+        if (ScriptMacro.Find(script.Body).Any(macro_ => macro_.Type == ScriptMacroType.Session))
+            text += $"\n\nSelected session: {session?.Name ?? "(none)"}";
+        return text;
+    }
+
+    /// <summary>Expands the macros of the body of <paramref name="script"/>
+    /// (FR-55). Returns false when the run must not start — an unresolved
+    /// macro, or the secret dialog cancelled — after showing why in the status
+    /// line (FR-55.6, FR-55.11). <paramref name="expansion"/> stays null for a
+    /// script without macros, which is run as written.</summary>
+    private bool TryExpandMacros(ScriptDefinition script, SessionSummaryRow? session, out ScriptMacroExpansion? expansion)
+    {
+        expansion = null;
+        var macros = ScriptMacro.Find(script.Body);
+        if (macros.Count == 0)
+            return true;
+
+        IReadOnlyDictionary<string, string>? typedSecrets = null;
+        var labels = ScriptMacro.SecretLabels(macros);
+        if (labels.Count > 0)
+        {
+            // The other macros are checked first, with a placeholder for the secrets, so the user is not asked
+            // to type secrets for a run that cannot start anyway.
+            var preCheck = ScriptMacroExpander.Expand(script.Body, BuildMacroSources(session, _ => "x"));
+            if (!preCheck.IsSuccess)
+            {
+                ShowMacroFailure(script, "Macro error: " + string.Join("; ", preCheck.Errors), isError: true);
+                return false;
+            }
+
+            typedSecrets = SecretValuesDialog.Ask(Window.GetWindow(this), _logger, labels);
+            if (typedSecrets is null)
+            {
+                ShowMacroFailure(script, "Run cancelled: the secret values were not entered.", isError: false);
+                return false;
+            }
+        }
+
+        var result = ScriptMacroExpander.Expand(
+            script.Body,
+            BuildMacroSources(session, label_ => typedSecrets is not null && typedSecrets.TryGetValue(label_, out var value_) ? value_ : null));
+        if (!result.IsSuccess)
+        {
+            ShowMacroFailure(script, "Macro error: " + string.Join("; ", result.Errors), isError: true);
+            return false;
+        }
+
+        expansion = result;
+        return true;
+    }
+
+    /// <summary>The macro value sources (FR-55): the Windows readers for
+    /// `env`, `reg` and `cred` (they return null instead of throwing), the
+    /// given secret lookup, and the selected session.</summary>
+    private static ScriptMacroSources BuildMacroSources(SessionSummaryRow? session, Func<string, string?> secret) =>
+        new(WindowsMacroValueReader.ReadEnvironmentVariable, WindowsMacroValueReader.ReadRegistryValue,
+            WindowsMacroValueReader.ReadCredentialPassword, secret, session);
+
+    /// <summary>Shows why the run did not start, in place of the last run of
+    /// that script (FR-52.4). The message names macros, never values.</summary>
+    private void ShowMacroFailure(ScriptDefinition script, string message, bool isError, bool isLogged = true)
+    {
+        if (isLogged)
+            _logger.Log(isError ? LogLevel.Warning : LogLevel.Information, "Script '{Script}' not run: {Message}", script.Name, message);
+        var runView = new ScriptRunView(script.Name);
+        _runViews[script.Name] = runView;
+        if (IsSelected(script.Name))
+            OutputBox.Document.Blocks.Clear();
+        SetStatus(runView, message, isError);
     }
 
     private void OnCancelClick(object sender, RoutedEventArgs e)

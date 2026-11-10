@@ -77,6 +77,16 @@ public partial class StatusWindow : Window
     /// every row (losing selection/scroll position, and flickering) even
     /// when nothing actually changed.</summary>
     private readonly ObservableCollection<SessionSummaryRow> _sessionRows = new();
+    /// <summary>Name of the session selected in the grid, kept apart from
+    /// <c>SessionsGrid.SelectedItem</c> because the refresh replaces a row whose
+    /// data changed (<see cref="SyncRows"/>), which clears the grid's selection;
+    /// the `{{session:…}}` macros (FR-55.3) read it through
+    /// <see cref="GetSelectedSession"/>. Cleared when the user deselects the
+    /// row or the session disappears.</summary>
+    private string? _selectedSessionName;
+    /// <summary>True while <see cref="SyncRows"/> runs: a selection change
+    /// then comes from the refresh, not from the user.</summary>
+    private bool _isSyncingRows;
     private readonly ILogger _logger;
     /// <summary>Waits for a resize to stop before <see cref="SizeSettled"/>:
     /// a drag raises <see cref="FrameworkElement.SizeChanged"/> many times a
@@ -104,7 +114,9 @@ public partial class StatusWindow : Window
         MutagenConfigEditorViewControl.Initialize(logger);
         MutagenMonitorConfigEditorViewControl.Initialize(logger);
         LogsViewControl.Initialize(logger, loggerProvider, showGenerateException);
-        ScriptsViewControl.Initialize(logger, scriptsPathProvider, scriptRunnerFactory, defaultScriptHostProvider);
+        ScriptsViewControl.Initialize(
+            logger, scriptsPathProvider, scriptRunnerFactory, defaultScriptHostProvider,
+            GetSelectedSession);
         ScriptsViewControl.HasUnsavedChangesChanged += (_, hasUnsavedChanges) => UpdateScriptsTabHeader(hasUnsavedChanges);
     }
 
@@ -135,7 +147,17 @@ public partial class StatusWindow : Window
     {
         var rows = BuildSessionRows(
             sessionNames, snapshot.SessionStatuses, snapshot.LastChangedUtc, snapshot.SessionCodes, snapshot.Conflicts, snapshot.Enabled);
-        SyncRows(_sessionRows, rows);
+        _isSyncingRows = true;
+        try
+        {
+            SyncRows(_sessionRows, rows);
+        }
+        finally
+        {
+            _isSyncingRows = false;
+        }
+
+        RestoreSessionSelection();
 
         ConflictsText.Text = BuildConflictsSection(sessionNames, snapshot.Conflicts);
 
@@ -204,6 +226,31 @@ public partial class StatusWindow : Window
     private void OnSessionsGridSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         DuplicateSessionButton.IsEnabled = SessionsGrid.SelectedItem is SessionSummaryRow;
+        if (SessionsGrid.SelectedItem is SessionSummaryRow row)
+            _selectedSessionName = row.Name;
+        // Otherwise the user cleared the selection (the refresh's own clearing is restored in UpdateContent).
+        else if (!_isSyncingRows)
+            _selectedSessionName = null;
+    }
+
+    /// <summary>The current row of the selected session, or null when none
+    /// is selected or it no longer exists (FR-55.3).</summary>
+    private SessionSummaryRow? GetSelectedSession() =>
+        _sessionRows.FirstOrDefault(row_ => row_.Name == _selectedSessionName);
+
+    /// <summary>After a refresh: forgets the selected session when it no
+    /// longer exists, and keeps its (possibly replaced) row visibly selected,
+    /// so the grid always shows the session the macros use.</summary>
+    private void RestoreSessionSelection()
+    {
+        if (_selectedSessionName is null)
+            return;
+
+        var row = GetSelectedSession();
+        if (row is null)
+            _selectedSessionName = null;
+        else if (!ReferenceEquals(SessionsGrid.SelectedItem, row))
+            SessionsGrid.SelectedItem = row;
     }
 
     /// <summary>Double-clicking a status row opens the same Edit flow as the
@@ -263,6 +310,28 @@ public partial class StatusWindow : Window
     {
         _logger.LogInformation("User action: status window Stop/Start sessions clicked");
         ToggleMonitoringRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Saves the scripts with unsaved changes (FR-47.5), for the
+    /// application exit. Returns false when the save was refused or failed:
+    /// the caller must not exit. The window is brought to the front on the
+    /// Scripts tab while there is something to save (the message boxes of the
+    /// save need a visible owner, and a failure must show the pending edit).
+    /// When the save succeeds the caller hides it again at once.</summary>
+    public bool TrySaveScripts()
+    {
+        if (!ScriptsViewControl.HasUnsavedChanges())
+            return true;
+
+        ScriptsTab.IsSelected = true;
+        if (!IsVisible)
+            Show();
+
+        if (WindowState == WindowState.Minimized)
+            WindowState = WindowState.Normal;
+
+        Activate();
+        return ScriptsViewControl.TrySaveAll();
     }
 
     private void OnExitClick(object sender, RoutedEventArgs e)

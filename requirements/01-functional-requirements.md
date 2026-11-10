@@ -170,7 +170,10 @@ The full specification lives in
   background poller and closes the application (no self-restart). The
   exit action (from either the tray menu or the status view's "Exit"
   button, FR-8.5) MUST ask the user to confirm before doing so;
-  declining leaves the application running unchanged.
+  declining leaves the application running unchanged. After the user
+  confirmed, the exit first saves the scripts with unsaved changes (FR-47.5
+  of the scripts tab requirements); if that save fails, the application
+  does not exit.
 - FR-7.5: While a reload is in progress, the menu MUST replace the
   show-status/move-to-main-screen items with a single disabled
   "Reloading..." item, keeping only "Exit" available. **(changed

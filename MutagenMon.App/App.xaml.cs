@@ -901,6 +901,14 @@ public partial class App //: Application
             return;
         }
 
+        // FR-47.5: the exit saves the scripts with unsaved changes. When the save fails the application keeps
+        // running (a message says why), so the edits are not lost.
+        if (_statusWindow is not null && !_statusWindow.TrySaveScripts())
+        {
+            _logger?.LogWarning("Exit cancelled: the scripts with unsaved changes could not be saved");
+            return;
+        }
+
         _logger?.LogInformation("User action: exit requested; shutting down");
         _statusWindow?.Hide();
         _trayIconController?.Stop();

@@ -1646,12 +1646,24 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
 * Set `SshPath` to a non-existent file, restart, run a script: the status
   line shows "Failed to start ssh: ..." and an Error line is logged.
 
-**UT-55.1 — Editing a script's text, Save, tab marker (Scripts tab editing)** ✅
+**UT-55.1 — Editing a script's text, Save, tab marker (Scripts tab editing)** ⏳
 
 * Select `shell-state` and type something in the text box. Save becomes
   enabled and the tab title turns bold: "**Scripts \***". Run stays
-  enabled and runs the text as displayed (e.g. an added `echo extra` line
-  is printed) even though it is not saved.
+  enabled. Click **Run**: the edit is saved first (Save becomes disabled,
+  the tab title turns plain, the file contains the edit), then the script
+  runs the text as displayed (e.g. an added `echo extra` line is printed).
+  With edits pending on two scripts, **Run** saves both. When the save
+  fails (make the scripts file read-only), an error dialog says so and the
+  script does not run. While the name box is invalid or duplicated, Run is
+  disabled (the red message is shown under the box).
+* With an edit pending, click **Exit MutagenMon** (tray menu or the status
+  window's "Exit" button) and answer "Yes": the edit is saved in the file
+  before the application closes (restart it and check the script). With
+  "No" nothing is saved and the application keeps running, the edit still
+  pending. With an invalid pending name, or a read-only scripts file, a
+  message says the scripts were not saved and the application does not
+  exit (the status window is shown, the edit is still pending).
 * Switch to another script and back: the edit is still there (kept as a
   draft) and the tab keeps its "*".
 * Click **Save**. The file now contains the edit (check it with the link),
@@ -1776,6 +1788,17 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   the Sync grid, then run the script: the output shows `env=[***]` (masked,
   FR-55.8) and `session=[<the selected session's name>]` (not masked); the
   editor still shows the macro form.
+* Select a session that is synchronizing (its status keeps changing), stay
+  on the Scripts tab for a few seconds, then run the script: the session is
+  still found and its row is still highlighted in the Sync grid (the grid
+  refresh must not make the macro lose the selection). With `@confirm: true`,
+  the confirmation also shows `Selected session: <name>`. Deselect the row
+  (Ctrl+click) and run again: `Macro error:` naming `{{session:name}}`
+  (confirmation: `Selected session: (none)`). Select a session, delete it,
+  wait until its row disappears from the Sync grid (end of the reload), then
+  run again: same result; re-creating a session of the same name does not
+  select it again. Renaming the selected session (Edit) also clears the
+  selection once the reload ends: select it again to use `{{session:…}}`.
 * Run the same script with no session selected in the Sync grid: the run
   does not start, ssh is not launched and the status line shows a
   `Macro error:` naming `{{session:name}}`.
@@ -1807,6 +1830,15 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   `[ "{{env:MM_BOTH}}" = "user-value" ] && echo same || echo different`.
 * `{{session:LastChangedUtc}}` prints the ISO 8601 UTC date of the selected
   session (`2026-11-08T12:30:00.0000000+00:00`, FR-55.3, not masked).
+* Comments (FR-55.1): a script with the line
+  `#echo "reg port: [{{reg:HKCU\Software\MyAppTest:Blob}}"` (a value of an
+  unsupported type, or a key that does not exist) runs without a macro error,
+  and so does `echo ok # {{env:DOES_NOT_EXIST}}` (prints `ok`). A macro to the
+  left of the `#` is still expanded and still reported when it fails:
+  `echo {{env:DOES_NOT_EXIST}} # note` gives the macro error. A `#` inside
+  quotes is not a comment: `echo "a # {{env:MM_ROOT}}"` is expanded (prints
+  `a # ***`), and so is `echo a#b {{env:MM_ROOT}}`. A `{{secret:…}}` written
+  only in a comment opens no dialog.
 
 **UT-55.12 — `{{reg:…}}` macro (FR-55.9)** ⏳
 

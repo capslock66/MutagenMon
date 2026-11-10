@@ -146,4 +146,96 @@ public class ScriptMacroTests
     {
         Assert.Empty(ScriptMacro.SecretLabels(ScriptMacro.Find("echo hello")));
     }
+
+    // Comments (FR-55.1): everything to the right of a bash comment marker is ignored.
+
+    [Theory]
+    [InlineData("#echo \"reg port: [{{reg:HKCU\\Software\\MyAppTest:Blob}}\"")]
+    [InlineData("   # {{env:A}}")]
+    [InlineData("echo ok # {{env:A}}")]
+    [InlineData("echo ok\t#{{env:A}}")]
+    [InlineData("echo ok;# {{env:A}}")]
+    [InlineData("(echo ok)# {{env:A}}")]
+    [InlineData("echo \"x\" # \"{{env:A}}\"")]
+    [InlineData("# {{secret:A}} {{env:B}}")]
+    [InlineData("echo >#{{env:A}}")]
+    [InlineData("echo a \\\n# {{env:A}}")]
+    public void AMacroToTheRightOfACommentMarkerIsIgnored(string text)
+    {
+        Assert.Empty(ScriptMacro.Find(text));
+    }
+
+    [Fact]
+    public void OnlyTheMacrosBeforeTheCommentMarkerAreFound()
+    {
+        var macros = ScriptMacro.Find("echo {{env:A}} {{env:B}} # {{env:C}} {{env:D}}");
+
+        Assert.Equal(new[] { "A", "B" }, macros.Select(macro_ => macro_.Name));
+    }
+
+    [Fact]
+    public void ACommentEndsAtTheEndOfItsLine()
+    {
+        var macros = ScriptMacro.Find("# {{env:A}}\necho {{env:B}}\r\n  # {{env:C}}\r\necho {{env:D}}");
+
+        Assert.Equal(new[] { "B", "D" }, macros.Select(macro_ => macro_.Name));
+    }
+
+    [Theory]
+    [InlineData("echo \"a # {{env:A}}\"")]
+    [InlineData("echo 'a # {{env:A}}'")]
+    [InlineData("echo a#b {{env:A}}")]
+    [InlineData("echo $# {{env:A}}")]
+    [InlineData("echo ${#VAR} {{env:A}}")]
+    [InlineData("echo \\# {{env:A}}")]
+    [InlineData("echo \"it\\\"s # {{env:A}}\"")]
+    [InlineData("echo \"a # b\" {{env:A}}")]
+    [InlineData("echo a #{{env:A}}")]
+    [InlineData("echo \\\\# {{env:A}}")]
+    [InlineData("echo \"a \\\n# {{env:A}}\"")]
+    public void AHashThatIsNotACommentMarkerDoesNotHideAMacro(string text)
+    {
+        var macro = Assert.Single(ScriptMacro.Find(text));
+
+        Assert.Equal("A", macro.Name);
+    }
+
+    [Fact]
+    public void AQuoteOrAHashInAMacroNameDoesNotChangeWhereTheCommentStarts()
+    {
+        var macros = ScriptMacro.Find("echo {{secret:Bob's password}} {{secret:Item #2}} {{env:A}} # {{env:B}}");
+
+        Assert.Equal(new[] { "Bob's password", "Item #2", "A" }, macros.Select(macro_ => macro_.Name));
+    }
+
+    // Documented limits of the line by line scan (FR-55.1): they never let a value go out unmasked.
+    [Fact]
+    public void AQuoteClosedOnALaterLineDoesNotHideTheMacrosOfARealComment()
+    {
+        var macro = Assert.Single(ScriptMacro.Find("echo 'a\nb' # {{env:A}}"));
+
+        Assert.Equal("A", macro.Name);
+    }
+
+    [Fact]
+    public void AnAnsiCQuoteWithAnEscapedQuoteIsNotRecognised()
+    {
+        Assert.Empty(ScriptMacro.Find("echo $'a\\'b # {{env:A}}'"));
+    }
+
+    [Fact]
+    public void AnOpenQuoteDoesNotCarryOverToTheNextLine()
+    {
+        var macros = ScriptMacro.Find("echo \"open\n# {{env:A}}\necho {{env:B}}");
+
+        Assert.Equal(new[] { "B" }, macros.Select(macro_ => macro_.Name));
+    }
+
+    [Fact]
+    public void ASecretInACommentIsNotListedAsASecretLabel()
+    {
+        var macros = ScriptMacro.Find("# {{secret:Old}}\necho {{secret:New}} # {{secret:Other}}");
+
+        Assert.Equal(new[] { "New" }, ScriptMacro.SecretLabels(macros));
+    }
 }

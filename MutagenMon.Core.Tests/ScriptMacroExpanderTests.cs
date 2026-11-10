@@ -35,6 +35,18 @@ public class ScriptMacroExpanderTests
     }
 
     [Fact]
+    public void AMacroInACommentIsNeitherExpandedNorReportedAndStaysAsWritten()
+    {
+        const string text = "#echo \"{{reg:HKCU\\Software\\MyAppTest:Blob}}\"\necho {{env:A}} # {{env:UNKNOWN}} {{nope:x}}";
+
+        var expansion = ScriptMacroExpander.Expand(text, Sources(Env("A", "1")));
+
+        Assert.True(expansion.IsSuccess);
+        Assert.Equal("#echo \"{{reg:HKCU\\Software\\MyAppTest:Blob}}\"\necho 1 # {{env:UNKNOWN}} {{nope:x}}", expansion.Text);
+        Assert.Equal(["1"], expansion.SecretsToMask);
+    }
+
+    [Fact]
     public void InsertsAnEnvironmentValueRawAndVerbatim()
     {
         var expansion = ScriptMacroExpander.Expand("mysql -p'{{env:DB_PWD}}'", Sources(Env("DB_PWD", "a b$c")));
