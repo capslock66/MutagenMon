@@ -1646,7 +1646,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
 * Set `SshPath` to a non-existent file, restart, run a script: the status
   line shows "Failed to start ssh: ..." and an Error line is logged.
 
-**UT-55.1 — Editing a script's text, Save, tab marker (Scripts tab editing)** ⏳
+**UT-55.1 — Editing a script's text, Save, tab marker (Scripts tab editing)** ✅
 
 * Select `shell-state` and type something in the text box. Save becomes
   enabled and the tab title turns bold: "**Scripts \***". Run stays
@@ -1779,7 +1779,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
 * On any other tab ("Sync", the two configuration tabs, "Logs"), F5 does
   not run a script, even if a script was selected earlier in the Scripts tab.
 
-**UT-55.11 — `{{env:…}}` and `{{session:…}}` macros (FR-55.1 to FR-55.8)** ⏳
+**UT-55.11 — `{{env:…}}` and `{{session:…}}` macros (FR-55.1 to FR-55.8)** ✅
 
 * In a script of `config/scripts.ini`, write `echo "env=[{{env:MM_TEST_VAR}}]"`
   and `echo "session=[{{session:name}}]"`. Create the Windows user variable
@@ -1840,7 +1840,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   `a # ***`), and so is `echo a#b {{env:MM_ROOT}}`. A `{{secret:…}}` written
   only in a comment opens no dialog.
 
-**UT-55.12 — `{{reg:…}}` macro (FR-55.9)** ⏳
+**UT-55.12 — `{{reg:…}}` macro (FR-55.9)** ✅
 
 * Create `HKCU\Software\MyApp` with a `REG_SZ` value `DbPassword=s3cret`, a
   `REG_DWORD` value `Port=3306` and a `REG_BINARY` value `Blob`. In a
@@ -1864,7 +1864,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   is readable without elevation: compare it with the build number shown by
   `winver`.
 
-**UT-55.13 — `{{cred:…}}` macro (FR-55.10)** ⏳
+**UT-55.13 — `{{cred:…}}` macro (FR-55.10)** ✅
 
 * In a command prompt run
   `cmdkey /generic:MyApp/DbPassword /user:x /pass:s3cret`. In a script write
@@ -1880,7 +1880,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   intact. An entry of the "Windows credentials" (domain) type on the same
   target, or with an empty password, is reported as not found / empty.
 
-**UT-55.14 — `{{secret:…}}` macro and the single grid dialog (FR-55.11)** ⏳
+**UT-55.14 — `{{secret:…}}` macro and the single grid dialog (FR-55.11)** ✅
 
 * Write a script with `echo "a={{secret:Database password}}"`,
   `echo "b={{secret:API token}}"` and `echo "c={{secret:Database password}}"`.

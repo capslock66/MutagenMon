@@ -6,10 +6,10 @@ Source of truth: `plan-script-macros.md` (validated design, decisions 1-18). Thi
 Scripts of the Scripts tab can use `{{env:…}}`, `{{session:…}}`, `{{reg:…:…}}`, `{{cred:…}}` and `{{secret:…}}` macros (optional `|quote`), expanded locally just before the ssh run, with values masked in the output and logs, and no secret stored in the scripts file.
 
 ## Next Step
-Task 6.3 of Phase 6 (manual UT-55.11 to UT-55.14 on Windows), only when the user asks. 5.2 and 5.3 are implemented and reviewed but not committed yet.
+Phase 7 (delivery summary; ask before deleting `plan-script-macros.md` and the planning files), only when the user asks.
 
 ## Current Phase
-Phase 6 (6.1 and 6.2 done)
+Phase 6 complete; Phase 7 pending
 
 ## Working rules (from CLAUDE.md / memory)
 - Work on `main`; commit only when asked, via `/eortc-git-push` (no body, no footer, no trailers).
@@ -58,8 +58,8 @@ Phase 6 (6.1 and 6.2 done)
 ### Phase 6: Testing & Verification
 - [x] 6.1 `dotnet test` on `MutagenMon.Core.Tests` and `dotnet build` on `MutagenMon.App` (each with `-m:1`) — Linux: 422 passed, 4 skipped, 0 failed, App build 0 warning; Windows (maintainer): 426 total, 414 passed, 0 failed, 12 skipped, App Release build succeeded
 - [x] 6.2 `eortc-dotnet-code-reviewer` loop on the modified files (spec `requirements/11-scripts-tab-requirements.md`, max 3 iterations) — 2 iterations, no 🔴/🟠; minors fixed or listed in progress.md
-- [ ] 6.3 Manual scenarios from `UserTests.md` for the Windows-only parts (registry, Credential Manager, dialog)
-- **Status:** in_progress (6.1 and 6.2 done; 6.3 pending)
+- [x] 6.3 Manual scenarios from `UserTests.md` for the Windows-only parts (registry, Credential Manager, dialog)
+- **Status:** complete (6.1, 6.2 and 6.3 done)
 
 ### Phase 7: Delivery
 - [ ] 7.1 Summarise what was done, iterations of the review loop, remaining minor findings

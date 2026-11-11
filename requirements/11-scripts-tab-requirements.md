@@ -6,7 +6,7 @@ server over SSH, and shows its output.
 
 **Status: implemented.** Continues the FR numbering from
 [10-logs-tab-requirements.md](10-logs-tab-requirements.md)'s FR-46, as FR-47
-through FR-55 (FR-55, macros, is specified but not implemented yet).
+through FR-55 (FR-55 is the macros feature).
 
 Motivating use case: from the Windows machine, start a detached `tmux`
 session on a Linux server that runs `claude --remote-control`, so the Claude

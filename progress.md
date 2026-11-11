@@ -29,6 +29,12 @@
 
 - Auto-save on Run and on exit (requested by the maintainer after 6.2, not committed): `ScriptsView.TrySaveAll()` (public, bool; extracted from `OnSaveClick`, which now calls it) saves every script with unsaved changes in one write; refusal (invalid name, rename while a script runs) or failure gives a message and returns false. `OnRunClick` saves first when `HasUnsavedChanges()` (before `@confirm` and macro expansion), then runs the saved definition from `GetRunnableScript()` (a renamed script runs under its new name); a failed save blocks the run; `RunButton` is disabled while the name box has an error. `StatusWindow.TrySaveScripts()` (selects the Scripts tab, shows/restores/activates the window when there is something to save) is called by `App.ExitAsync` after the "Yes" and before hiding or stopping anything; a failure logs a warning and keeps the application running. Spec: FR-47.5, FR-51.1, FR-7.4; UT-55.1 extended and set back to ⏳. Review: 1 iteration, no 🔴/🟠; fixed the minors (tab/restore/activate in `TrySaveScripts`, two warning logs). Documented in FR-47.5 instead of fixed: automatic restart (tray icon recovery) and Windows session end lose pending edits (no dialog possible there; a silent best-effort save in `OnSelfRestartNeeded` is a decision left to the maintainer); Save does not check the other drafts for a section-header line. Left as is: Exit during a modal dialog of a run. App build 0 warning.
 
+- UT-55.1 validated by the maintainer on Windows (including the Run and Exit auto-save bullets): marker set to ✅ in `requirements/UserTests.md` (not committed).
+
+- UT-55.11 and UT-55.12 validated by the maintainer on Windows: markers set to ✅ in `requirements/UserTests.md` (not committed). UT-55.13 and UT-55.14 remain ⏳; the spec header "FR-55 not implemented yet" is still to update when 6.3 completes.
+
+- Task 6.3 done: UT-55.13 and UT-55.14 validated by the maintainer on Windows, so UT-55.11 to UT-55.14 are ✅; the spec header of `11-scripts-tab-requirements.md` no longer says FR-55 is not implemented; Phase 6 complete in `task_plan.md` (not committed). Phase 7 not started.
+
 ### Test Results
 | Test | Expected | Actual | Status |
 |------|----------|--------|--------|
