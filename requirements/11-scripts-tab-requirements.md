@@ -502,12 +502,25 @@ without going through the Scripts tab.
   quoting shared with `ConflictFileClient` (`|quote`, FR-55.4).
 - `MutagenMon.App/ScriptsView.xaml`/`.xaml.cs`: the tab, hosted in
   `StatusWindow.xaml` (second tab); `StatusWindow` routes F5 and shows the
-  "Scripts *" header. On Run (after `@confirm`) `ScriptsView` expands the
-  body of the script it passes to the runner (the edited draft, FR-51.1)
-  with the session selected in the Sync grid (`StatusWindow` provides it),
-  checks the non-secret macros before asking for the secrets, and shows
-  `Macro error: …` or the cancellation in the status line without starting
-  ssh (FR-55.6, FR-55.11).
+  "Scripts *" header. On Run `ScriptsView` saves the pending edits (FR-51.1), then hands the
+  script (the saved one, under its new name if it was renamed) and the session selected in the Sync grid
+  (`StatusWindow` provides it) to `ScriptRunCoordinator.RunAsync`; the
+  coordinator asks for the `@confirm` confirmation, expands the macros
+  (checking the non-secret macros before asking for the secrets) and runs
+  the script, and `ScriptsView` shows the output, the status line and
+  `Macro error: …` or the cancellation without starting ssh (FR-55.6,
+  FR-55.11).
+- `MutagenMon.App/ScriptRunCoordinator.cs` (FR-51 to FR-56): the run of one
+  script shared by every tab — `Prepare` (the `@confirm` confirmation and the
+  macro expansion, FR-53.1, FR-55), `RunPreparedAsync` / `RunAsync`, `Cancel`,
+  the outcome and elapsed-time texts (FR-52.3, FR-52.6), `IsRunning` /
+  `IsCancelling` (the one-run-at-a-time rule, FR-51.1, FR-56.6) and the
+  `RunningChanged` event the tabs use to refresh their buttons. `StatusWindow`
+  owns the single instance. What is displayed is the caller's, through
+  `ScriptRunCallbacks`.
+- `MutagenMon.App/ScriptRunWindow.xaml`/`.xaml.cs` (FR-56.5): the modal run
+  dialog of the Sync tab; `MutagenMon.App/ScriptOutputPane.cs`: the output
+  pane appending (stderr in red, 5000-line cap) shared with the Scripts tab.
 - `MutagenMon.App/SecretValuesDialog.xaml`/`.xaml.cs`: the single dialog
   of the `secret` macros (FR-55.11), one `PasswordBox` row per distinct
   label.

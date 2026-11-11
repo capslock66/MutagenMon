@@ -24,3 +24,6 @@
 ## Risks
 - WPF cannot run on this Linux host: UI verification is manual on Windows.
 - Refactor in phase 4 touches the Scripts tab Run path (FR-51 to FR-55): regress-test UT-55.10 to UT-55.14.
+
+## Open point for Windows testing (phase 5 review)
+- Exit from the tray menu while the Sync-tab run dialog is running: `ScriptRunWindow.OnClosing` cancels the close while the script runs; check on Windows whether the shutdown is blocked or the dialog closes, and that the ssh process of the run is then cancelled or killed (FR-56.5 does not cover it).

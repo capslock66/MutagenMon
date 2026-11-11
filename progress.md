@@ -41,3 +41,8 @@
 - UT-52.2 (elapsed time in the status line and the title) validated by the user on Windows.
 - UT-51.2b (Cancel only on the running script) validated by the user on Windows.
 - UT-55.10 to UT-55.14 re-checked by the user on Windows after the phase 4 refactor: no regression.
+
+## Phase 5 (run dialog)
+- `ScriptRunCoordinator`: `Prepare` (confirmation + macros, returns `ScriptRunPreparation`), `RunAsync` = Prepare + `RunPreparedAsync`, `RunningChanged` event; `ScriptsView` subscribes to it.
+- New `ScriptRunWindow` (modal; output, status, Cancel while running, Close once ended; closing blocked while running; message shown when the run cannot start) and `ScriptOutputPane` (shared append helper). Not reachable from the UI yet (phase 6).
+- Review loop: no blocking or important finding. Minor fixes: `ScriptMacroExpansion.ToString` no longer prints the expanded text or the secrets (new Core test), refusal reported when a run is already in progress, close logged in `OnClosed`, `RunningChanged` raised last in `Cancel`, `MemberNotNullWhen`, obsolete doc bullet, unused using. Build 0 warning, 0 error; Core tests 476 passed, 4 skipped.

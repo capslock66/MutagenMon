@@ -4,10 +4,10 @@
 A script tagged `# @scriptSession` appears in a combo on the Sync toolbar (right of Duplicate); the user picks one and runs it (button or F5) on the selected session, in a dialog showing the output and status. The Stop/Start button moves to the far right of the Sync toolbar.
 
 ## Next Step
-Phase 4 (shared run logic) is done. Wait for the user's go to start Phase 5.
+Phase 5 (run dialog) is done. Wait for the user's go to start Phase 6.
 
 ## Current Phase
-Phase 4 (done) — awaiting go before Phase 5
+Phase 5 (done) — awaiting go before Phase 6
 
 ## Phases
 
@@ -41,12 +41,12 @@ Phase 4 (done) — awaiting go before Phase 5
 - **Status:** complete
 
 ### Phase 5: Run dialog
-- [ ] 5.1 New `ScriptRunWindow` (XAML + code-behind): title with the script name and the session, read-only output pane (red for stderr, last `MaxOutputLines` lines, auto-scroll), status line, Cancel button (enabled while running), Close button (disabled while running)
-- [ ] 5.2 The dialog starts the run on open through the coordinator (`@confirm` and macros handled before the dialog opens, same as the Scripts tab)
-- [ ] 5.3 Closing the dialog (X, Esc, Close) while running = ask to cancel, or block it (decision D4)
-- [ ] 5.5 `ScriptRunCoordinator`: add a `RunningChanged` event (raised when IsRunning/IsCancelling change) so every tab refreshes its buttons (FR-56.6); the Scripts tab Cancel must stay disabled while a run started from the Sync dialog is in progress (review of phase 4)
-- [ ] 5.4 Log the user actions like the other windows (`User action: ...`), never the script output or expanded text (FR-54)
-- **Status:** pending
+- [x] 5.1 New `ScriptRunWindow` (XAML + code-behind): title with the script name and the session, read-only output pane (red for stderr, last `MaxOutputLines` lines, auto-scroll), status line, Cancel button (enabled while running), Close button (disabled while running)
+- [x] 5.2 The dialog starts the run on open through the coordinator (`@confirm` and macros handled before the dialog opens, same as the Scripts tab)
+- [x] 5.3 Closing the dialog (X, Esc, Close) while running is blocked (decision D4, FR-56.5): the user cancels first
+- [x] 5.5 `ScriptRunCoordinator`: add a `RunningChanged` event (raised when IsRunning/IsCancelling change) so every tab refreshes its buttons (FR-56.6); the Scripts tab Cancel must stay disabled while a run started from the Sync dialog is in progress (review of phase 4)
+- [x] 5.4 Log the user actions like the other windows (`User action: ...`), never the script output or expanded text (FR-54)
+- **Status:** complete
 
 ### Phase 6: Sync tab UI
 - [ ] 6.1 `StatusWindow.xaml`: right of Duplicate, add a `ComboBox` (scripts with `@scriptSession`, valid only, in file order, display name) and a `Run` button (icon like the Scripts tab, tooltip `Run (F5)`)

@@ -438,4 +438,15 @@ public class ScriptMacroExpanderTests
         Assert.False(expansion.IsSuccess);
         Assert.Empty(expansion.SecretsToMask);
     }
+
+    [Fact]
+    public void ToStringNeverPrintsTheExpandedTextOrTheSecrets()
+    {
+        var expansion = new ScriptMacroExpansion("echo hunter2", [], ["hunter2"]);
+
+        var text = expansion.ToString();
+
+        Assert.DoesNotContain("hunter2", text);
+        Assert.Contains("IsSuccess = True", text);
+    }
 }

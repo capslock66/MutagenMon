@@ -35,6 +35,16 @@ public sealed record ScriptMacroExpansion(
     string Text, IReadOnlyList<string> Errors, IReadOnlyList<string> SecretsToMask)
 {
     public bool IsSuccess => Errors.Count == 0;
+
+    /// <summary>The synthesized record text would print <see cref="Text"/> and
+    /// <see cref="SecretsToMask"/>: the expanded script holds secret values,
+    /// which must never reach a log or an exception message through
+    /// <c>ToString()</c> (FR-54.3, FR-55.8).</summary>
+    private bool PrintMembers(StringBuilder builder)
+    {
+        builder.Append($"IsSuccess = {IsSuccess}, Errors = {Errors.Count}");
+        return true;
+    }
 }
 
 /// <summary>Replaces the macros of a script text by their values, just

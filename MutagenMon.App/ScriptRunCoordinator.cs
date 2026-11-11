@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Windows;
 using System.Windows.Threading;
 using Microsoft.Extensions.Logging;
@@ -29,6 +30,20 @@ public sealed record ScriptRunCallbacks(
     Action Finished);
 
 /// <summary>
+/// A run that passed the confirmation and the macro expansion (FR-56.4), ready
+/// for <see cref="ScriptRunCoordinator.RunPreparedAsync"/>; or, when
+/// <see cref="FailureMessage"/> is set, a run that cannot start (macro error,
+/// secret dialog cancelled: FR-55.6, FR-55.11) with the reason to show. The
+/// expansion holds secret values: it is kept only for the run it was made for.
+/// </summary>
+public sealed record ScriptRunPreparation(
+    ScriptDefinition Script, ScriptMacroExpansion? Expansion, string? FailureMessage = null, bool FailureIsError = false)
+{
+    [MemberNotNullWhen(false, nameof(FailureMessage))]
+    public bool IsReady => FailureMessage is null;
+}
+
+/// <summary>
 /// The run of one script, shared by every place that runs a script (FR-51,
 /// FR-53, FR-55, FR-56): the `@confirm` confirmation, the macro expansion
 /// (with the secret dialog), the <see cref="ScriptRunner"/> call, the cancel
@@ -56,37 +71,74 @@ public sealed class ScriptRunCoordinator(ILogger logger, Func<ScriptRunner> runn
     /// <summary>True once Cancel was accepted and until the run ends.</summary>
     public bool IsCancelling { get; private set; }
 
-    /// <summary>Confirms (when the script asks for it), expands the macros
-    /// and runs <paramref name="script"/> with the session selected at the
-    /// click (FR-55.3). Returns when the run has ended or did not start.
-    /// Failures of the macro expansion and of the run are reported through
-    /// <paramref name="callbacks"/>; an exception thrown by a callback itself
-    /// or by the confirmation dialog propagates to the caller.</summary>
+    /// <summary>Raised on the UI thread when <see cref="IsRunning"/> or
+    /// <see cref="IsCancelling"/> changes, so every tab can refresh its
+    /// buttons (FR-56.6).</summary>
+    public event EventHandler? RunningChanged;
+
+    /// <summary>Confirms (when the script asks for it) and expands the macros
+    /// of <paramref name="script"/> with the session selected at the click
+    /// (FR-55.3). Returns null when the user declined the confirmation (nothing
+    /// to show); otherwise a preparation that is ready, or that carries why the
+    /// run cannot start. An exception thrown by the confirmation dialog
+    /// propagates to the caller.</summary>
+    public ScriptRunPreparation? Prepare(Window? owner, ScriptDefinition script, SessionSummaryRow? session)
+    {
+        if (script.Confirm
+            && !GenericMessageDialog.ShowConfirm(owner, logger, "Run script", DescribeConfirmation(script, session), "Run"))
+            return null;
+
+        // After the @confirm check (FR-55.7); the script is the one passed to the runner.
+        // An unexpected failure of a reader or of the dialog is reported as the reason the run cannot start, not left
+        // to the global handler. The messages of these exceptions never carry a macro value.
+        try
+        {
+            return ExpandMacros(owner, script, session);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Script '{Script}': the macro expansion failed unexpectedly", script.Name);
+            return new ScriptRunPreparation(script, null, $"Macro error: {ex.Message}", true);
+        }
+    }
+
+    /// <summary>Prepares <paramref name="script"/> (<see cref="Prepare"/>) and
+    /// runs it. Returns when the run has ended or did not start; a run that
+    /// cannot start is reported through
+    /// <see cref="ScriptRunCallbacks.NotStarted"/>. An exception thrown by a
+    /// callback itself or by the confirmation dialog propagates to the caller.</summary>
     public async Task RunAsync(Window? owner, ScriptDefinition script, SessionSummaryRow? session, ScriptRunCallbacks callbacks)
     {
         if (IsRunning)
             return;
 
-        if (script.Confirm
-            && !GenericMessageDialog.ShowConfirm(owner, logger, "Run script", DescribeConfirmation(script, session), "Run"))
+        var preparation = Prepare(owner, script, session);
+        if (preparation is null)
             return;
 
-        // After the @confirm check (FR-55.7); the script is the one passed to the runner.
-        // An unexpected failure of a reader or of the dialog is shown in the status line, not left
-        // to the global handler. The messages of these exceptions never carry a macro value.
-        ScriptMacroExpansion? expansion;
-        try
+        if (!preparation.IsReady)
         {
-            if (!TryExpandMacros(owner, script, session, callbacks, out expansion))
-                return;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Script '{Script}': the macro expansion failed unexpectedly", script.Name);
-            callbacks.NotStarted($"Macro error: {ex.Message}", true);
+            callbacks.NotStarted(preparation.FailureMessage, preparation.FailureIsError);
             return;
         }
 
+        await RunPreparedAsync(preparation, callbacks);
+    }
+
+    /// <summary>Runs a ready preparation (FR-51): the callbacks receive the
+    /// start, the output, the elapsed-time status and the outcome. Returns when
+    /// the run has ended. Does nothing when a script already runs.</summary>
+    public async Task RunPreparedAsync(ScriptRunPreparation preparation, ScriptRunCallbacks callbacks)
+    {
+        if (!preparation.IsReady)
+            throw new InvalidOperationException("The run cannot start: " + preparation.FailureMessage);
+        if (IsRunning)
+        {
+            callbacks.NotStarted("Another script is already running.", true);
+            return;
+        }
+
+        var script = preparation.Script;
         IsRunning = true;
         _callbacks = callbacks;
         _runSource = new CancellationTokenSource();
@@ -94,10 +146,11 @@ public sealed class ScriptRunCoordinator(ILogger logger, Func<ScriptRunner> runn
         // value would block every Run.
         try
         {
+            RunningChanged?.Invoke(this, EventArgs.Empty);
             callbacks.Starting();
             StartTicker(script, callbacks);
             var result = await runnerFactory().RunAsync(
-                script, line => dispatcher.BeginInvoke(() => callbacks.Output(line)), _runSource.Token, expansion);
+                script, line => dispatcher.BeginInvoke(() => callbacks.Output(line)), _runSource.Token, preparation.Expansion);
             // Before the outcome: a tick must not overwrite it.
             StopTicker();
             callbacks.Status(DescribeOutcome(result), result.Outcome != ScriptRunOutcome.Completed || result.ExitCode != 0);
@@ -116,7 +169,14 @@ public sealed class ScriptRunCoordinator(ILogger logger, Func<ScriptRunner> runn
             _callbacks = null;
             IsRunning = false;
             IsCancelling = false;
-            callbacks.Finished();
+            try
+            {
+                callbacks.Finished();
+            }
+            finally
+            {
+                RunningChanged?.Invoke(this, EventArgs.Empty);
+            }
         }
     }
 
@@ -202,6 +262,8 @@ public sealed class ScriptRunCoordinator(ILogger logger, Func<ScriptRunner> runn
                 // The run ended on its own in the meantime.
             }
         });
+        // Last: a failing handler must not leave a cancel half-done.
+        RunningChanged?.Invoke(this, EventArgs.Empty);
         return true;
     }
 
@@ -217,19 +279,14 @@ public sealed class ScriptRunCoordinator(ILogger logger, Func<ScriptRunner> runn
     }
 
     /// <summary>Expands the macros of the body of <paramref name="script"/>
-    /// (FR-55). Returns false when the run must not start — an unresolved
-    /// macro, or the secret dialog cancelled — after reporting why through
-    /// <see cref="ScriptRunCallbacks.NotStarted"/> (FR-55.6, FR-55.11).
-    /// <paramref name="expansion"/> stays null for a script without macros,
-    /// which is run as written.</summary>
-    private bool TryExpandMacros(
-        Window? owner, ScriptDefinition script, SessionSummaryRow? session, ScriptRunCallbacks callbacks,
-        out ScriptMacroExpansion? expansion)
+    /// (FR-55). A script without macros is ready as written (no expansion). A run
+    /// that must not start — an unresolved macro, or the secret dialog cancelled —
+    /// comes back with the reason (FR-55.6, FR-55.11).</summary>
+    private ScriptRunPreparation ExpandMacros(Window? owner, ScriptDefinition script, SessionSummaryRow? session)
     {
-        expansion = null;
         var macros = ScriptMacro.Find(script.Body);
         if (macros.Count == 0)
-            return true;
+            return new ScriptRunPreparation(script, null);
 
         IReadOnlyDictionary<string, string>? typedSecrets = null;
         var labels = ScriptMacro.SecretLabels(macros);
@@ -239,30 +296,20 @@ public sealed class ScriptRunCoordinator(ILogger logger, Func<ScriptRunner> runn
             // to type secrets for a run that cannot start anyway.
             var preCheck = ScriptMacroExpander.Expand(script.Body, BuildMacroSources(session, _ => "x"));
             if (!preCheck.IsSuccess)
-            {
-                ReportNotStarted(script, callbacks, "Macro error: " + string.Join("; ", preCheck.Errors), isError: true);
-                return false;
-            }
+                return NotRun(script, "Macro error: " + string.Join("; ", preCheck.Errors), isError: true);
 
             typedSecrets = SecretValuesDialog.Ask(owner, logger, labels);
             if (typedSecrets is null)
-            {
-                ReportNotStarted(script, callbacks, "Run cancelled: the secret values were not entered.", isError: false);
-                return false;
-            }
+                return NotRun(script, "Run cancelled: the secret values were not entered.", isError: false);
         }
 
         var result = ScriptMacroExpander.Expand(
             script.Body,
             BuildMacroSources(session, label_ => typedSecrets is not null && typedSecrets.TryGetValue(label_, out var value_) ? value_ : null));
         if (!result.IsSuccess)
-        {
-            ReportNotStarted(script, callbacks, "Macro error: " + string.Join("; ", result.Errors), isError: true);
-            return false;
-        }
+            return NotRun(script, "Macro error: " + string.Join("; ", result.Errors), isError: true);
 
-        expansion = result;
-        return true;
+        return new ScriptRunPreparation(script, result);
     }
 
     /// <summary>The macro value sources (FR-55): the Windows readers for
@@ -272,12 +319,12 @@ public sealed class ScriptRunCoordinator(ILogger logger, Func<ScriptRunner> runn
         new(WindowsMacroValueReader.ReadEnvironmentVariable, WindowsMacroValueReader.ReadRegistryValue,
             WindowsMacroValueReader.ReadCredentialPassword, secret, session);
 
-    /// <summary>Logs and reports why the run did not start. The message names
-    /// macros, never values.</summary>
-    private void ReportNotStarted(ScriptDefinition script, ScriptRunCallbacks callbacks, string message, bool isError)
+    /// <summary>Logs why the run cannot start and returns it as a preparation.
+    /// The message names macros, never values.</summary>
+    private ScriptRunPreparation NotRun(ScriptDefinition script, string message, bool isError)
     {
         logger.Log(isError ? LogLevel.Warning : LogLevel.Information, "Script '{Script}' not run: {Message}", script.Name, message);
-        callbacks.NotStarted(message, isError);
+        return new ScriptRunPreparation(script, null, message, isError);
     }
 
     /// <summary>The outcome of a run (FR-52.3); cancel and timeout state

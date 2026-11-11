@@ -6,7 +6,6 @@ using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Media3D;
@@ -28,8 +27,6 @@ namespace MutagenMon.App;
 /// </summary>
 public partial class ScriptsView : UserControl
 {
-    private const int MaxOutputLines = 5000;
-
     private ILogger _logger = null!;
     private Func<string> _scriptsPathProvider = null!;
     private ScriptRunCoordinator _runCoordinator = null!;
@@ -94,6 +91,8 @@ public partial class ScriptsView : UserControl
         _logger = logger;
         _scriptsPathProvider = scriptsPathProvider;
         _runCoordinator = runCoordinator;
+        // A run started from the Sync tab (FR-56.6) or ending there changes Run, Delete, the name box and Cancel.
+        _runCoordinator.RunningChanged += (_, _) => UpdateButtons();
     }
 
     private void OnViewLoaded(object sender, RoutedEventArgs e)
@@ -758,8 +757,8 @@ public partial class ScriptsView : UserControl
     private void OnCancelClick(object sender, RoutedEventArgs e)
     {
         _logger.LogInformation("User action: Scripts Cancel clicked");
-        if (_runCoordinator.Cancel())
-            UpdateButtons();
+        // Cancel raises RunningChanged, which refreshes the buttons.
+        _runCoordinator.Cancel();
     }
 
     /// <summary>Records the status in the cache and, when that script is the
@@ -778,13 +777,13 @@ public partial class ScriptsView : UserControl
         StatusText.Foreground = isError ? Brushes.Red : SystemColors.ControlTextBrush;
     }
 
-    /// <summary>Caches one line (last <see cref="MaxOutputLines"/> only,
+    /// <summary>Caches one line (last <see cref="ScriptOutputPane.MaxLines"/> only,
     /// FR-52.4) and shows it when that script is the one displayed. UI
     /// thread only.</summary>
     private void AppendOutput(ScriptRunView runView, ScriptOutputLine line)
     {
         runView.Lines.Enqueue(line);
-        while (runView.Lines.Count > MaxOutputLines)
+        while (runView.Lines.Count > ScriptOutputPane.MaxLines)
             runView.Lines.Dequeue();
 
         if (IsSelected(runView.ScriptName))
@@ -792,20 +791,8 @@ public partial class ScriptsView : UserControl
     }
 
     /// <summary>Adds one line to the pane, keeping only the last
-    /// <see cref="MaxOutputLines"/>. UI thread only.</summary>
-    private void AppendOutputParagraph(ScriptOutputLine line)
-    {
-        var paragraph = new Paragraph(new Run(line.Text)) { Margin = new Thickness(0) };
-        if (line.IsError)
-            paragraph.Foreground = Brushes.Red;
-
-        var blocks = OutputBox.Document.Blocks;
-        blocks.Add(paragraph);
-        while (blocks.Count > MaxOutputLines)
-            blocks.Remove(blocks.FirstBlock);
-
-        OutputBox.ScrollToEnd();
-    }
+    /// <see cref="ScriptOutputPane.MaxLines"/>. UI thread only.</summary>
+    private void AppendOutputParagraph(ScriptOutputLine line) => ScriptOutputPane.Append(OutputBox, line);
 }
 
 /// <summary>Unsaved edit of one script: its name box and its text.</summary>
