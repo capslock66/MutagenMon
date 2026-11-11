@@ -40,7 +40,9 @@ This folder documents the required behavior of MutagenMon.
    requirements and design for a "Scripts" tab that lists scripts defined in
    a separate ini-like file and runs the selected one on a remote Linux
    server over SSH (one connection per run, output shown in the tab).
-   Implemented (FR-47 through FR-54).
+   Implemented (FR-47 through FR-55). FR-56 (`@scriptSession` directive and
+   running such a script on the selected session from the Sync tab) is
+   planned.
 10. [UserTests.md](UserTests.md) — manual, click-by-click acceptance test
    script for verifying each requirement against the running application,
    kept in step with implementation progress.

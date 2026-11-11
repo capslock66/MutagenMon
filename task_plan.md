@@ -4,10 +4,10 @@
 A script tagged `# @scriptSession` appears in a combo on the Sync toolbar (right of Duplicate); the user picks one and runs it (button or F5) on the selected session, in a dialog showing the output and status. The Stop/Start button moves to the far right of the Sync toolbar.
 
 ## Next Step
-Phase 1 is done (analysis) and Q1 is answered. Wait for the user's go to start Phase 2.
+Phase 2 (docs) is done. Wait for the user's validation of the docs, then start Phase 3.
 
 ## Current Phase
-Phase 1 (done) — awaiting validation before Phase 2
+Phase 2 (done) — awaiting validation before Phase 3
 
 ## Phases
 
@@ -19,15 +19,15 @@ Phase 1 (done) — awaiting validation before Phase 2
 - **Status:** complete
 
 ### Phase 2: Requirements & user tests (docs first)
-- [ ] 2.1 `requirements/11-scripts-tab-requirements.md`, FR-48 directive table: add the `@scriptSession` row (flag, no value, default false)
-- [ ] 2.2 Same file: add FR-56 "Run a script on the selected session from the Sync tab" (combo content, Run button, F5, enabled rules, run dialog, single-run rule, refresh of the combo)
-- [ ] 2.3 Requirements for the Sync toolbar layout (find the Sync-tab/toolbar FR, FR-16) : Stop/Start button at the far right
-- [ ] 2.4 `requirements/UserTests.md`: add UT-56.x scenarios (tag parsing, combo content, disabled states, F5, dialog output/status, cancel, macro `{{session:…}}`, layout)
-- **Status:** pending
+- [x] 2.1 `requirements/11-scripts-tab-requirements.md`, FR-48 directive table: add the `@scriptSession` row: a boolean flag written without a value (`# @scriptSession`); the script is a "session script" (value true) when the line is present in it, and not one (value false) when it is absent. An explicit `: true` / `: false` is also accepted (D2)
+- [x] 2.2 Same file: add FR-56 "Run a script on the selected session from the Sync tab" (combo content, Run button, F5, enabled rules, run dialog, single-run rule, refresh of the combo)
+- [x] 2.3 Requirements for the Sync toolbar layout (find the Sync-tab/toolbar FR, FR-16) : Stop/Start button at the far right
+- [x] 2.4 `requirements/UserTests.md`: add UT-56.x scenarios (tag parsing, combo content, disabled states, F5, dialog output/status, cancel, macro `{{session:…}}`, layout)
+- **Status:** complete
 
 ### Phase 3: Core — parse the `@scriptSession` flag
 - [ ] 3.1 `ScriptDefinition`: add `bool IsSessionScript = false` (last optional parameter, so existing constructors keep compiling)
-- [ ] 3.2 `ScriptFileParser`: the current `DirectiveRegex` requires a colon, so `# @scriptSession` does not match. Add a dedicated flag regex (colon and value optional; key case-insensitive) and set the flag in `Build` (first occurrence wins, like the other directives)
+- [ ] 3.2 `ScriptFileParser` (an `@scriptSession` value other than `true`/`false` makes the script invalid, FR-48.5): the current `DirectiveRegex` requires a colon, so `# @scriptSession` does not match. Add a dedicated flag regex (colon and value optional; key case-insensitive) and set the flag in `Build` (first occurrence wins, like the other directives)
 - [ ] 3.3 Confirm `ScriptFileEditor` (move/delete/add/rename) preserves the line untouched (it treats the body as opaque text); add no code unless a test shows otherwise
 - [ ] 3.4 Tests in `ScriptFileParserTests`: tag alone, tag with `: true` / `: false` (decision D2), tag absent, tag inside an otherwise invalid script, mixed case, tag after a non-directive line, duplicate tag
 - [ ] 3.5 Build and run `MutagenMon.Core` / `MutagenMon.Core.Tests` (per project, `-m:1`)

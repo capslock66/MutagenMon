@@ -1897,6 +1897,86 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
 * Type a value with `'` and `$(id)`: raw insertion interprets it according to
   where the macro is written; `{{secret:Label|quote}}` inserts it literally.
 
+## FR-56 — `@scriptSession` scripts run from the Sync tab
+
+Specified in [11-scripts-tab-requirements.md](11-scripts-tab-requirements.md)
+FR-56. Same prerequisites as the Scripts tab tests above (reachable SSH
+server, alias `robbie`). In `config/scripts.ini`, prepare three scripts on
+`robbie`: `sess-a` with the line `# @scriptSession` and
+`echo "session=[{{session:name}}]"`; `sess-b` with `# @scriptSession: true`,
+`# @confirm: true` and `echo "b"; echo "err" >&2; exit 3`; `plain` without the
+flag and with `echo "plain"`.
+
+**UT-56.1 — The `@scriptSession` flag (FR-48.5)** ⏳
+
+* In the Scripts tab, `sess-a` (flag without a value) and `sess-b` are listed
+  like any other script and run normally; the flag changes nothing there.
+* Edit `sess-b` to `# @scriptSession: false`, Save: it is no longer offered
+  in the Sync combo (UT-56.2). Edit it to `# @scriptSession: maybe`, Save: the
+  script is shown as invalid with a reason naming `@scriptSession`. Restore
+  `# @scriptSession`.
+* Write `# @ScriptSession` (other case): same as the lower-camel form.
+
+**UT-56.2 — Toolbar layout and script combo (FR-56.1, FR-56.2)** ⏳
+
+* Open the Sync tab. Left to right: **Add**, **Duplicate**, a combo, a green
+  ▶ **Run** button; at the right edge, **Resolve conflicts** then, as the
+  last control, **Stop Mutagen sessions**. Click the toggle: it reads
+  "Start Mutagen sessions" and still works as before.
+* Open the combo: it lists `sess-a` and `sess-b` (file order), not `plain`.
+* Select `sess-b`. In the Scripts tab, add the line `# @scriptSession` to
+  `plain` and Save, then return to the Sync tab: `plain` is now listed and
+  `sess-b` is still selected. Rename `sess-b` to `sess-c` and Save: the combo
+  shows `sess-c` in the list and nothing is selected.
+* Rename the scripts file in the configuration (or make it unreadable) and
+  reload the configuration: the combo is empty and disabled, no error popup.
+
+**UT-56.3 — Run enabled rules and F5 (FR-56.3)** ⏳
+
+* With no session selected in the grid: **Run** is disabled and **F5** does
+  nothing, whatever the combo holds.
+* Select a session, with no script selected in the combo: Run disabled, F5
+  does nothing. Select a script: Run enabled; hovering shows "Run (F5)".
+* Deselect the session (Ctrl+click): Run is disabled again.
+* With a session and a script selected, press **F5**: same as clicking Run
+  (the dialog of UT-56.4 opens). On the Scripts tab F5 still runs the selected
+  script of that tab; on the configuration tabs and "Logs" it does nothing.
+
+**UT-56.4 — Run dialog: output and status (FR-56.4, FR-56.5)** ⏳
+
+* Select session `S` and script `sess-a`, click Run: a dialog opens titled
+  with `sess-a` and `S`; the output shows `session=[S]` and the status line
+  ends with `Exit code 0 (x.xs)`. **Close** is disabled while it runs and
+  enabled at the end; the title bar ✕ and **Esc** do nothing while it runs.
+* Select `sess-b`, click Run: the confirmation names the script and the host
+  (and `Selected session: S` only if the script uses a `session` macro); Cancel
+  it: no dialog. Run again and confirm: the output shows `b` and `err` (red),
+  the status line is red and reads `Exit code 3 (x.xs)`.
+* Run a long script (`sleep 60`), click **Cancel** in the dialog: the status
+  shows "Cancelling...", then "Cancelled after x.xs" with the note that
+  processes already detached on the server keep running; Close is enabled.
+* Add `echo "{{env:UNDEFINED_VAR_XYZ}}"` to a flagged script and run it: the
+  dialog opens with an
+  empty pane and `Macro error:` in red, Close enabled, no ssh started. With a
+  `{{secret:…}}` macro, cancel the secret dialog: the dialog shows that the
+  run was cancelled.
+* Close the dialog, run the same script again: the pane starts empty.
+
+**UT-56.5 — One run at a time (FR-56.6)** ⏳
+
+* Start a long script (`sleep 60`) from the Scripts tab, then go to the Sync
+  tab: **Run** is disabled (and F5 does nothing). When the Scripts tab run
+  ends, Run is enabled again.
+* Start a long script from the Sync tab dialog: the status window is blocked
+  by the modal dialog; after Cancel and Close, the Run buttons of both tabs
+  are enabled again.
+
+**UT-56.6 — Logging (FR-56.7)** ⏳
+
+* After UT-56.4, open the Logs tab: the user action and the outcome of each
+  run (script name, host, exit code, duration) are logged; the script output
+  and the expanded text (`session=[S]`) appear nowhere in the log.
+
 ## Appendix — known, accepted gaps (do not report as bugs)
 
 These are documented, intentional limitations of the current phase, not

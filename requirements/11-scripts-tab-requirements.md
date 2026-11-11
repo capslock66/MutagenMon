@@ -6,7 +6,9 @@ server over SSH, and shows its output.
 
 **Status: implemented.** Continues the FR numbering from
 [10-logs-tab-requirements.md](10-logs-tab-requirements.md)'s FR-46, as FR-47
-through FR-55 (FR-55 is the macros feature).
+through FR-55 (FR-55 is the macros feature). FR-56 (**planned, not yet
+implemented**) adds the `@scriptSession` directive (FR-48.5) and the
+"run a script on the selected session" action of the Sync tab.
 
 Motivating use case: from the Windows machine, start a detached `tmux`
 session on a Linux server that runs `claude --remote-control`, so the Claude
@@ -93,8 +95,11 @@ The scripts live in a separate ini-like text file (path: `ScriptsFile`, see
   | `@description` | free text | empty | Shown under the name in the list. |
   | `@stop-on-error` | `true` / `false` | `true` | Whether `set -e` is prepended (FR-51.2). |
   | `@confirm` | `true` / `false` | `false` | Ask for confirmation before running (FR-53.1). |
+  | `@scriptSession` | flag, written **without a value** (`# @scriptSession`) | absent = `false` | Marks the script as a **session script** (FR-56): when the line is present in the script its value is `true`, when it is absent the value is `false`. An explicit `# @scriptSession: true` or `# @scriptSession: false` is also accepted, `false` meaning "not a session script"; any other value makes the script invalid (FR-49.2). The flag has no effect on the Scripts tab (the script is listed and run there like any other). |
   | `@group` | free text (case-sensitive) | empty | Group of the script. The list is a tree, one level: collapsed group nodes (shown as "name (count)", in order of first appearance in the file), then the scripts without a group at the top level. A click on a group name opens/closes it; the expanded groups are kept across a reload. ▲/▼ move a script within its group, or a whole group past the neighbouring group (its scripts become contiguous in the file); at either end they do nothing. |
 
+  A directive line is `# @key: value`, except `@scriptSession`, whose colon
+  and value are optional (the whole line `# @scriptSession` is enough).
   Directive keys are case-insensitive; when a key appears several times,
   the first occurrence wins. A `@stop-on-error` or `@confirm` value that is
   neither `true` nor `false` (case-insensitive) makes the script invalid
@@ -385,6 +390,71 @@ scripts file.
   closing the dialog) cancels the run: it does not start and the status line
   says it was cancelled. An empty value is unresolved (FR-55.6). A script
   without a `secret` macro shows no dialog.
+
+## FR-56 — Run a script on the selected session from the Sync tab
+
+*Planned, not yet implemented.* A script carrying the `@scriptSession` flag
+(FR-48.5) is meant to act on a Mutagen session. The Sync tab lets the user
+pick such a script and run it on the session selected in the sessions grid,
+without going through the Scripts tab.
+
+- FR-56.1: **Toolbar.** The Sync tab toolbar (FR-16) is laid out, from left
+  to right, as: **Add**, **Duplicate**, the **script combo** (FR-56.2), the
+  **Run** button (FR-56.3), then, aligned to the right edge,
+  **Resolve conflicts** and, as the rightmost control, the
+  **Stop Mutagen sessions** / **Start Mutagen sessions** toggle (FR-7.2).
+  The toggle's label, behaviour and disabled-while-reloading state are
+  unchanged: only its position changes, from "immediately right of Add"
+  (FR-16.5) to the far right of the toolbar.
+- FR-56.2: **Script combo.** It lists the **valid** scripts (FR-49.2) whose
+  `@scriptSession` value is `true`, in file order, shown by name. Scripts
+  without the flag, with `: false`, or invalid are not listed. It reads the
+  scripts file as saved on disk (the unsaved edits of the Scripts tab are not
+  used). The list is rebuilt when the status window is shown, when the
+  configuration is reloaded, and whenever the Scripts tab saves, reloads,
+  adds, deletes or moves a script; the selected script stays selected when
+  its name is still in the list, otherwise nothing is selected. When the file
+  is missing or unreadable, or no script is flagged, the combo is empty and
+  disabled and no error is shown (FR-49.2 already reports it in the Scripts
+  tab). The choice is kept in memory only.
+- FR-56.3: **Run button and F5.** The button sits right of the combo, with
+  the same green ▶ icon as the Scripts tab Run button (FR-47.2) and the
+  tooltip "Run (F5)". **Run is enabled only when all of the following hold**:
+  a session is selected in the sessions grid, a script is selected in the
+  combo, and no script is running (FR-56.6). Otherwise it is disabled,
+  and so is its shortcut: **F5** on the Sync tab does exactly what a click
+  on Run does, and does nothing when Run is disabled. F5 keeps its behaviour
+  on the Scripts tab (FR-47.2) and does nothing on the other tabs.
+- FR-56.4: **Starting a run.** The session is read once, at the click
+  (or key press), like FR-55.3; it is the session the `{{session:…}}`
+  macros of the script resolve to. The script is the one parsed from the
+  file (FR-48). Then, exactly as on the Scripts tab: the `@confirm`
+  confirmation if the script asks for it (FR-53.1, with the
+  `Selected session:` line of FR-55.7 when the script uses a `session`
+  macro), the macro expansion (FR-55, including the secret dialog), and
+  `ScriptRunner` (FR-50, FR-51.2 to FR-51.5). The script runs even when
+  it contains no `session` macro.
+- FR-56.5: **Run dialog.** The run is shown in a modal dialog owned by the
+  status window, titled with the script name and the session name. It
+  contains the read-only **output pane** (FR-52.1, FR-52.2, FR-52.4 cap and
+  clearing; stderr in red), the **status line** (FR-52.3, error shown in
+  red), a **Cancel** button (FR-51.4, enabled only while the script runs)
+  and a **Close** button (enabled only once the run has ended). The run
+  starts as soon as the dialog opens. The dialog cannot be closed (button,
+  title bar, Esc) while the script runs: the user clicks Cancel first and
+  closes it when the status line shows the outcome. If the run does not
+  start because of a macro error or a cancelled secret dialog (FR-55.6,
+  FR-55.11), the dialog still opens, with an empty pane and that message in
+  the status line, and Close is enabled. The output of a session run is
+  not kept after the dialog closes (no per-script cache, unlike FR-52.4).
+- FR-56.6: **One run at a time.** The rule of FR-51.1 spans both tabs: Run is
+  disabled on the Sync tab while a script started from the Scripts tab runs,
+  and the Scripts tab Run is disabled while the dialog's script runs.
+- FR-56.7: **Logging and safety.** FR-54 applies unchanged (the user action
+  and the outcome are logged; the script output and the expanded text are
+  never logged or shown outside the dialog's pane, FR-54.2, FR-54.3), as do
+  FR-53 and the masking of FR-55.8. The run shares no state with polling or
+  the tray icon (NFR-1).
 
 ## Implementation
 
