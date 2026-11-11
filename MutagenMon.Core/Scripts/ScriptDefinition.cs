@@ -7,6 +7,9 @@ namespace MutagenMon.Core.Scripts;
 /// A non-null <see cref="ValidationError"/> means the script is listed but
 /// cannot be run (FR-49.2). <see cref="Group"/> is the `@group` directive
 /// (FR-48.5), empty when the script belongs to no group.
+/// <see cref="IsSessionScript"/> is the value of the `@scriptSession` flag
+/// (FR-48.5, FR-56): true when the script carries it, so the Sync tab offers
+/// it for the selected session.
 /// </summary>
 public sealed record ScriptDefinition(
     string Name,
@@ -16,7 +19,8 @@ public sealed record ScriptDefinition(
     bool Confirm,
     string Body,
     string? ValidationError,
-    string Group = "")
+    string Group = "",
+    bool IsSessionScript = false)
 {
     public bool IsValid => ValidationError is null;
 }

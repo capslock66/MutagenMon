@@ -4,10 +4,10 @@
 A script tagged `# @scriptSession` appears in a combo on the Sync toolbar (right of Duplicate); the user picks one and runs it (button or F5) on the selected session, in a dialog showing the output and status. The Stop/Start button moves to the far right of the Sync toolbar.
 
 ## Next Step
-Phase 2 (docs) is done. Wait for the user's validation of the docs, then start Phase 3.
+Phase 3 (core parsing) is done. Wait for the user's go to start Phase 4.
 
 ## Current Phase
-Phase 2 (done) — awaiting validation before Phase 3
+Phase 3 (done) — awaiting go before Phase 4
 
 ## Phases
 
@@ -26,12 +26,12 @@ Phase 2 (done) — awaiting validation before Phase 3
 - **Status:** complete
 
 ### Phase 3: Core — parse the `@scriptSession` flag
-- [ ] 3.1 `ScriptDefinition`: add `bool IsSessionScript = false` (last optional parameter, so existing constructors keep compiling)
-- [ ] 3.2 `ScriptFileParser` (an `@scriptSession` value other than `true`/`false` makes the script invalid, FR-48.5): the current `DirectiveRegex` requires a colon, so `# @scriptSession` does not match. Add a dedicated flag regex (colon and value optional; key case-insensitive) and set the flag in `Build` (first occurrence wins, like the other directives)
-- [ ] 3.3 Confirm `ScriptFileEditor` (move/delete/add/rename) preserves the line untouched (it treats the body as opaque text); add no code unless a test shows otherwise
-- [ ] 3.4 Tests in `ScriptFileParserTests`: tag alone, tag with `: true` / `: false` (decision D2), tag absent, tag inside an otherwise invalid script, mixed case, tag after a non-directive line, duplicate tag
-- [ ] 3.5 Build and run `MutagenMon.Core` / `MutagenMon.Core.Tests` (per project, `-m:1`)
-- **Status:** pending
+- [x] 3.1 `ScriptDefinition`: add `bool IsSessionScript = false` (last optional parameter, so existing constructors keep compiling)
+- [x] 3.2 `ScriptFileParser` (an `@scriptSession` value other than `true`/`false` makes the script invalid, FR-48.5): the current `DirectiveRegex` requires a colon, so `# @scriptSession` does not match. Add a dedicated flag regex (colon and value optional; key case-insensitive) and set the flag in `Build` (first occurrence wins, like the other directives)
+- [x] 3.3 Confirm `ScriptFileEditor` (move/delete/add/rename) preserves the line untouched (it treats the body as opaque text); add no code unless a test shows otherwise
+- [x] 3.4 Tests in `ScriptFileParserTests`: tag alone, tag with `: true` / `: false` (decision D2), tag absent, tag inside an otherwise invalid script, mixed case, tag after a non-directive line, duplicate tag
+- [x] 3.5 Build and run `MutagenMon.Core` / `MutagenMon.Core.Tests` (per project, `-m:1`)
+- **Status:** complete
 
 ### Phase 4: Shared run logic (refactor, no behaviour change)
 - [ ] 4.1 Extract from `ScriptsView` into a reusable App-level class (e.g. `ScriptRunCoordinator`): `DescribeConfirmation`, macro expansion (`TryExpandMacros`, `BuildMacroSources`, secrets dialog), `DescribeOutcome`, run + cancel via `ScriptRunner`

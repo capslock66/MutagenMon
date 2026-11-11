@@ -22,6 +22,12 @@ public static partial class ScriptFileParser
     [GeneratedRegex(@"^#\s*@([A-Za-z\-]+)\s*:\s*(.*)$")]
     private static partial Regex DirectiveRegex();
 
+    // Matches the `@scriptSession` flag, whose colon and value are optional: "# @scriptSession" or
+    // "# @scriptSession: true". The key is case-insensitive. Group 1 = the value, present only when a
+    // colon is written (may be empty) — access via match.Groups[1].
+    [GeneratedRegex(@"^#\s*@scriptSession\s*(?::\s*(.*))?$", RegexOptions.IgnoreCase)]
+    private static partial Regex SessionFlagRegex();
+
     /// <summary>True when <paramref name="line"/> is a section header
     /// (FR-48.1); shared with <see cref="ScriptFileEditor"/> so "which line
     /// is a header" is decided in exactly one place.</summary>
@@ -72,11 +78,29 @@ public static partial class ScriptFileParser
         var stopOnError = true;
         var confirm = false;
         var group = "";
+        var isSessionScript = false;
         var errors = new List<string>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var line in bodyLines)
         {
+            var flag = SessionFlagRegex().Match(line.Trim());
+            if (flag.Success)
+            {
+                // First occurrence wins, like the other directives. No value, or an empty one, means true.
+                if (!seen.Add("scriptsession"))
+                    continue;
+
+                var flagValue = flag.Groups[1].Success ? flag.Groups[1].Value.Trim() : "";
+                if (flagValue.Length == 0)
+                    isSessionScript = true;
+                else if (TryParseBool(flagValue, out var isSession))
+                    isSessionScript = isSession;
+                else
+                    errors.Add($"@scriptSession must be 'true' or 'false' (got '{flagValue}')");
+                continue;
+            }
+
             var match = DirectiveRegex().Match(line.Trim());
             if (!match.Success)
                 continue;
@@ -118,7 +142,7 @@ public static partial class ScriptFileParser
             errors.Add($"duplicate script name '{name}'");
 
         var validationError = errors.Count == 0 ? null : string.Join("; ", errors);
-        return new ScriptDefinition(name, host, description, stopOnError, confirm, body, validationError, group);
+        return new ScriptDefinition(name, host, description, stopOnError, confirm, body, validationError, group, isSessionScript);
     }
 
     /// <summary>The `@group` directive of a section's lines (first

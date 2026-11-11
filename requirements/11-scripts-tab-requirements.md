@@ -99,7 +99,11 @@ The scripts live in a separate ini-like text file (path: `ScriptsFile`, see
   | `@group` | free text (case-sensitive) | empty | Group of the script. The list is a tree, one level: collapsed group nodes (shown as "name (count)", in order of first appearance in the file), then the scripts without a group at the top level. A click on a group name opens/closes it; the expanded groups are kept across a reload. ▲/▼ move a script within its group, or a whole group past the neighbouring group (its scripts become contiguous in the file); at either end they do nothing. |
 
   A directive line is `# @key: value`, except `@scriptSession`, whose colon
-  and value are optional (the whole line `# @scriptSession` is enough).
+  and value are optional (the whole line `# @scriptSession` is enough; an
+  empty value after the colon, `# @scriptSession:`, also means `true`). Any
+  other text after the key without a colon (`# @scriptSession true`) is not
+  a directive: the line is a plain comment and the script is not a session
+  script.
   Directive keys are case-insensitive; when a key appears several times,
   the first occurrence wins. A `@stop-on-error` or `@confirm` value that is
   neither `true` nor `false` (case-insensitive) makes the script invalid

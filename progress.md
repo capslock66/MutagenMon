@@ -12,3 +12,10 @@
 - `requirements/README.md`: FR-56 listed as planned.
 - `requirements/UserTests.md`: UT-56.1 to UT-56.6 (marked pending).
 - Docs only: no code review required. Waiting for the user's validation before Phase 3.
+
+## Phase 3 (core parsing)
+- `ScriptDefinition.IsSessionScript` (last optional parameter); `ScriptFileParser`: dedicated `SessionFlagRegex` checked before the generic directive regex; first occurrence wins; value other than true/false makes the script invalid.
+- `ScriptFileEditor` needed no change: two tests added (move and rename keep the `# @scriptSession` line).
+- Tests: 17 new cases in `ScriptFileParserTests`, 2 in `ScriptFileEditorTests`. Core test suite: 475 passed, 4 skipped (Windows-only), 0 failed.
+- Review loop: 1 iteration, no blocking or important finding. Minor: `# @scriptSession true` (no colon) is a plain comment and `# @scriptSession:` means true; both now documented in FR-48.5.
+- Not committed.
