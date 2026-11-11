@@ -1587,7 +1587,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   echo "to stderr" >&2
   ```
 * Click **Run**. While it runs, Cancel is enabled and the status line shows
-  "Running 'shell-state' on robbie...".
+  "Running 'shell-state' on robbie, N seconds" (see UT-52.2).
 * The output pane shows `/tmp`, `X=42` and, in red, `to stderr`. The
   status line ends with "Exit code 0 (N.Ns)" in the normal text colour.
   The tray icon and the Sync tab keep refreshing during the run.
@@ -1611,6 +1611,29 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   line shows "Timed out after 5.0s. ..." in red. The Logs tab has a
   Warning line "Script 'sleeper' on robbie ended: TimedOut ...".
 
+**UT-51.2b — Cancel only on the running script (FR-47.2)** ✅
+
+* Set `sleeper` to `sleep 120` and the script timeout back to its default
+  (UT-51.3). Run `sleeper`. While it runs, select another script in the
+  tree: **Run** and **Cancel** are both disabled, and the output pane and
+  status line show that other script's own last run (blank if none).
+* Select a group: Cancel is disabled. Select `sleeper` again: Cancel is
+  enabled, the status line shows "Running 'sleeper' on robbie, N seconds" and the output
+  so far. Click Cancel: "Cancelling..." appears at once and Cancel is
+  disabled; select another script and come back before the run ends: Cancel
+  stays disabled, then the status line shows "Cancelled after ...".
+* Edit `sleeper` to `sleep 20`, run it, select another script and wait until
+  it ends on its own: Cancel stays disabled (also after selecting `sleeper`
+  again) and Run is enabled again.
+* Run `sleeper` (`sleep 120`), then in an external editor (the file link)
+  rename its section to `sleeper2`, save, and click **Reload** (confirm if
+  asked): Cancel stays enabled whatever is selected. Click it: Cancel is
+  disabled at once and Run is enabled again when the run ends. No status line
+  shows the old run any more (its script is no longer in the list); the Logs
+  tab has the line for the run ended as cancelled.
+* (After FR-56 is implemented) a run started from the Sync tab never enables
+  the Scripts tab **Cancel**: see UT-56.5.
+
 **UT-51.3 — Script timeout setting (FR-51.4, config `ScriptTimeoutSeconds`)** ✅
 
 * Open "Mutagen monitor Configuration" > "General". A field "Script timeout
@@ -1628,6 +1651,24 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   shows its own last output and status line, restored when you come back.
 * Start `sleeper`, switch to another script while it runs, and switch back
   after a few seconds: the pane shows the output accumulated meanwhile.
+
+**UT-52.2 — Elapsed time in the status line and in the title (FR-52.6)** ✅
+
+* Script `sleeper` (`# @host: robbie`, `sleep 20`). Click **Run**. The
+  status line shows "Running 'sleeper' on robbie, 0 seconds", then 1 second,
+  2 seconds, ... changing every second. The title of the window reads
+  `MutagenMon <version>  -  Running 'sleeper' on robbie, N seconds` with the
+  same N.
+* Switch to the "Sync", "Logs" and configuration tabs while it runs: the
+  title keeps counting. Select another script on the Scripts tab: its own
+  status line is unchanged, the title keeps counting. Come back to
+  `sleeper`: its status line shows the current N.
+* Click **Cancel**: the status line shows "Cancelling..." (no more counter)
+  while the title still counts until the status line shows "Cancelled after
+  ...". At the end of the run (exit, cancel, timeout) the title is back to
+  `MutagenMon <version>` and the status line shows the outcome, not a counter.
+* Run a script that fails to start (bad `SshPath`) or has a macro error: the
+  title never changes.
 
 **UT-53.1 — Confirmation before running (FR-53.1)** ✅
 

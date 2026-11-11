@@ -29,7 +29,13 @@ execution is fully asynchronous and shares no state with them (NFR-1).
   file and opens it in the OS default editor. The toolbar has, in this
   order, **Reload** (FR-49.1), **Add** and **Delete** (FR-47.6), **Save**
   (FR-47.5), **Run** (green ▶, also bound to **F5** while the Scripts tab is
-  selected) and **Cancel** (enabled only while a script is running).
+  selected) and **Cancel** (enabled only while the script that is running is
+  the one displayed: while a script runs, selecting another script or a group
+  leaves Cancel disabled, and selecting the running script enables it again;
+  it is also disabled when the running script was not started from this tab,
+  FR-56.6, and once the cancellation was requested. Exception: when the
+  running script is no longer in the list — renamed or removed in the file
+  and reloaded — Cancel stays enabled, so the run can always be stopped).
 - FR-47.3: Layout: the script tree on the left, with ▲/▼ buttons under it
   (FR-48.5); on the right, a **Name** box and the selected script's text
   (both editable, FR-47.4) above the output pane (FR-52) and the status line
@@ -198,8 +204,8 @@ tmux has-session -t appman-rc 2>/dev/null || tmux new -d -s appman-rc "$CCD --re
 - FR-52.2: Output is produced on background threads; every UI update is
   marshaled to the UI thread (same constraint as FR-40.3).
 - FR-52.3: The outcome of the run is shown in the status line under the
-  pane (not in the streamed output): "Running '<name>' on <host>..." while
-  running, then "Exit code N (x.xs)", "Cancelled after x.xs" or "Timed out
+  pane (not in the streamed output): "Running '<name>' on <host>, N seconds"
+  while running (refreshed every second, FR-52.6), then "Exit code N (x.xs)", "Cancelled after x.xs" or "Timed out
   after x.xs" (the last two add that processes already detached on the
   server keep running, FR-51.5), or "Failed to start ssh: <error>". A
   non-zero exit code, cancellation, timeout or failure is shown as an
@@ -213,6 +219,21 @@ tmux has-session -t appman-rc 2>/dev/null || tmux new -d -s appman-rc "$CCD --re
 - FR-52.5: There is no embedded terminal. Observing a long-lived session
   (e.g. the tmux session started by the script) is done outside the
   application, or by a script that prints it (`tmux capture-pane -p -t <name>`).
+- FR-52.6: **Elapsed time.** While a script runs, the running text of
+  FR-52.3 ("Running '<name>' on <host>, N seconds", "1 second" for one) is
+  updated every second in the status line, from "0 seconds" at the start;
+  it stops when the run ends and is replaced by the outcome. The same text
+  is appended to the title of the status window, after the application name
+  and version (`MutagenMon <version>  -  Running '<name>' on <host>, N
+  seconds`), so it is visible from any tab; the title returns to
+  `MutagenMon <version>` when the run ends, whatever the outcome (also when
+  it did not start). After a cancel request the status line keeps
+  "Cancelling..." (FR-51.4) while the title keeps counting until ssh has
+  exited. The counter shows the real elapsed time (read from a clock, not
+  counted from refreshes): it never repeats a value or drifts; if the UI
+  is busy for over a second the refresh is delayed and the next value is the
+  exact elapsed time. It applies to every run, whichever tab
+  started it (FR-56).
 
 ## FR-53 — Safety
 

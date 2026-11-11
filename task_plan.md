@@ -4,10 +4,10 @@
 A script tagged `# @scriptSession` appears in a combo on the Sync toolbar (right of Duplicate); the user picks one and runs it (button or F5) on the selected session, in a dialog showing the output and status. The Stop/Start button moves to the far right of the Sync toolbar.
 
 ## Next Step
-Phase 3 (core parsing) is done. Wait for the user's go to start Phase 4.
+Phase 4 (shared run logic) is done. Wait for the user's go to start Phase 5.
 
 ## Current Phase
-Phase 3 (done) — awaiting go before Phase 4
+Phase 4 (done) — awaiting go before Phase 5
 
 ## Phases
 
@@ -34,16 +34,17 @@ Phase 3 (done) — awaiting go before Phase 4
 - **Status:** complete
 
 ### Phase 4: Shared run logic (refactor, no behaviour change)
-- [ ] 4.1 Extract from `ScriptsView` into a reusable App-level class (e.g. `ScriptRunCoordinator`): `DescribeConfirmation`, macro expansion (`TryExpandMacros`, `BuildMacroSources`, secrets dialog), `DescribeOutcome`, run + cancel via `ScriptRunner`
-- [ ] 4.2 The coordinator reports through callbacks/events (status text + error flag, output line) so both the Scripts tab and the new dialog can display them
-- [ ] 4.3 Rewire `ScriptsView.OnRunClick` / `OnCancelClick` on the coordinator; behaviour of the Scripts tab must stay identical (FR-51 to FR-55)
-- [ ] 4.4 Build, run all existing tests, manually re-check UT-55.10 to UT-55.14 on the Scripts tab
-- **Status:** pending
+- [x] 4.1 Extract from `ScriptsView` into a reusable App-level class (e.g. `ScriptRunCoordinator`): `DescribeConfirmation`, macro expansion (`TryExpandMacros`, `BuildMacroSources`, secrets dialog), `DescribeOutcome`, run + cancel via `ScriptRunner`
+- [x] 4.2 The coordinator reports through callbacks/events (status text + error flag, output line) so both the Scripts tab and the new dialog can display them
+- [x] 4.3 Rewire `ScriptsView.OnRunClick` / `OnCancelClick` on the coordinator; behaviour of the Scripts tab must stay identical (FR-51 to FR-55)
+- [x] 4.4 Build, run all existing tests, manual re-check of UT-55.10 to UT-55.14 on the Scripts tab (done by the user on Windows: no regression)
+- **Status:** complete
 
 ### Phase 5: Run dialog
 - [ ] 5.1 New `ScriptRunWindow` (XAML + code-behind): title with the script name and the session, read-only output pane (red for stderr, last `MaxOutputLines` lines, auto-scroll), status line, Cancel button (enabled while running), Close button (disabled while running)
 - [ ] 5.2 The dialog starts the run on open through the coordinator (`@confirm` and macros handled before the dialog opens, same as the Scripts tab)
 - [ ] 5.3 Closing the dialog (X, Esc, Close) while running = ask to cancel, or block it (decision D4)
+- [ ] 5.5 `ScriptRunCoordinator`: add a `RunningChanged` event (raised when IsRunning/IsCancelling change) so every tab refreshes its buttons (FR-56.6); the Scripts tab Cancel must stay disabled while a run started from the Sync dialog is in progress (review of phase 4)
 - [ ] 5.4 Log the user actions like the other windows (`User action: ...`), never the script output or expanded text (FR-54)
 - **Status:** pending
 
@@ -82,6 +83,8 @@ Phase 3 (done) — awaiting go before Phase 4
 | D4 | Close is blocked while the script runs; the user must Cancel first (proposed) | Avoids an orphaned ssh process; same Cancel semantics as FR-51.5 |
 | D5 | Sync tab runs the saved version of the script (file on disk), not unsaved edits of the Scripts tab | The Sync tab has no editor; the Scripts tab Run auto-saves, the Sync tab does not touch the file |
 | D6 | Run logic extracted into a shared class rather than duplicated | CLAUDE.md memory: no duplicated logic; both entry points must behave identically |
+| D8 | After phase 4, the rename/delete blocking of the Scripts tab while any script runs stays as is | Safe; revisit only if it bothers in practice (review of phase 4) |
+| D9 | Cancel is offered only on the running script's own view (user decision after testing); fallback when that script left the list | A run must always stay cancellable (review of phase 4) |
 | D7 | The project works on `main` (no `claude/*` branch) | Repo memory: mutagenMon ignores the branch rules |
 
 ## Errors Encountered

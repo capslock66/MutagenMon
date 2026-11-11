@@ -32,7 +32,7 @@ public partial class ScriptsView : UserControl
 
     private ILogger _logger = null!;
     private Func<string> _scriptsPathProvider = null!;
-    private Func<ScriptRunner> _runnerFactory = null!;
+    private ScriptRunCoordinator _runCoordinator = null!;
     private Func<string?> _defaultHostProvider = null!;
     private Func<SessionSummaryRow?> _selectedSessionProvider = null!;
     /// <summary>Every script of the file, in file order (the tree shows them
@@ -49,16 +49,17 @@ public partial class ScriptsView : UserControl
     /// sink of a run in progress: its output keeps accumulating here while
     /// another script is displayed.</summary>
     private readonly Dictionary<string, ScriptRunView> _runViews = new();
-    private CancellationTokenSource? _runSource;
+    /// <summary>Name of the script running from this tab, or null when none is
+    /// (or the running one was started elsewhere, FR-56.6). Cancel is only
+    /// offered while this script is the displayed one (FR-47.2), or when it is
+    /// no longer in the list (renamed or removed in the file and reloaded: no
+    /// selection could reach it, and the run must stay cancellable).</summary>
+    private string? _runningScriptName;
     /// <summary>Unsaved edits (name and text) of scripts that are not the
     /// displayed one, by saved script name, so switching scripts does not
     /// lose them.</summary>
     private readonly Dictionary<string, ScriptDraft> _drafts = new();
     private bool _isLoaded;
-    private bool _isRunning;
-    private bool _isCancelling;
-    /// <summary>Cached view of the run in progress, so Cancel can update its status line.</summary>
-    private ScriptRunView? _runningView;
     private bool _isReloading;
     private bool _lastHasUnsavedChanges;
     private bool _suppressTextChanged;
@@ -76,22 +77,23 @@ public partial class ScriptsView : UserControl
 
     /// <param name="scriptsPathProvider">Resolves the scripts file path at
     /// call time, so a config reload is picked up.</param>
-    /// <param name="runnerFactory">Builds a runner from the current options
-    /// (the runner reads ssh path and timeout once, at construction).</param>
+    /// <param name="runCoordinator">Runs the scripts (confirmation, macros,
+    /// ssh, cancel); shared with the Sync tab so only one script runs at a
+    /// time (FR-51.1, FR-56.6).</param>
     /// <param name="defaultHostProvider">First host of the configured SSH
     /// servers, or null when there is none — used to prefill a new script.</param>
     /// <param name="selectedSessionProvider">The session selected in the Sync
     /// grid, or null when none is — read when Run is clicked, for the
     /// <c>{{session:…}}</c> macros (FR-55.3).</param>
     public void Initialize(
-        ILogger logger, Func<string> scriptsPathProvider, Func<ScriptRunner> runnerFactory, Func<string?> defaultHostProvider,
+        ILogger logger, Func<string> scriptsPathProvider, ScriptRunCoordinator runCoordinator, Func<string?> defaultHostProvider,
         Func<SessionSummaryRow?> selectedSessionProvider)
     {
         _defaultHostProvider = defaultHostProvider;
         _selectedSessionProvider = selectedSessionProvider;
         _logger = logger;
         _scriptsPathProvider = scriptsPathProvider;
-        _runnerFactory = runnerFactory;
+        _runCoordinator = runCoordinator;
     }
 
     private void OnViewLoaded(object sender, RoutedEventArgs e)
@@ -150,7 +152,7 @@ public partial class ScriptsView : UserControl
 
     private void OnDeleteClick(object sender, RoutedEventArgs e)
     {
-        if (_isRunning || SelectedScript is not { } item)
+        if (_runCoordinator.IsRunning || SelectedScript is not { } item)
             return;
 
         var name = item.Script.Name;
@@ -323,7 +325,7 @@ public partial class ScriptsView : UserControl
         if (_items.Any(other => other != item && other.Script.Name == newName))
             return $"A script named '{newName}' already exists.";
         // A run's output is filed under the script's name: renaming mid-run would orphan it.
-        if (_isRunning)
+        if (_runCoordinator.IsRunning)
             return "A script is running: it cannot be renamed until it ends.";
 
         return null;
@@ -387,7 +389,7 @@ public partial class ScriptsView : UserControl
         var edits = _drafts.Select(draft_ => new ScriptEdit(draft_.Key, draft_.Value.Text, draft_.Value.Name.Trim())).ToList();
         var path = _scriptsPathProvider();
         // A run's output is filed under the script's name: renaming mid-run would orphan it.
-        if (_isRunning && edits.Any(edit_ => edit_.NewName != edit_.ScriptName))
+        if (_runCoordinator.IsRunning && edits.Any(edit_ => edit_.NewName != edit_.ScriptName))
         {
             MessageBox.Show(
                 Window.GetWindow(this), "A script is running: scripts cannot be renamed until it ends.",
@@ -647,12 +649,12 @@ public partial class ScriptsView : UserControl
         SaveButton.IsEnabled = HasUnsavedChanges() && nameError is null;
         NameErrorText.Text = nameError ?? "";
         NameErrorText.Visibility = nameError is null ? Visibility.Collapsed : Visibility.Visible;
-        ScriptNameBox.IsReadOnly = selected is null || _isRunning;
-        DeleteButton.IsEnabled = !_isRunning && selected is not null;
+        ScriptNameBox.IsReadOnly = selected is null || _runCoordinator.IsRunning;
+        DeleteButton.IsEnabled = !_runCoordinator.IsRunning && selected is not null;
         MoveUpButton.IsEnabled = CanMoveSelectedNode(-1);
         MoveDownButton.IsEnabled = CanMoveSelectedNode(1);
         // An invalid name blocks Run too: Run saves first (FR-51.1) and the save refuses it.
-        RunButton.IsEnabled = !_isRunning && nameError is null && GetRunnableScript() is not null;
+        RunButton.IsEnabled = !_runCoordinator.IsRunning && nameError is null && GetRunnableScript() is not null;
 
         var hasUnsavedChanges = HasUnsavedChanges();
         if (hasUnsavedChanges != _lastHasUnsavedChanges)
@@ -660,7 +662,9 @@ public partial class ScriptsView : UserControl
             _lastHasUnsavedChanges = hasUnsavedChanges;
             HasUnsavedChangesChanged?.Invoke(this, hasUnsavedChanges);
         }
-        CancelButton.IsEnabled = _isRunning && !_isCancelling;
+        var isRunningScriptReachable = _runningScriptName is not null
+            && (IsSelected(_runningScriptName) || _items.All(item_ => item_.Script.Name != _runningScriptName));
+        CancelButton.IsEnabled = _runCoordinator.IsRunning && !_runCoordinator.IsCancelling && isRunningScriptReachable;
     }
 
     /// <summary>True when the selected script has a neighbour to swap with
@@ -696,7 +700,7 @@ public partial class ScriptsView : UserControl
 
     private async void OnRunClick(object sender, RoutedEventArgs e)
     {
-        if (_isRunning || GetRunnableScript() is not { } script)
+        if (_runCoordinator.IsRunning || GetRunnableScript() is not { } script)
             return;
 
         _logger.LogInformation("User action: Scripts Run clicked for '{Script}' (unsaved edits: {IsDirty})", script.Name, IsDirty());
@@ -718,129 +722,32 @@ public partial class ScriptsView : UserControl
 
         // Read once, now: the macros of this run all see the session selected at the click (FR-55.3).
         var session = _selectedSessionProvider();
-        if (script.Confirm
-            && !GenericMessageDialog.ShowConfirm(
-                Window.GetWindow(this), _logger, "Run script", DescribeConfirmation(script, session), "Run"))
-            return;
-
-        // After the @confirm check (FR-55.7); the script is the one passed to the runner (the edited draft, FR-51.1).
-        // An async void handler: an unexpected failure of a reader or of the dialog is shown in the status line,
-        // not left to the global handler. The messages of these exceptions never carry a macro value.
-        ScriptMacroExpansion? expansion;
-        try
-        {
-            if (!TryExpandMacros(script, session, out expansion))
-                return;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Script '{Script}': the macro expansion failed unexpectedly", script.Name);
-            ShowMacroFailure(script, $"Macro error: {ex.Message}", isError: true, isLogged: false);
-            return;
-        }
-
-        _isRunning = true;
-        UpdateButtons();
-        // A new run replaces the cached view of this script (FR-52.4: the pane is cleared at the start of each run).
-        var runView = new ScriptRunView(script.Name);
-        _runViews[script.Name] = runView;
-        _runningView = runView;
-        OutputBox.Document.Blocks.Clear();
-        SetStatus(runView, $"Running '{script.Name}' on {script.Host}...", isError: false);
-
-        _runSource = new CancellationTokenSource();
-        try
-        {
-            var result = await _runnerFactory().RunAsync(
-                script, line => Dispatcher.BeginInvoke(() => AppendOutput(runView, line)), _runSource.Token, expansion);
-            SetStatus(runView, DescribeOutcome(result), isError: result.Outcome != ScriptRunOutcome.Completed || result.ExitCode != 0);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Script '{Script}' failed unexpectedly", script.Name);
-            SetStatus(runView, $"Script run failed: {ex.Message}", isError: true);
-        }
-        finally
-        {
-            _runSource.Dispose();
-            _runSource = null;
-            _runningView = null;
-            _isRunning = false;
-            _isCancelling = false;
-            UpdateButtons();
-        }
-    }
-
-    /// <summary>The `@confirm` text (FR-53.1, FR-55.7): the script and its host,
-    /// plus the resolved session name when the script uses a `session` macro.
-    /// Never the expanded text.</summary>
-    private static string DescribeConfirmation(ScriptDefinition script, SessionSummaryRow? session)
-    {
-        var text = $"Run script '{script.Name}' on {script.Host}?";
-        if (ScriptMacro.Find(script.Body).Any(macro_ => macro_.Type == ScriptMacroType.Session))
-            text += $"\n\nSelected session: {session?.Name ?? "(none)"}";
-        return text;
-    }
-
-    /// <summary>Expands the macros of the body of <paramref name="script"/>
-    /// (FR-55). Returns false when the run must not start — an unresolved
-    /// macro, or the secret dialog cancelled — after showing why in the status
-    /// line (FR-55.6, FR-55.11). <paramref name="expansion"/> stays null for a
-    /// script without macros, which is run as written.</summary>
-    private bool TryExpandMacros(ScriptDefinition script, SessionSummaryRow? session, out ScriptMacroExpansion? expansion)
-    {
-        expansion = null;
-        var macros = ScriptMacro.Find(script.Body);
-        if (macros.Count == 0)
-            return true;
-
-        IReadOnlyDictionary<string, string>? typedSecrets = null;
-        var labels = ScriptMacro.SecretLabels(macros);
-        if (labels.Count > 0)
-        {
-            // The other macros are checked first, with a placeholder for the secrets, so the user is not asked
-            // to type secrets for a run that cannot start anyway.
-            var preCheck = ScriptMacroExpander.Expand(script.Body, BuildMacroSources(session, _ => "x"));
-            if (!preCheck.IsSuccess)
+        ScriptRunView? runView = null;
+        var callbacks = new ScriptRunCallbacks(
+            NotStarted: (message_, isError_) => ShowNotStarted(script, message_, isError_),
+            Starting: () =>
             {
-                ShowMacroFailure(script, "Macro error: " + string.Join("; ", preCheck.Errors), isError: true);
-                return false;
-            }
-
-            typedSecrets = SecretValuesDialog.Ask(Window.GetWindow(this), _logger, labels);
-            if (typedSecrets is null)
+                // A new run replaces the cached view of this script (FR-52.4: the pane is cleared at the start of each run).
+                runView = new ScriptRunView(script.Name);
+                _runViews[script.Name] = runView;
+                _runningScriptName = script.Name;
+                OutputBox.Document.Blocks.Clear();
+                UpdateButtons();
+            },
+            Status: (text_, isError_) => SetStatus(runView!, text_, isError_),
+            Output: line_ => AppendOutput(runView!, line_),
+            Finished: () =>
             {
-                ShowMacroFailure(script, "Run cancelled: the secret values were not entered.", isError: false);
-                return false;
-            }
-        }
-
-        var result = ScriptMacroExpander.Expand(
-            script.Body,
-            BuildMacroSources(session, label_ => typedSecrets is not null && typedSecrets.TryGetValue(label_, out var value_) ? value_ : null));
-        if (!result.IsSuccess)
-        {
-            ShowMacroFailure(script, "Macro error: " + string.Join("; ", result.Errors), isError: true);
-            return false;
-        }
-
-        expansion = result;
-        return true;
+                _runningScriptName = null;
+                UpdateButtons();
+            });
+        await _runCoordinator.RunAsync(Window.GetWindow(this), script, session, callbacks);
     }
-
-    /// <summary>The macro value sources (FR-55): the Windows readers for
-    /// `env`, `reg` and `cred` (they return null instead of throwing), the
-    /// given secret lookup, and the selected session.</summary>
-    private static ScriptMacroSources BuildMacroSources(SessionSummaryRow? session, Func<string, string?> secret) =>
-        new(WindowsMacroValueReader.ReadEnvironmentVariable, WindowsMacroValueReader.ReadRegistryValue,
-            WindowsMacroValueReader.ReadCredentialPassword, secret, session);
 
     /// <summary>Shows why the run did not start, in place of the last run of
     /// that script (FR-52.4). The message names macros, never values.</summary>
-    private void ShowMacroFailure(ScriptDefinition script, string message, bool isError, bool isLogged = true)
+    private void ShowNotStarted(ScriptDefinition script, string message, bool isError)
     {
-        if (isLogged)
-            _logger.Log(isError ? LogLevel.Warning : LogLevel.Information, "Script '{Script}' not run: {Message}", script.Name, message);
         var runView = new ScriptRunView(script.Name);
         _runViews[script.Name] = runView;
         if (IsSelected(script.Name))
@@ -851,27 +758,8 @@ public partial class ScriptsView : UserControl
     private void OnCancelClick(object sender, RoutedEventArgs e)
     {
         _logger.LogInformation("User action: Scripts Cancel clicked");
-        if (_runSource is null || _runningView is null || _isCancelling)
-            return;
-
-        _isCancelling = true;
-        // The run only reports "Cancelled" once ssh is killed and has exited: say so right away.
-        SetStatus(_runningView, "Cancelling...", isError: false);
-        CancelButton.IsEnabled = false;
-        var source = _runSource;
-        // Cancel() runs the cancellation callbacks on the calling thread, and the run's continuation (kill ssh, wait for it to exit,
-        // which can take seconds) may be inlined there: on the UI thread that would freeze the window before "Cancelling..." is painted.
-        _ = Task.Run(() =>
-        {
-            try
-            {
-                source.Cancel();
-            }
-            catch (ObjectDisposedException)
-            {
-                // The run ended on its own in the meantime.
-            }
-        });
+        if (_runCoordinator.Cancel())
+            UpdateButtons();
     }
 
     /// <summary>Records the status in the cache and, when that script is the
@@ -888,21 +776,6 @@ public partial class ScriptsView : UserControl
     {
         StatusText.Text = text;
         StatusText.Foreground = isError ? Brushes.Red : SystemColors.ControlTextBrush;
-    }
-
-    /// <summary>The outcome of a run (FR-52.3); cancel and timeout state
-    /// that server-side processes already detached keep running (FR-51.5).</summary>
-    private static string DescribeOutcome(ScriptRunResult result)
-    {
-        const string DetachedNote = "The local ssh connection was closed; processes the script already detached on the server keep running.";
-        var duration = $"{result.Duration.TotalSeconds:0.0}s";
-        return result.Outcome switch
-        {
-            ScriptRunOutcome.Completed => $"Exit code {result.ExitCode} ({duration})",
-            ScriptRunOutcome.Cancelled => $"Cancelled after {duration}. {DetachedNote}",
-            ScriptRunOutcome.TimedOut => $"Timed out after {duration}. {DetachedNote}",
-            _ => $"Failed to start ssh: {result.Error}",
-        };
     }
 
     /// <summary>Caches one line (last <see cref="MaxOutputLines"/> only,

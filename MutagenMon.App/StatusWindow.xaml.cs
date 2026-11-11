@@ -88,6 +88,10 @@ public partial class StatusWindow : Window
     /// then comes from the refresh, not from the user.</summary>
     private bool _isSyncingRows;
     private readonly ILogger _logger;
+    /// <summary>Runs the scripts of every tab, so only one script runs at a time (FR-51.1, FR-56.6).</summary>
+    private readonly ScriptRunCoordinator _scriptRunCoordinator;
+    /// <summary>"MutagenMon" and its version: the title when no script runs.</summary>
+    private readonly string _baseTitle;
     /// <summary>Waits for a resize to stop before <see cref="SizeSettled"/>:
     /// a drag raises <see cref="FrameworkElement.SizeChanged"/> many times a
     /// second, which must not become as many writes of the config file.</summary>
@@ -107,15 +111,19 @@ public partial class StatusWindow : Window
                 _sizeSettledTimer.Start();
             }
         };
-        Title = $"MutagenMon {App.AppVersion}";
+        _baseTitle = $"MutagenMon {App.AppVersion}";
+        Title = _baseTitle;
         SessionsGrid.ItemsSource = _sessionRows;
         ((IconKeyToImageSourceConverter)Resources["IconKeyToImageSourceConverter"]).Cache = iconCache;
         _logger = logger;
         MutagenConfigEditorViewControl.Initialize(logger);
         MutagenMonitorConfigEditorViewControl.Initialize(logger);
         LogsViewControl.Initialize(logger, loggerProvider, showGenerateException);
+        _scriptRunCoordinator = new ScriptRunCoordinator(logger, scriptRunnerFactory, Dispatcher);
+        // FR-52.6: while a script runs, the title also shows which one and for how long.
+        _scriptRunCoordinator.RunInfoChanged += (_, info) => Title = info is null ? _baseTitle : $"{_baseTitle}  -  {info}";
         ScriptsViewControl.Initialize(
-            logger, scriptsPathProvider, scriptRunnerFactory, defaultScriptHostProvider,
+            logger, scriptsPathProvider, _scriptRunCoordinator, defaultScriptHostProvider,
             GetSelectedSession);
         ScriptsViewControl.HasUnsavedChangesChanged += (_, hasUnsavedChanges) => UpdateScriptsTabHeader(hasUnsavedChanges);
     }

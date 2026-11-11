@@ -15,7 +15,7 @@
             <Hyperlink x:Name="OpenFileLink" Click="OnOpenFileLinkClick" ToolTip="Open in the default editor" />
         </TextBlock>
 
-        <!-- FR-47.2: Reload, Run, Cancel (only while a script is running). -->
+        <!-- FR-47.2: Reload, Run, Cancel (only while the displayed script is the running one). -->
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,8">
             <Button x:Name="ReloadButton" Content="Reload" Width="90" Click="OnReloadClick" />
             <Button x:Name="AddButton" Content="Add" Width="90" Margin="8,0,0,0" Click="OnAddClick" />
