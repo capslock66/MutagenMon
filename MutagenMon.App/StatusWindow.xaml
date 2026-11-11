@@ -4,7 +4,7 @@
         xmlns:local="clr-namespace:MutagenMon.App"
         xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
         Title="MutagenMon" Height="480" Width="900"
-        MinHeight="320" MinWidth="640"
+        MinHeight="320" MinWidth="780"
         ResizeMode="CanResize"
         PreviewKeyDown="OnWindowPreviewKeyDown"
         Icon="pack://siteoforigin:,,,/Assets/Icons/app_icon_monitor.ico">
@@ -18,7 +18,7 @@
         </Grid.RowDefinitions>
 
         <TabControl Grid.Row="0">
-            <TabItem Header="Sync">
+            <TabItem x:Name="SyncTab" Header="Sync">
                 <Grid Margin="8">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -26,9 +26,14 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <!-- FR-16: toolbar above the grid — Add, Duplicate and Stop/Start sessions. -->
+                    <!-- FR-16 / FR-56.1: toolbar above the grid — Add, Duplicate, session script + Run; Resolve conflicts and Stop/Start sessions on the right. -->
                     <Grid Grid.Row="0" Margin="0,0,0,8">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <!-- FR-56.1: left = Add, Duplicate, the session-script combo and its Run button. -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left">
                         <Button x:Name="AddSessionButton"
                                 Padding="8,4" Click="OnAddSessionClick" ToolTip="Add session">
                             <StackPanel Orientation="Horizontal">
@@ -45,12 +50,41 @@
                             </StackPanel>
                         </Button>
 
+                        <!-- FR-56.2: the valid scripts tagged @session-script; empty and disabled when there is none. -->
+                        <ComboBox x:Name="SessionScriptCombo" Width="160" Margin="8,0,0,0" IsEnabled="False"
+                                  DisplayMemberPath="Name" VerticalContentAlignment="Center"
+                                  ToolTip="Script to run on the selected session (scripts tagged @session-script)"
+                                  SelectionChanged="OnSessionScriptSelectionChanged" />
+
+                        <!-- FR-56.3: enabled only with a session and a script selected and no script running. -->
+                        <Button x:Name="RunSessionScriptButton" IsEnabled="False"
+                                Margin="8,0,0,0" Padding="8,4" Click="OnRunSessionScriptClick" ToolTip="Run (F5)">
+                            <StackPanel Orientation="Horizontal">
+                                <!-- Green "play" triangle, grayed while the button is disabled (same as the Scripts tab). -->
+                                <TextBlock Text="&#x25B6;" Margin="0,0,6,0" VerticalAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="#2E9E3E" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsEnabled, RelativeSource={RelativeSource AncestorType=Button}}" Value="False">
+                                                    <Setter Property="Foreground" Value="Gray" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBlock Text="Run" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- FR-56.1: right = Resolve conflicts, then Stop/Start Mutagen sessions as the rightmost control. -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button x:Name="ResolveConflictsButton" Content="Resolve conflicts" Width="130"
+                                Click="OnResolveConflictsClick" />
                         <Button x:Name="ToggleMonitoringButton" Content="Stop Mutagen sessions" Width="150"
                                 Margin="8,0,0,0" Click="OnToggleMonitoringClick" />
                     </StackPanel>
-
-                    <Button x:Name="ResolveConflictsButton" Content="Resolve conflicts" Width="130"
-                            HorizontalAlignment="Right" Click="OnResolveConflictsClick" />
                     </Grid>
 
                     <DataGrid x:Name="SessionsGrid" Grid.Row="1"

@@ -382,6 +382,8 @@ public partial class App //: Application
             newCliClient, sessionsPath, _host.Services.GetRequiredService<ILogger<SessionEditingService>>());
         _mutagenCliClient = newCliClient;
         _trayIconController = BuildAndStartTrayIconController(newOptions, newSessionNames);
+        // FR-56.2: the scripts file path may have changed with the new options.
+        _statusWindow?.RefreshSessionScripts();
 
         _logger?.LogInformation("Reload complete — monitoring resumed with the new configuration");
     }

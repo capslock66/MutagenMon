@@ -65,6 +65,11 @@ public partial class ScriptsView : UserControl
     /// the host can flag the tab.</summary>
     public event EventHandler<bool>? HasUnsavedChangesChanged;
 
+    /// <summary>Raised after every (re)load of the scripts file — the first
+    /// display, Reload, and the rebuild that follows a save, an add, a delete or
+    /// a move — so the Sync tab rebuilds its session-script combo (FR-56.2).</summary>
+    public event EventHandler? ScriptsChanged;
+
     public ScriptsView()
     {
         InitializeComponent();
@@ -432,6 +437,12 @@ public partial class ScriptsView : UserControl
     /// <summary>Rebuilds the list from the file (FR-49), keeping the
     /// selection when a script of the same name still exists.</summary>
     private void LoadScripts(string? selectName = null, string? selectGroup = null)
+    {
+        LoadScriptsCore(selectName, selectGroup);
+        ScriptsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void LoadScriptsCore(string? selectName, string? selectGroup)
     {
         var path = _scriptsPathProvider();
         // The path can change with a config reload, so refresh the link on every load.

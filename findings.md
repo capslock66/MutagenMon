@@ -1,7 +1,7 @@
 # Findings
 
 ## Parser (`MutagenMon.Core/Scripts/ScriptFileParser.cs`)
-- `DirectiveRegex` = `^#\s*@([A-Za-z\-]+)\s*:\s*(.*)$`: the colon is mandatory, so `# @scriptSession` is not matched today. A dedicated flag regex is needed.
+- `DirectiveRegex` = `^#\s*@([A-Za-z\-]+)\s*:\s*(.*)$`: the colon is mandatory, so `# @session-script` is not matched today. A dedicated flag regex is needed.
 - `Build` lowercases the key, first occurrence wins, unknown keys are ignored.
 - `ScriptDefinition` is a record with optional trailing `Group = ""`; adding another optional parameter after it is source-compatible.
 - `ScriptFileEditor` handles sections as opaque lines (only `ReadGroup` inspects a directive): the new tag should survive move/delete/rename untouched.

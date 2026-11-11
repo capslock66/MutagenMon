@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -90,6 +91,7 @@ public partial class StatusWindow : Window
     private readonly ILogger _logger;
     /// <summary>Runs the scripts of every tab, so only one script runs at a time (FR-51.1, FR-56.6).</summary>
     private readonly ScriptRunCoordinator _scriptRunCoordinator;
+    private readonly Func<string> _scriptsPathProvider;
     /// <summary>"MutagenMon" and its version: the title when no script runs.</summary>
     private readonly string _baseTitle;
     /// <summary>Waits for a resize to stop before <see cref="SizeSettled"/>:
@@ -119,24 +121,105 @@ public partial class StatusWindow : Window
         MutagenConfigEditorViewControl.Initialize(logger);
         MutagenMonitorConfigEditorViewControl.Initialize(logger);
         LogsViewControl.Initialize(logger, loggerProvider, showGenerateException);
+        _scriptsPathProvider = scriptsPathProvider;
         _scriptRunCoordinator = new ScriptRunCoordinator(logger, scriptRunnerFactory, Dispatcher);
+        // FR-56.6: a run starting or ending on any tab changes whether Run is offered here.
+        _scriptRunCoordinator.RunningChanged += (_, _) => UpdateRunSessionScriptButton();
         // FR-52.6: while a script runs, the title also shows which one and for how long.
         _scriptRunCoordinator.RunInfoChanged += (_, info) => Title = info is null ? _baseTitle : $"{_baseTitle}  -  {info}";
         ScriptsViewControl.Initialize(
             logger, scriptsPathProvider, _scriptRunCoordinator, defaultScriptHostProvider,
             GetSelectedSession);
         ScriptsViewControl.HasUnsavedChangesChanged += (_, hasUnsavedChanges) => UpdateScriptsTabHeader(hasUnsavedChanges);
+        ScriptsViewControl.ScriptsChanged += (_, _) => RefreshSessionScripts();
+        // FR-56.2: the file can also be edited outside the application: rebuild the combo when the window comes back to the front.
+        Activated += (_, _) => RefreshSessionScripts();
     }
 
-    /// <summary>F5 runs the selected script, only while the Scripts tab is
-    /// displayed (the key keeps its default behaviour on the other tabs).</summary>
+    /// <summary>F5 runs the selected script on the Scripts tab (FR-47.2) and the
+    /// script chosen in the combo on the selected session on the Sync tab
+    /// (FR-56.3); on the other tabs the key keeps its default behaviour.</summary>
     private void OnWindowPreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key != Key.F5 || !ScriptsTab.IsSelected)
+        if (e.Key != Key.F5)
             return;
 
-        e.Handled = true;
-        ScriptsViewControl.RunSelectedScript();
+        if (ScriptsTab.IsSelected)
+        {
+            e.Handled = true;
+            ScriptsViewControl.RunSelectedScript();
+        }
+        else if (SyncTab.IsSelected)
+        {
+            e.Handled = true;
+            RunSessionScript();
+        }
+    }
+
+    /// <summary>Rebuilds the session-script combo (FR-56.2) from the scripts file
+    /// as saved on disk: the valid scripts tagged <c>@session-script</c>, in file
+    /// order. The selected script stays selected while its name is still listed.
+    /// A missing or unreadable file gives an empty, disabled combo and no message
+    /// (the Scripts tab reports it, FR-49.2).</summary>
+    public void RefreshSessionScripts()
+    {
+        var previousName = (SessionScriptCombo.SelectedItem as ScriptDefinition)?.Name;
+        IReadOnlyList<ScriptDefinition> scripts;
+        try
+        {
+            scripts = ScriptFileParser.ParseFile(_scriptsPathProvider())
+                .Where(script_ => script_.IsSessionScript && script_.IsValid)
+                .ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogDebug(ex, "The session-script combo is empty: the scripts file cannot be read");
+            scripts = [];
+        }
+
+        SessionScriptCombo.ItemsSource = scripts;
+        SessionScriptCombo.SelectedItem = scripts.FirstOrDefault(script_ => script_.Name == previousName);
+        SessionScriptCombo.IsEnabled = scripts.Count > 0;
+        UpdateRunSessionScriptButton();
+    }
+
+    private void OnSessionScriptSelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateRunSessionScriptButton();
+
+    /// <summary>FR-56.3: Run needs a session selected in the grid (the one the
+    /// macros would use, FR-55.3), a script selected in the combo and no script
+    /// running on any tab.</summary>
+    private void UpdateRunSessionScriptButton() =>
+        RunSessionScriptButton.IsEnabled = !_scriptRunCoordinator.IsRunning
+            && SessionScriptCombo.SelectedItem is ScriptDefinition
+            && GetSelectedSession() is not null;
+
+    /// <summary>The Run button (FR-56.3); see <see cref="RunSessionScript"/>.</summary>
+    private void OnRunSessionScriptClick(object sender, RoutedEventArgs e) => RunSessionScript();
+
+    /// <summary>FR-56.4: runs the script chosen in the combo on the selected session. The
+    /// file is read again so the run uses the script as saved now; the session is read once,
+    /// here. Declining the `@confirm` confirmation opens nothing; a macro error opens the dialog
+    /// with the message (FR-56.5).</summary>
+    private void RunSessionScript()
+    {
+        if (!RunSessionScriptButton.IsEnabled)
+            return;
+
+        _logger.LogInformation("User action: status window Run session script requested ('{Script}')",
+            (SessionScriptCombo.SelectedItem as ScriptDefinition)?.Name);
+        RefreshSessionScripts();
+        if (SessionScriptCombo.SelectedItem is not ScriptDefinition script || GetSelectedSession() is not { } session)
+        {
+            _logger.LogInformation("Run session script: the script or the session is no longer available");
+            return;
+        }
+
+        _logger.LogDebug("Run session script: '{Script}' on session '{Session}'", script.Name, session.Name);
+        var preparation = _scriptRunCoordinator.Prepare(this, script, session);
+        if (preparation is null)
+            return;
+
+        ScriptRunWindow.ShowRun(this, _logger, _scriptRunCoordinator, preparation, session.Name);
     }
 
     /// <summary>"Scripts", or a bold "Scripts *" while a script has unsaved changes.</summary>
@@ -166,6 +249,8 @@ public partial class StatusWindow : Window
         }
 
         RestoreSessionSelection();
+        // The session selected may have disappeared in this refresh.
+        UpdateRunSessionScriptButton();
 
         ConflictsText.Text = BuildConflictsSection(sessionNames, snapshot.Conflicts);
 
@@ -239,6 +324,7 @@ public partial class StatusWindow : Window
         // Otherwise the user cleared the selection (the refresh's own clearing is restored in UpdateContent).
         else if (!_isSyncingRows)
             _selectedSessionName = null;
+        UpdateRunSessionScriptButton();
     }
 
     /// <summary>The current row of the selected session, or null when none

@@ -1,13 +1,13 @@
-# Task Plan: `@scriptSession` directive + "Run script" on the Sync tab
+# Task Plan: `@session-script` directive + "Run script" on the Sync tab
 
 ## Goal
-A script tagged `# @scriptSession` appears in a combo on the Sync toolbar (right of Duplicate); the user picks one and runs it (button or F5) on the selected session, in a dialog showing the output and status. The Stop/Start button moves to the far right of the Sync toolbar.
+A script tagged `# @session-script` appears in a combo on the Sync toolbar (right of Duplicate); the user picks one and runs it (button or F5) on the selected session, in a dialog showing the output and status. The Stop/Start button moves to the far right of the Sync toolbar.
 
 ## Next Step
-Phase 5 (run dialog) is done. Wait for the user's go to start Phase 6.
+Phase 6 (Sync tab UI) is done and reviewed (2 iterations); the manual tests UT-56.x on Windows are pending. Phase 7 is verification.
 
 ## Current Phase
-Phase 5 (done) — awaiting go before Phase 6
+Phase 6 (done) — awaiting Windows tests and go for Phase 7
 
 ## Phases
 
@@ -19,15 +19,15 @@ Phase 5 (done) — awaiting go before Phase 6
 - **Status:** complete
 
 ### Phase 2: Requirements & user tests (docs first)
-- [x] 2.1 `requirements/11-scripts-tab-requirements.md`, FR-48 directive table: add the `@scriptSession` row: a boolean flag written without a value (`# @scriptSession`); the script is a "session script" (value true) when the line is present in it, and not one (value false) when it is absent. An explicit `: true` / `: false` is also accepted (D2)
+- [x] 2.1 `requirements/11-scripts-tab-requirements.md`, FR-48 directive table: add the `@session-script` row: a boolean flag written without a value (`# @session-script`); the script is a "session script" (value true) when the line is present in it, and not one (value false) when it is absent. An explicit `: true` / `: false` is also accepted (D2)
 - [x] 2.2 Same file: add FR-56 "Run a script on the selected session from the Sync tab" (combo content, Run button, F5, enabled rules, run dialog, single-run rule, refresh of the combo)
 - [x] 2.3 Requirements for the Sync toolbar layout (find the Sync-tab/toolbar FR, FR-16) : Stop/Start button at the far right
 - [x] 2.4 `requirements/UserTests.md`: add UT-56.x scenarios (tag parsing, combo content, disabled states, F5, dialog output/status, cancel, macro `{{session:…}}`, layout)
 - **Status:** complete
 
-### Phase 3: Core — parse the `@scriptSession` flag
+### Phase 3: Core — parse the `@session-script` flag
 - [x] 3.1 `ScriptDefinition`: add `bool IsSessionScript = false` (last optional parameter, so existing constructors keep compiling)
-- [x] 3.2 `ScriptFileParser` (an `@scriptSession` value other than `true`/`false` makes the script invalid, FR-48.5): the current `DirectiveRegex` requires a colon, so `# @scriptSession` does not match. Add a dedicated flag regex (colon and value optional; key case-insensitive) and set the flag in `Build` (first occurrence wins, like the other directives)
+- [x] 3.2 `ScriptFileParser` (an `@session-script` value other than `true`/`false` makes the script invalid, FR-48.5): the current `DirectiveRegex` requires a colon, so `# @session-script` does not match. Add a dedicated flag regex (colon and value optional; key case-insensitive) and set the flag in `Build` (first occurrence wins, like the other directives)
 - [x] 3.3 Confirm `ScriptFileEditor` (move/delete/add/rename) preserves the line untouched (it treats the body as opaque text); add no code unless a test shows otherwise
 - [x] 3.4 Tests in `ScriptFileParserTests`: tag alone, tag with `: true` / `: false` (decision D2), tag absent, tag inside an otherwise invalid script, mixed case, tag after a non-directive line, duplicate tag
 - [x] 3.5 Build and run `MutagenMon.Core` / `MutagenMon.Core.Tests` (per project, `-m:1`)
@@ -49,15 +49,15 @@ Phase 5 (done) — awaiting go before Phase 6
 - **Status:** complete
 
 ### Phase 6: Sync tab UI
-- [ ] 6.1 `StatusWindow.xaml`: right of Duplicate, add a `ComboBox` (scripts with `@scriptSession`, valid only, in file order, display name) and a `Run` button (icon like the Scripts tab, tooltip `Run (F5)`)
-- [ ] 6.2 Move `ToggleMonitoringButton` (Stop/Start) to the far right of the toolbar (see Q1 for its position relative to "Resolve conflicts")
-- [ ] 6.3 Enable rules: Run enabled only when a session is selected in the grid AND a script is selected in the combo AND no script run is in progress; same rule for F5
-- [ ] 6.4 Combo content: read the scripts file via `scriptsPathProvider` + `ScriptFileParser`; refresh on window show, on config reload, and when the Scripts tab saves or reloads (new `ScriptsChanged` event on `ScriptsView`); keep the selection by name when the script still exists
-- [ ] 6.5 Missing/unreadable scripts file: combo empty and disabled, no error popup (the Scripts tab already reports it)
-- [ ] 6.6 `OnWindowPreviewKeyDown`: F5 on the Sync tab runs the selected script (does nothing when disabled); behaviour on the Scripts tab unchanged
-- [ ] 6.7 Wire `OnRunSessionScriptClick`: the session = `GetSelectedSession()` (read once at click, FR-55.3), open `ScriptRunWindow` modal on the status window
-- [ ] 6.8 Single-run guard shared with the Scripts tab (a run in progress on either tab disables Run on both)
-- **Status:** pending
+- [x] 6.1 `StatusWindow.xaml`: right of Duplicate, add a `ComboBox` (scripts with `@session-script`, valid only, in file order, display name) and a `Run` button (icon like the Scripts tab, tooltip `Run (F5)`)
+- [x] 6.2 Move `ToggleMonitoringButton` (Stop/Start) to the far right of the toolbar (see Q1 for its position relative to "Resolve conflicts")
+- [x] 6.3 Enable rules: Run enabled only when a session is selected in the grid AND a script is selected in the combo AND no script run is in progress; same rule for F5
+- [x] 6.4 Combo content: read the scripts file via `scriptsPathProvider` + `ScriptFileParser`; refresh on window show, on config reload, and when the Scripts tab saves or reloads (new `ScriptsChanged` event on `ScriptsView`); keep the selection by name when the script still exists
+- [x] 6.5 Missing/unreadable scripts file: combo empty and disabled, no error popup (the Scripts tab already reports it)
+- [x] 6.6 `OnWindowPreviewKeyDown`: F5 on the Sync tab runs the selected script (does nothing when disabled); behaviour on the Scripts tab unchanged
+- [x] 6.7 Wire `OnRunSessionScriptClick`: the session = `GetSelectedSession()` (read once at click, FR-55.3), open `ScriptRunWindow` modal on the status window
+- [x] 6.8 Single-run guard shared with the Scripts tab (a run in progress on either tab disables Run on both)
+- **Status:** complete
 
 ### Phase 7: Verification
 - [ ] 7.1 Build `MutagenMon.Core`, `MutagenMon.Core.Tests`, `MutagenMon.App` individually (`-m:1`, WPF project: see the repo memory on per-project builds) and run the tests
@@ -78,7 +78,7 @@ Phase 5 (done) — awaiting go before Phase 6
 | ID | Decision | Rationale |
 |----|----------|-----------|
 | D1 | The flag has its own regex; the generic `@key: value` regex is untouched | It requires a colon; changing it could alter how existing directives parse |
-| D2 | `# @scriptSession` alone = true; `: true` / `: false` also accepted | Plain tag is the requested syntax; accepting an explicit value avoids a silent misread of `@scriptSession: false` |
+| D2 | `# @session-script` alone = true; `: true` / `: false` also accepted | Plain tag is the requested syntax; accepting an explicit value avoids a silent misread of `@session-script: false` |
 | D3 | Combo lists valid scripts only (valid = has `@host`, no duplicate name, etc.) | An invalid script cannot run (FR-49.2) |
 | D4 | Close is blocked while the script runs; the user must Cancel first (proposed) | Avoids an orphaned ssh process; same Cancel semantics as FR-51.5 |
 | D5 | Sync tab runs the saved version of the script (file on disk), not unsaved edits of the Scripts tab | The Sync tab has no editor; the Scripts tab Run auto-saves, the Sync tab does not touch the file |

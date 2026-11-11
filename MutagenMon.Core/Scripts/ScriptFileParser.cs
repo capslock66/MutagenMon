@@ -22,10 +22,10 @@ public static partial class ScriptFileParser
     [GeneratedRegex(@"^#\s*@([A-Za-z\-]+)\s*:\s*(.*)$")]
     private static partial Regex DirectiveRegex();
 
-    // Matches the `@scriptSession` flag, whose colon and value are optional: "# @scriptSession" or
-    // "# @scriptSession: true". The key is case-insensitive. Group 1 = the value, present only when a
+    // Matches the `@session-script` flag, whose colon and value are optional: "# @session-script" or
+    // "# @session-script: true". The key is case-insensitive. Group 1 = the value, present only when a
     // colon is written (may be empty) — access via match.Groups[1].
-    [GeneratedRegex(@"^#\s*@scriptSession\s*(?::\s*(.*))?$", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"^#\s*@session-script\s*(?::\s*(.*))?$", RegexOptions.IgnoreCase)]
     private static partial Regex SessionFlagRegex();
 
     /// <summary>True when <paramref name="line"/> is a section header
@@ -88,7 +88,7 @@ public static partial class ScriptFileParser
             if (flag.Success)
             {
                 // First occurrence wins, like the other directives. No value, or an empty one, means true.
-                if (!seen.Add("scriptsession"))
+                if (!seen.Add("session-script"))
                     continue;
 
                 var flagValue = flag.Groups[1].Success ? flag.Groups[1].Value.Trim() : "";
@@ -97,7 +97,7 @@ public static partial class ScriptFileParser
                 else if (TryParseBool(flagValue, out var isSession))
                     isSessionScript = isSession;
                 else
-                    errors.Add($"@scriptSession must be 'true' or 'false' (got '{flagValue}')");
+                    errors.Add($"@session-script must be 'true' or 'false' (got '{flagValue}')");
                 continue;
             }
 

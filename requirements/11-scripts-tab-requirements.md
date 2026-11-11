@@ -6,8 +6,8 @@ server over SSH, and shows its output.
 
 **Status: implemented.** Continues the FR numbering from
 [10-logs-tab-requirements.md](10-logs-tab-requirements.md)'s FR-46, as FR-47
-through FR-55 (FR-55 is the macros feature). FR-56 (**planned, not yet
-implemented**) adds the `@scriptSession` directive (FR-48.5) and the
+through FR-55 (FR-55 is the macros feature). FR-56 (implemented; the
+manual tests UT-56.x are pending) adds the `@session-script` directive (FR-48.5) and the
 "run a script on the selected session" action of the Sync tab.
 
 Motivating use case: from the Windows machine, start a detached `tmux`
@@ -101,13 +101,13 @@ The scripts live in a separate ini-like text file (path: `ScriptsFile`, see
   | `@description` | free text | empty | Shown under the name in the list. |
   | `@stop-on-error` | `true` / `false` | `true` | Whether `set -e` is prepended (FR-51.2). |
   | `@confirm` | `true` / `false` | `false` | Ask for confirmation before running (FR-53.1). |
-  | `@scriptSession` | flag, written **without a value** (`# @scriptSession`) | absent = `false` | Marks the script as a **session script** (FR-56): when the line is present in the script its value is `true`, when it is absent the value is `false`. An explicit `# @scriptSession: true` or `# @scriptSession: false` is also accepted, `false` meaning "not a session script"; any other value makes the script invalid (FR-49.2). The flag has no effect on the Scripts tab (the script is listed and run there like any other). |
+  | `@session-script` | flag, written **without a value** (`# @session-script`) | absent = `false` | Marks the script as a **session script** (FR-56): when the line is present in the script its value is `true`, when it is absent the value is `false`. An explicit `# @session-script: true` or `# @session-script: false` is also accepted, `false` meaning "not a session script"; any other value makes the script invalid (FR-49.2). The flag has no effect on the Scripts tab (the script is listed and run there like any other). |
   | `@group` | free text (case-sensitive) | empty | Group of the script. The list is a tree, one level: collapsed group nodes (shown as "name (count)", in order of first appearance in the file), then the scripts without a group at the top level. A click on a group name opens/closes it; the expanded groups are kept across a reload. ▲/▼ move a script within its group, or a whole group past the neighbouring group (its scripts become contiguous in the file); at either end they do nothing. |
 
-  A directive line is `# @key: value`, except `@scriptSession`, whose colon
-  and value are optional (the whole line `# @scriptSession` is enough; an
-  empty value after the colon, `# @scriptSession:`, also means `true`). Any
-  other text after the key without a colon (`# @scriptSession true`) is not
+  A directive line is `# @key: value`, except `@session-script`, whose colon
+  and value are optional (the whole line `# @session-script` is enough; an
+  empty value after the colon, `# @session-script:`, also means `true`). Any
+  other text after the key without a colon (`# @session-script true`) is not
   a directive: the line is a plain comment and the script is not a session
   script.
   Directive keys are case-insensitive; when a key appears several times,
@@ -418,7 +418,7 @@ scripts file.
 
 ## FR-56 — Run a script on the selected session from the Sync tab
 
-*Planned, not yet implemented.* A script carrying the `@scriptSession` flag
+*Implemented; the manual tests UT-56.x are pending.* A script carrying the `@session-script` flag
 (FR-48.5) is meant to act on a Mutagen session. The Sync tab lets the user
 pick such a script and run it on the session selected in the sessions grid,
 without going through the Scripts tab.
@@ -432,12 +432,13 @@ without going through the Scripts tab.
   unchanged: only its position changes, from "immediately right of Add"
   (FR-16.5) to the far right of the toolbar.
 - FR-56.2: **Script combo.** It lists the **valid** scripts (FR-49.2) whose
-  `@scriptSession` value is `true`, in file order, shown by name. Scripts
+  `@session-script` value is `true`, in file order, shown by name. Scripts
   without the flag, with `: false`, or invalid are not listed. It reads the
   scripts file as saved on disk (the unsaved edits of the Scripts tab are not
-  used). The list is rebuilt when the status window is shown, when the
-  configuration is reloaded, and whenever the Scripts tab saves, reloads,
-  adds, deletes or moves a script; the selected script stays selected when
+  used). The list is rebuilt when the status window is brought to the front
+  (shown or activated again, which also picks up an edit of the file made
+  outside the application), when a configuration reload ends, and whenever
+  the Scripts tab saves, reloads, adds, deletes or moves a script; the selected script stays selected when
   its name is still in the list, otherwise nothing is selected. When the file
   is missing or unreadable, or no script is flagged, the combo is empty and
   disabled and no error is shown (FR-49.2 already reports it in the Scripts
@@ -453,7 +454,7 @@ without going through the Scripts tab.
 - FR-56.4: **Starting a run.** The session is read once, at the click
   (or key press), like FR-55.3; it is the session the `{{session:…}}`
   macros of the script resolve to. The script is the one parsed from the
-  file (FR-48). Then, exactly as on the Scripts tab: the `@confirm`
+  file (FR-48), read again at the click. Then, exactly as on the Scripts tab: the `@confirm`
   confirmation if the script asks for it (FR-53.1, with the
   `Selected session:` line of FR-55.7 when the script uses a `session`
   macro), the macro expansion (FR-55, including the secret dialog), and

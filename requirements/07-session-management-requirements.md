@@ -78,7 +78,7 @@ the design discussion that produced this document.
   `Grid.Row="3"` action row of `StatusWindow.xaml` (only "Exit mutagen
   monitor" remains there). Its label, click behavior, and
   disabled-while-reloading state (FR-7.5/FR-8.5) are unchanged — only its
-  position changes. *(Planned revision: the toggle moves to the far right
+  position changes. *(Revision: the toggle moved to the far right
   of the Sync toolbar, after "Resolve conflicts", to make room for the
   script combo and Run button — see
   [11-scripts-tab-requirements.md](11-scripts-tab-requirements.md) FR-56.1.)*

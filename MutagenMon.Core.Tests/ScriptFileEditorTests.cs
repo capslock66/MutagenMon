@@ -396,27 +396,27 @@ public class ScriptFileEditorTests
         Assert.Equal(new[] { "b", "a", "c" }, ScriptFileParser.ParseFile(path).Select(s => s.Name));
     }
 
-    // ---- @scriptSession flag survives the edits (FR-48.5) ----
+    // ---- @session-script flag survives the edits (FR-48.5) ----
 
     [Fact]
-    public void MovingAScriptKeepsItsScriptSessionLine()
+    public void MovingAScriptKeepsItsSessionScriptLine()
     {
-        const string text = "[a]\n# @host: h\n# @scriptSession\necho a\n\n[b]\n# @host: h\necho b\n";
+        const string text = "[a]\n# @host: h\n# @session-script\necho a\n\n[b]\n# @host: h\necho b\n";
 
         var result = ScriptFileEditor.MoveScriptInText(text, "a", 1);
 
-        Assert.Equal("[b]\n# @host: h\necho b\n\n[a]\n# @host: h\n# @scriptSession\necho a\n", result);
+        Assert.Equal("[b]\n# @host: h\necho b\n\n[a]\n# @host: h\n# @session-script\necho a\n", result);
         Assert.Equal(new[] { false, true }, ScriptFileParser.ParseLines(result.Split('\n')).Select(s_ => s_.IsSessionScript));
     }
 
     [Fact]
-    public void RenamingAScriptKeepsItsScriptSessionLine()
+    public void RenamingAScriptKeepsItsSessionScriptLine()
     {
-        const string text = "[a]\n# @host: h\n# @scriptSession\necho a\n";
+        const string text = "[a]\n# @host: h\n# @session-script\necho a\n";
 
-        var result = ScriptFileEditor.ReplaceBodyInText(text, "a", "# @host: h\n# @scriptSession\necho a", "renamed");
+        var result = ScriptFileEditor.ReplaceBodyInText(text, "a", "# @host: h\n# @session-script\necho a", "renamed");
 
-        Assert.Equal("[renamed]\n# @host: h\n# @scriptSession\necho a\n", result);
+        Assert.Equal("[renamed]\n# @host: h\n# @session-script\necho a\n", result);
         Assert.True(Assert.Single(ScriptFileParser.ParseLines(result.Split('\n'))).IsSessionScript);
     }
 }

@@ -486,7 +486,7 @@ Covered above by UT-7.1.
 * Maximize the window, then restore it: the saved size is still the
   normal size, not the screen size.
 * Make the window as small as possible and as large as possible: it never
-  goes below the minimum size (640 × 320). Edit the file to
+  goes below the minimum size (780 × 320). Edit the file to
   `"StatusWindowWidth": 99999`, restart: the window opens no larger than
   the screen's work area.
 * Open "Mutagen monitor Configuration": there is no field for the window
@@ -1938,25 +1938,25 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
 * Type a value with `'` and `$(id)`: raw insertion interprets it according to
   where the macro is written; `{{secret:Label|quote}}` inserts it literally.
 
-## FR-56 — `@scriptSession` scripts run from the Sync tab
+## FR-56 — `@session-script` scripts run from the Sync tab
 
 Specified in [11-scripts-tab-requirements.md](11-scripts-tab-requirements.md)
 FR-56. Same prerequisites as the Scripts tab tests above (reachable SSH
 server, alias `robbie`). In `config/scripts.ini`, prepare three scripts on
-`robbie`: `sess-a` with the line `# @scriptSession` and
-`echo "session=[{{session:name}}]"`; `sess-b` with `# @scriptSession: true`,
+`robbie`: `sess-a` with the line `# @session-script` and
+`echo "session=[{{session:name}}]"`; `sess-b` with `# @session-script: true`,
 `# @confirm: true` and `echo "b"; echo "err" >&2; exit 3`; `plain` without the
 flag and with `echo "plain"`.
 
-**UT-56.1 — The `@scriptSession` flag (FR-48.5)** ⏳
+**UT-56.1 — The `@session-script` flag (FR-48.5)** ⏳
 
 * In the Scripts tab, `sess-a` (flag without a value) and `sess-b` are listed
   like any other script and run normally; the flag changes nothing there.
-* Edit `sess-b` to `# @scriptSession: false`, Save: it is no longer offered
-  in the Sync combo (UT-56.2). Edit it to `# @scriptSession: maybe`, Save: the
-  script is shown as invalid with a reason naming `@scriptSession`. Restore
-  `# @scriptSession`.
-* Write `# @ScriptSession` (other case): same as the lower-camel form.
+* Edit `sess-b` to `# @session-script: false`, Save: it is no longer offered
+  in the Sync combo (UT-56.2). Edit it to `# @session-script: maybe`, Save: the
+  script is shown as invalid with a reason naming `@session-script`. Restore
+  `# @session-script`.
+* Write `# @Session-Script` (other case): same as the lower-case form `# @session-script`.
 
 **UT-56.2 — Toolbar layout and script combo (FR-56.1, FR-56.2)** ⏳
 
@@ -1965,10 +1965,13 @@ flag and with `echo "plain"`.
   last control, **Stop Mutagen sessions**. Click the toggle: it reads
   "Start Mutagen sessions" and still works as before.
 * Open the combo: it lists `sess-a` and `sess-b` (file order), not `plain`.
-* Select `sess-b`. In the Scripts tab, add the line `# @scriptSession` to
+* Select `sess-b`. In the Scripts tab, add the line `# @session-script` to
   `plain` and Save, then return to the Sync tab: `plain` is now listed and
   `sess-b` is still selected. Rename `sess-b` to `sess-c` and Save: the combo
   shows `sess-c` in the list and nothing is selected.
+* Edit `scripts.ini` in an external editor (add `# @session-script` to another
+  script, save), then click the MutagenMon window again (or Alt+Tab back to
+  it): the combo is up to date and the selected script is still selected.
 * Rename the scripts file in the configuration (or make it unreadable) and
   reload the configuration: the combo is empty and disabled, no error popup.
 

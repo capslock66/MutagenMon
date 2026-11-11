@@ -243,18 +243,18 @@ public class ScriptFileParserTests
         Assert.Throws<FileNotFoundException>(() => ScriptFileParser.ParseFile(path));
     }
 
-    // ---- @scriptSession flag (FR-48.5, FR-56) ----
+    // ---- @session-script flag (FR-48.5, FR-56) ----
 
     [Theory]
-    [InlineData("# @scriptSession")]
-    [InlineData("# @scriptSession: true")]
-    [InlineData("# @scriptSession:true")]
-    [InlineData("# @scriptSession:")]
-    [InlineData("#@scriptSession")]
-    [InlineData("# @scriptsession")]
-    [InlineData("# @SCRIPTSESSION: TRUE")]
-    [InlineData("   # @scriptSession   ")]
-    public void ScriptSessionFlagIsTrueWhenPresent(string line)
+    [InlineData("# @session-script")]
+    [InlineData("# @session-script: true")]
+    [InlineData("# @session-script:true")]
+    [InlineData("# @session-script:")]
+    [InlineData("#@session-script")]
+    [InlineData("# @Session-Script")]
+    [InlineData("# @SESSION-SCRIPT: TRUE")]
+    [InlineData("   # @session-script   ")]
+    public void SessionScriptFlagIsTrueWhenPresent(string line)
     {
         var script = ParseSingle("[s]", "# @host: h", line, "echo");
 
@@ -263,15 +263,15 @@ public class ScriptFileParserTests
     }
 
     [Fact]
-    public void ScriptSessionFlagIsFalseWhenAbsent()
+    public void SessionScriptFlagIsFalseWhenAbsent()
     {
         Assert.False(ParseSingle("[s]", "# @host: h", "echo").IsSessionScript);
     }
 
     [Theory]
-    [InlineData("# @scriptSession: false")]
-    [InlineData("# @scriptSession : FALSE")]
-    public void ScriptSessionFlagCanBeExplicitlyFalse(string line)
+    [InlineData("# @session-script: false")]
+    [InlineData("# @session-script : FALSE")]
+    public void SessionScriptFlagCanBeExplicitlyFalse(string line)
     {
         var script = ParseSingle("[s]", "# @host: h", line, "echo");
 
@@ -280,22 +280,23 @@ public class ScriptFileParserTests
     }
 
     [Fact]
-    public void ScriptSessionFlagWithAnotherValueMakesTheScriptInvalid()
+    public void SessionScriptFlagWithAnotherValueMakesTheScriptInvalid()
     {
-        var script = ParseSingle("[s]", "# @host: h", "# @scriptSession: maybe", "echo");
+        var script = ParseSingle("[s]", "# @host: h", "# @session-script: maybe", "echo");
 
         Assert.False(script.IsValid);
-        Assert.Contains("@scriptSession", script.ValidationError);
+        Assert.Contains("@session-script", script.ValidationError);
         Assert.False(script.IsSessionScript);
     }
 
     [Theory]
-    [InlineData("# @scriptSessionX")]
-    [InlineData("# @scriptSessions")]
-    [InlineData("# @scriptSession extra words")]
-    [InlineData("echo @scriptSession")]
-    [InlineData("@scriptSession")]
-    public void ScriptSessionFlagIsNotRecognisedInOtherLines(string line)
+    [InlineData("# @session-scriptX")]
+    [InlineData("# @session-scripts")]
+    [InlineData("# @session-script-foo: x")]
+    [InlineData("# @session-script extra words")]
+    [InlineData("echo @session-script")]
+    [InlineData("@session-script")]
+    public void SessionScriptFlagIsNotRecognisedInOtherLines(string line)
     {
         var script = ParseSingle("[s]", "# @host: h", line, "echo");
 
@@ -304,26 +305,26 @@ public class ScriptFileParserTests
     }
 
     [Fact]
-    public void ScriptSessionFlagTakesTheFirstOccurrence()
+    public void SessionScriptFlagTakesTheFirstOccurrence()
     {
-        Assert.False(ParseSingle("[s]", "# @host: h", "# @scriptSession: false", "# @scriptSession", "echo").IsSessionScript);
-        Assert.True(ParseSingle("[s]", "# @host: h", "# @scriptSession", "# @scriptSession: false", "echo").IsSessionScript);
+        Assert.False(ParseSingle("[s]", "# @host: h", "# @session-script: false", "# @session-script", "echo").IsSessionScript);
+        Assert.True(ParseSingle("[s]", "# @host: h", "# @session-script", "# @session-script: false", "echo").IsSessionScript);
         // A later invalid duplicate is ignored, like the other directives.
-        Assert.True(ParseSingle("[s]", "# @host: h", "# @scriptSession", "# @scriptSession: maybe", "echo").IsValid);
+        Assert.True(ParseSingle("[s]", "# @host: h", "# @session-script", "# @session-script: maybe", "echo").IsValid);
     }
 
     [Fact]
-    public void ScriptSessionFlagCanFollowNonDirectiveLines()
+    public void SessionScriptFlagCanFollowNonDirectiveLines()
     {
-        var script = ParseSingle("[s]", "# @host: h", "echo first", "# plain comment", "# @scriptSession", "echo last");
+        var script = ParseSingle("[s]", "# @host: h", "echo first", "# plain comment", "# @session-script", "echo last");
 
         Assert.True(script.IsSessionScript);
     }
 
     [Fact]
-    public void ScriptSessionFlagIsKeptOnAnOtherwiseInvalidScript()
+    public void SessionScriptFlagIsKeptOnAnOtherwiseInvalidScript()
     {
-        var script = ParseSingle("[s]", "# @scriptSession", "echo");
+        var script = ParseSingle("[s]", "# @session-script", "echo");
 
         Assert.False(script.IsValid);
         Assert.Contains("missing @host", script.ValidationError);
@@ -331,19 +332,19 @@ public class ScriptFileParserTests
     }
 
     [Fact]
-    public void ScriptSessionFlagStaysInTheBody()
+    public void SessionScriptFlagStaysInTheBody()
     {
-        var script = ParseSingle("[s]", "# @host: h", "# @scriptSession", "echo");
+        var script = ParseSingle("[s]", "# @host: h", "# @session-script", "echo");
 
-        Assert.Equal("# @host: h\n# @scriptSession\necho", script.Body);
+        Assert.Equal("# @host: h\n# @session-script\necho", script.Body);
     }
 
     [Fact]
-    public void ScriptSessionFlagIsPerScript()
+    public void SessionScriptFlagIsPerScript()
     {
         var scripts = ScriptFileParser.ParseLines(new[]
         {
-            "[a]", "# @host: h", "# @scriptSession", "echo a",
+            "[a]", "# @host: h", "# @session-script", "echo a",
             "[b]", "# @host: h", "echo b",
         });
 
