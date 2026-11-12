@@ -60,3 +60,4 @@
 - UT-56.1 to UT-56.6 validated by the user on Windows; marked done in UserTests.md and the requirements docs.
 - 7.1 done: Core tests run on Windows by the user: 481 total, 0 failed, 469 passed, 12 skipped (platform-conditional); Linux run: 477 passed, 4 skipped.
 - 7.3 done: review iteration 1 (eortc-dotnet-code-reviewer, whole feature): no blocking or important finding. Fixed: ScriptDefinition field list in the spec, lambda parameter name in ScriptRunCoordinator. Left open: no message when the chosen script is no longer a valid session script on disk (F5/Run silently does nothing), Cancel Task.Run only catches ObjectDisposedException, no automated test for ScriptRunCoordinator (WPF project), Exit-from-tray and tray windows during a Sync run to test on Windows.
+- 8 done: root README.md lists no directives or FR ranges (no change); requirements/README.md already up to date (FR-56 implemented, UT-56.x validated). Summary given to the user. Not committed.

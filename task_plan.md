@@ -4,10 +4,10 @@
 A script tagged `# @session-script` appears in a combo on the Sync toolbar (right of Duplicate); the user picks one and runs it (button or F5) on the selected session, in a dialog showing the output and status. The Stop/Start button moves to the far right of the Sync toolbar.
 
 ## Next Step
-Phase 6 (Sync tab UI) is done and reviewed (2 iterations); the manual tests UT-56.1 to UT-56.6 are validated. Phase 7 (7.1, 7.3) and phase 8 remain.
+None: all phases are complete. Open points are listed in progress.md (7.3).
 
 ## Current Phase
-Phase 6 (done) — awaiting Windows tests and go for Phase 7
+All phases complete
 
 ## Phases
 
@@ -63,13 +63,13 @@ Phase 6 (done) — awaiting Windows tests and go for Phase 7
 - [x] 7.1 Build `MutagenMon.Core`, `MutagenMon.Core.Tests`, `MutagenMon.App` individually (`-m:1`, WPF project: see the repo memory on per-project builds) and run the tests
 - [x] 7.2 UT-56.1 to UT-56.6 validated by the user on Windows (UT-55.10 to UT-55.14 already re-checked in phase 4)
 - [x] 7.3 Review loop: launch `eortc-dotnet-code-reviewer` on the modified files (spec: `requirements/11-scripts-tab-requirements.md`), fix 🔴/🟠, repeat (max 3 iterations)
-- **Status:** pending
+- **Status:** complete
 
 ### Phase 8: Delivery
-- [ ] 8.1 Update `README.md` / `requirements/README.md` if they list directives or FR ranges
-- [ ] 8.2 Summarise to the user: changes, review iterations, remaining minor findings, manual scenarios to run on Windows
-- [ ] 8.3 No commit unless asked (via `/eortc-git-push`, format without body or trailer, see `CLAUDE.md`)
-- **Status:** pending
+- [x] 8.1 Update `README.md` / `requirements/README.md` if they list directives or FR ranges
+- [x] 8.2 Summarise to the user: changes, review iterations, remaining minor findings, manual scenarios to run on Windows
+- [x] 8.3 No commit unless asked (via `/eortc-git-push`, format without body or trailer, see `CLAUDE.md`)
+- **Status:** complete
 
 ## Open Questions
 - **Q1** (answered by the user): the "Stop Mutagen sessions" button moves to the far right of the Sync toolbar. Layout: left = Add, Duplicate, script combo, Run; right = Resolve conflicts, then Stop/Start at the very right.
