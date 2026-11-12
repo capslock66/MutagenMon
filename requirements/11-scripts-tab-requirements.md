@@ -7,7 +7,7 @@ server over SSH, and shows its output.
 **Status: implemented.** Continues the FR numbering from
 [10-logs-tab-requirements.md](10-logs-tab-requirements.md)'s FR-46, as FR-47
 through FR-55 (FR-55 is the macros feature). FR-56 (implemented; the
-manual tests UT-56.x are pending) adds the `@session-script` directive (FR-48.5) and the
+manual tests UT-56.x are validated) adds the `@session-script` directive (FR-48.5) and the
 "run a script on the selected session" action of the Sync tab.
 
 Motivating use case: from the Windows machine, start a detached `tmux`
@@ -418,7 +418,7 @@ scripts file.
 
 ## FR-56 — Run a script on the selected session from the Sync tab
 
-*Implemented; the manual tests UT-56.x are pending.* A script carrying the `@session-script` flag
+*Implemented; the manual tests UT-56.x are validated.* A script carrying the `@session-script` flag
 (FR-48.5) is meant to act on a Mutagen session. The Sync tab lets the user
 pick such a script and run it on the session selected in the sessions grid,
 without going through the Scripts tab.
@@ -487,7 +487,7 @@ without going through the Scripts tab.
 - `MutagenMon.Core/Configuration/MutagenMonOptions.cs`: `ScriptsFile`
   (default `config/scripts.ini`) and `ScriptTimeoutSeconds` (default 300).
 - `MutagenMon.Core/Scripts/`: `ScriptDefinition` (name, host, description,
-  stop-on-error, confirm, group, body, validation error), `ScriptFileParser`
+  stop-on-error, confirm, group, session-script flag, body, validation error), `ScriptFileParser`
   (FR-48, FR-49.2; pure), `ScriptFileEditor` (FR-47.5, FR-47.6, FR-48.5:
   rewrites, adds, removes and moves sections without touching the rest of
   the file), `ScriptRunner` (FR-50, FR-51; streams output through a

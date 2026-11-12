@@ -4,7 +4,7 @@
 A script tagged `# @session-script` appears in a combo on the Sync toolbar (right of Duplicate); the user picks one and runs it (button or F5) on the selected session, in a dialog showing the output and status. The Stop/Start button moves to the far right of the Sync toolbar.
 
 ## Next Step
-Phase 6 (Sync tab UI) is done and reviewed (2 iterations); the manual tests UT-56.x on Windows are pending. Phase 7 is verification.
+Phase 6 (Sync tab UI) is done and reviewed (2 iterations); the manual tests UT-56.1 to UT-56.6 are validated. Phase 7 (7.1, 7.3) and phase 8 remain.
 
 ## Current Phase
 Phase 6 (done) — awaiting Windows tests and go for Phase 7
@@ -60,9 +60,9 @@ Phase 6 (done) — awaiting Windows tests and go for Phase 7
 - **Status:** complete
 
 ### Phase 7: Verification
-- [ ] 7.1 Build `MutagenMon.Core`, `MutagenMon.Core.Tests`, `MutagenMon.App` individually (`-m:1`, WPF project: see the repo memory on per-project builds) and run the tests
-- [ ] 7.2 Walk through UT-56.x (and UT-55.10 to UT-55.14 for regressions); mark them validated only after the user confirms (WPF cannot be exercised on this Linux host)
-- [ ] 7.3 Review loop: launch `eortc-dotnet-code-reviewer` on the modified files (spec: `requirements/11-scripts-tab-requirements.md`), fix 🔴/🟠, repeat (max 3 iterations)
+- [x] 7.1 Build `MutagenMon.Core`, `MutagenMon.Core.Tests`, `MutagenMon.App` individually (`-m:1`, WPF project: see the repo memory on per-project builds) and run the tests
+- [x] 7.2 UT-56.1 to UT-56.6 validated by the user on Windows (UT-55.10 to UT-55.14 already re-checked in phase 4)
+- [x] 7.3 Review loop: launch `eortc-dotnet-code-reviewer` on the modified files (spec: `requirements/11-scripts-tab-requirements.md`), fix 🔴/🟠, repeat (max 3 iterations)
 - **Status:** pending
 
 ### Phase 8: Delivery

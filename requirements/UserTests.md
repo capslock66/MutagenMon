@@ -1948,7 +1948,7 @@ server, alias `robbie`). In `config/scripts.ini`, prepare three scripts on
 `# @confirm: true` and `echo "b"; echo "err" >&2; exit 3`; `plain` without the
 flag and with `echo "plain"`.
 
-**UT-56.1 — The `@session-script` flag (FR-48.5)** ⏳
+**UT-56.1 — The `@session-script` flag (FR-48.5)** ✅
 
 * In the Scripts tab, `sess-a` (flag without a value) and `sess-b` are listed
   like any other script and run normally; the flag changes nothing there.
@@ -1958,7 +1958,7 @@ flag and with `echo "plain"`.
   `# @session-script`.
 * Write `# @Session-Script` (other case): same as the lower-case form `# @session-script`.
 
-**UT-56.2 — Toolbar layout and script combo (FR-56.1, FR-56.2)** ⏳
+**UT-56.2 — Toolbar layout and script combo (FR-56.1, FR-56.2)** ✅
 
 * Open the Sync tab. Left to right: **Add**, **Duplicate**, a combo, a green
   ▶ **Run** button; at the right edge, **Resolve conflicts** then, as the
@@ -1975,7 +1975,7 @@ flag and with `echo "plain"`.
 * Rename the scripts file in the configuration (or make it unreadable) and
   reload the configuration: the combo is empty and disabled, no error popup.
 
-**UT-56.3 — Run enabled rules and F5 (FR-56.3)** ⏳
+**UT-56.3 — Run enabled rules and F5 (FR-56.3)** ✅
 
 * With no session selected in the grid: **Run** is disabled and **F5** does
   nothing, whatever the combo holds.
@@ -1986,7 +1986,7 @@ flag and with `echo "plain"`.
   (the dialog of UT-56.4 opens). On the Scripts tab F5 still runs the selected
   script of that tab; on the configuration tabs and "Logs" it does nothing.
 
-**UT-56.4 — Run dialog: output and status (FR-56.4, FR-56.5)** ⏳
+**UT-56.4 — Run dialog: output and status (FR-56.4, FR-56.5)** ✅
 
 * Select session `S` and script `sess-a`, click Run: a dialog opens titled
   with `sess-a` and `S`; the output shows `session=[S]` and the status line
@@ -2006,7 +2006,7 @@ flag and with `echo "plain"`.
   run was cancelled.
 * Close the dialog, run the same script again: the pane starts empty.
 
-**UT-56.5 — One run at a time (FR-56.6)** ⏳
+**UT-56.5 — One run at a time (FR-56.6)** ✅
 
 * Start a long script (`sleep 60`) from the Scripts tab, then go to the Sync
   tab: **Run** is disabled (and F5 does nothing). When the Scripts tab run
@@ -2015,7 +2015,7 @@ flag and with `echo "plain"`.
   by the modal dialog; after Cancel and Close, the Run buttons of both tabs
   are enabled again.
 
-**UT-56.6 — Logging (FR-56.7)** ⏳
+**UT-56.6 — Logging (FR-56.7)** ✅
 
 * After UT-56.4, open the Logs tab: the user action and the outcome of each
   run (script name, host, exit code, duration) are logged; the script output

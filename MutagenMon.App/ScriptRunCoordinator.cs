@@ -150,7 +150,7 @@ public sealed class ScriptRunCoordinator(ILogger logger, Func<ScriptRunner> runn
             callbacks.Starting();
             StartTicker(script, callbacks);
             var result = await runnerFactory().RunAsync(
-                script, line => dispatcher.BeginInvoke(() => callbacks.Output(line)), _runSource.Token, preparation.Expansion);
+                script, line_ => dispatcher.BeginInvoke(() => callbacks.Output(line_)), _runSource.Token, preparation.Expansion);
             // Before the outcome: a tick must not overwrite it.
             StopTicker();
             callbacks.Status(DescribeOutcome(result), result.Outcome != ScriptRunOutcome.Completed || result.ExitCode != 0);
