@@ -275,7 +275,10 @@ scripts file.
   `{{session:name}}-{{env:SUFFIX}}`). After the name, a token may carry
   **modifiers**, each introduced by `|`: `|quote` (FR-55.4, every type) and
   `|default=<value>` (`prompt` only, FR-55.12), in any order, each at most
-  once (e.g. `{{prompt:Command|default=/config|quote}}`). Text that merely contains `{{`, or
+  once (e.g. `{{prompt:Command|default=/config|quote}}`); a repeated or
+  misplaced modifier of a `prompt` macro is a macro error (FR-55.6), whereas on
+  the other types a repeated `|quote` stays part of the name, as before the
+  modifiers existed. Text that merely contains `{{`, or
   bash constructs such as `${VAR}` or `$(cmd)`, is not a macro. **A macro in a
   comment is ignored**: everything to the right of a bash comment marker, up
   to the end of the line, is neither expanded, nor checked, nor masked, nor
@@ -534,7 +537,7 @@ without going through the Scripts tab.
   callback, takes cancellation and timeout; testable with a fake `ssh`) and
   `ScriptRunResult`.
 - `MutagenMon.Core/Scripts/` (macros, FR-55; Core stays testable):
-  `ScriptMacro` (token parser `Find`, `SecretLabels`), `ScriptMacroExpander`
+  `ScriptMacro` (token parser `Find`, `ValueRequests`), `ScriptMacroExpander`
   (`Expand`, with the values passed as delegates in `ScriptMacroSources`),
   `ScriptOutputMasker` (FR-55.8) and `WindowsMacroValueReader` (the Windows
   readers for `env`, `reg` and `cred`: registry and Credential Manager,

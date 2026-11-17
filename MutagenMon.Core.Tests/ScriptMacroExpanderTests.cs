@@ -6,6 +6,9 @@ namespace MutagenMon.Core.Tests;
 
 public class ScriptMacroExpanderTests
 {
+    // A text that must never appear in an error message when it is written as the default of a macro that is not a prompt (FR-53.3).
+    private const string Marker = "s3cr3t";
+
     private static readonly SessionSummaryRow Session = new(
         "Appman", "green", "Watching for changes", 2, @"C:\sources\appman", "robbie:sources/appman",
         new DateTimeOffset(2026, 11, 8, 12, 30, 0, TimeSpan.Zero));
@@ -450,5 +453,226 @@ public class ScriptMacroExpanderTests
 
         Assert.DoesNotContain("hunter2", text);
         Assert.Contains("IsSuccess = True", text);
+    }
+
+    // Prompt macro (FR-55.12) and its default modifier.
+
+    [Fact]
+    public void PromptMacroIsResolvedFromThePromptLookupAndNotMasked()
+    {
+        var expansion = ScriptMacroExpander.Expand("cd {{prompt:Path}}", Sources(prompts: Env("Path", "/srv/app")));
+
+        Assert.True(expansion.IsSuccess);
+        Assert.Equal("cd /srv/app", expansion.Text);
+        Assert.Empty(expansion.SecretsToMask);
+    }
+
+    [Fact]
+    public void ASecretValueIsMaskedWhileAPromptValueOfTheSameScriptIsNot()
+    {
+        var sources = Sources(secrets: Env("Token", "tok-value"), prompts: Env("Path", "/srv/app"));
+
+        var expansion = ScriptMacroExpander.Expand("{{secret:Token}} {{prompt:Path}}", sources);
+
+        Assert.True(expansion.IsSuccess);
+        Assert.Equal("tok-value /srv/app", expansion.Text);
+        Assert.Equal(new[] { "tok-value" }, expansion.SecretsToMask);
+    }
+
+    [Fact]
+    public void APromptValueWithASingleQuoteIsNotMaskedInAnyForm()
+    {
+        var expansion = ScriptMacroExpander.Expand("{{prompt:P}} {{prompt:P|quote}}", Sources(prompts: Env("P", "a'b")));
+
+        Assert.Equal("a'b 'a'\\''b'", expansion.Text);
+        Assert.Empty(expansion.SecretsToMask);
+    }
+
+    [Fact]
+    public void PromptMacroWithAMissingOrEmptyValueIsAnErrorNamingTheMacro()
+    {
+        var missing = ScriptMacroExpander.Expand("{{prompt:Path}}", Sources());
+        var empty = ScriptMacroExpander.Expand("{{prompt:Path}}", Sources(prompts: Env("Path", "")));
+
+        Assert.Contains("{{prompt:Path}}", Assert.Single(missing.Errors));
+        Assert.Contains("{{prompt:Path}}", Assert.Single(empty.Errors));
+        Assert.Equal("", missing.Text);
+        Assert.Equal("", empty.Text);
+    }
+
+    [Fact]
+    public void PromptMacroQuoteModifierQuotesAValueWithASingleQuote()
+    {
+        var expansion = ScriptMacroExpander.Expand("echo {{prompt:P|quote}}", Sources(prompts: Env("P", "it's")));
+
+        Assert.Equal("echo 'it'\\''s'", expansion.Text);
+    }
+
+    [Theory]
+    [InlineData("a\nb")]
+    [InlineData("a\rb")]
+    [InlineData("a\0b")]
+    public void APromptValueWithALineBreakOrNulIsRefusedRawOrQuoted(string value)
+    {
+        var sources = Sources(prompts: Env("P", value));
+
+        Assert.Contains("{{prompt:P}}", Assert.Single(ScriptMacroExpander.Expand("{{prompt:P}}", sources).Errors));
+        Assert.Contains("{{prompt:P|quote}}", Assert.Single(ScriptMacroExpander.Expand("{{prompt:P|quote}}", sources).Errors));
+    }
+
+    [Fact]
+    public void TheDefaultTextIsNeverUsedAsTheValueByTheExpander()
+    {
+        var expansion = ScriptMacroExpander.Expand("{{prompt:Path|default=/config}}", Sources());
+
+        Assert.False(expansion.IsSuccess);
+        Assert.Equal("", expansion.Text);
+        Assert.Contains("no value was entered for the prompt 'Path'", Assert.Single(expansion.Errors));
+    }
+
+    [Fact]
+    public void ThePromptLookupValueWinsOverTheDefaultText()
+    {
+        var expansion = ScriptMacroExpander.Expand("{{prompt:Path|default=/config}}", Sources(prompts: Env("Path", "/other")));
+
+        Assert.True(expansion.IsSuccess);
+        Assert.Equal("/other", expansion.Text);
+    }
+
+    [Fact]
+    public void ALabelUsedByASecretAndAPromptMacroIsAnErrorNamingTheLabelButNoValue()
+    {
+        var sources = Sources(secrets: Env("Token", "sec-value"), prompts: Env("Token", "prompt-value"));
+
+        var expansion = ScriptMacroExpander.Expand("{{secret:Token}} {{prompt:Token}}", sources);
+
+        Assert.False(expansion.IsSuccess);
+        Assert.Contains(expansion.Errors, error_ => error_.Contains("Token"));
+        Assert.All(expansion.Errors, error_ =>
+        {
+            Assert.DoesNotContain("sec-value", error_);
+            Assert.DoesNotContain("prompt-value", error_);
+        });
+        Assert.Empty(expansion.SecretsToMask);
+    }
+
+    [Theory]
+    [InlineData("{{secret:X|default=" + Marker + "}}")]
+    [InlineData("{{env:X|default=" + Marker + "}}")]
+    public void ADefaultOnASecretOrEnvMacroIsAnErrorThatDoesNotCarryTheDefaultText(string text)
+    {
+        var sources = Sources(Env("X", "v"), secrets: Env("X", "v"));
+
+        var expansion = ScriptMacroExpander.Expand(text, sources);
+
+        Assert.False(expansion.IsSuccess);
+        Assert.Contains(expansion.Errors, error_ => error_.Contains("only supported by the prompt macro"));
+        Assert.All(expansion.Errors, error_ => Assert.DoesNotContain(Marker, error_));
+    }
+
+    [Theory]
+    [InlineData("{{cred:T|default=" + Marker + "}}")]
+    [InlineData("{{reg:HKCU\\K:V|default=" + Marker + "}}")]
+    [InlineData("{{session:name|default=" + Marker + "}}")]
+    [InlineData("{{foo:bar|default=" + Marker + "}}")]
+    [InlineData("{{env:X|default=" + Marker + "|b}}")]
+    [InlineData("{{env:X|default=a|" + Marker + "}}")]
+    [InlineData("{{secret:a|default=" + Marker + "|default=y}}")]
+    [InlineData("{{secret:a|default=x|default=" + Marker + "}}")]
+    [InlineData("{{cred:T|default=" + Marker + "|quote|quote}}")]
+    [InlineData("{{prompt:a|default=" + Marker + "|b}}")]
+    [InlineData("{{secret:X|quote|default=" + Marker + "}}")]
+    [InlineData("{{env:X|quote|default=" + Marker + "}}")]
+    [InlineData("{{foo:bar|quote|default=" + Marker + "}}")]
+    [InlineData("{{secret:a|default=" + Marker + "}} {{prompt:a}}")]
+    public void NoErrorMessageContainsTheDefaultTextOfAnyMacroType(string text)
+    {
+        var sources = Sources(
+            Env("X", "v"),
+            new Dictionary<(string Key, string Value), string> { [(@"HKCU\K", "V")] = "v" },
+            Env("T", "v"),
+            Env("a", "v"),
+            prompts: Env("a", "v"),
+            session: Session);
+
+        var expansion = ScriptMacroExpander.Expand(text, sources);
+
+        Assert.False(expansion.IsSuccess);
+        Assert.NotEmpty(expansion.Errors);
+        Assert.All(expansion.Errors, error_ => Assert.DoesNotContain(Marker, error_));
+    }
+
+    [Fact]
+    public void APromptLabelWithTwoDifferentDefaultsIsAnErrorNamingTheLabel()
+    {
+        var expansion = ScriptMacroExpander.Expand(
+            "{{prompt:Path|default=/a}} {{prompt:Path|default=/b}}", Sources(prompts: Env("Path", "/x")));
+
+        Assert.False(expansion.IsSuccess);
+        Assert.Contains(expansion.Errors, error_ => error_.Contains("Path"));
+    }
+
+    [Fact]
+    public void APromptLabelWithIdenticalDefaultsOrASingleDefaultIsAccepted()
+    {
+        var sources = Sources(prompts: Env("Path", "/x"));
+
+        Assert.True(ScriptMacroExpander.Expand("{{prompt:Path|default=/a}} {{prompt:Path|default=/a|quote}}", sources).IsSuccess);
+        Assert.True(ScriptMacroExpander.Expand("{{prompt:Path}} {{prompt:Path|default=/a}}", sources).IsSuccess);
+        Assert.True(ScriptMacroExpander.Expand("{{prompt:Path|default=/a}} {{prompt:Path}}", sources).IsSuccess);
+    }
+
+    [Fact]
+    public void AMisplacedQuoteOnAPromptMacroIsAnErrorNamingTheLabel()
+    {
+        var expansion = ScriptMacroExpander.Expand("{{prompt:a|quote|b}}", Sources(prompts: Env("a", "v")));
+
+        Assert.False(expansion.IsSuccess);
+        Assert.Contains("'a'", Assert.Single(expansion.Errors));
+    }
+
+    [Fact]
+    public void ARepeatedQuoteOnAPromptMacroIsAnErrorNamingTheLabel()
+    {
+        var expansion = ScriptMacroExpander.Expand("{{prompt:a|quote|quote}}", Sources(prompts: Env("a", "v")));
+
+        Assert.False(expansion.IsSuccess);
+        Assert.Contains("'a'", Assert.Single(expansion.Errors));
+    }
+
+    [Fact]
+    public void APromptModifierLookalikeIsALabelAndNotMalformed()
+    {
+        var expansion = ScriptMacroExpander.Expand("{{prompt:a|quoted}}", Sources(prompts: Env("a|quoted", "v")));
+
+        Assert.True(expansion.IsSuccess);
+        Assert.Equal("v", expansion.Text);
+    }
+
+    [Fact]
+    public void ARepeatedQuoteOnASecretStaysAValidSecretLabel()
+    {
+        var expansion = ScriptMacroExpander.Expand("{{secret:a|quote|quote}}", Sources(secrets: Env("a|quote", "v")));
+
+        Assert.True(expansion.IsSuccess);
+        Assert.Equal("'v'", expansion.Text);
+    }
+
+    [Fact]
+    public void APromptDefaultContainingNulIsASingleErrorWithoutTheNul()
+    {
+        var expansion = ScriptMacroExpander.Expand("{{prompt:a|default=x\0y}}", Sources(prompts: Env("a", "v")));
+
+        Assert.False(expansion.IsSuccess);
+        var error = Assert.Single(expansion.Errors);
+        Assert.DoesNotContain("\0", error);
+    }
+
+    [Fact]
+    public void TheUnknownTypeErrorListsPromptAmongTheKnownTypes()
+    {
+        var expansion = ScriptMacroExpander.Expand("{{foo:bar}}", Sources());
+
+        Assert.Contains("prompt", Assert.Single(expansion.Errors));
     }
 }

@@ -1934,9 +1934,56 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
 * Cancel the dialog (or close it): the run does not start and the status line
   says it was cancelled. Leave one row empty and OK: the run does not start
   and the status line names the macro.
-* A script without a `secret` macro opens no dialog.
+* A script without a `secret` macro (and without a `prompt` macro, UT-55.15) opens no dialog.
 * Type a value with `'` and `$(id)`: raw insertion interprets it according to
   where the macro is written; `{{secret:Label|quote}}` inserts it literally.
+
+**UT-55.15 — `{{prompt:…}}` macro and its default value (FR-55.12)** ✅
+
+* Write `echo "branch=[{{prompt:Branch}}]"` and run it: **one** dialog opens
+  ("Script values") with one row "Branch" whose input **shows** the typed
+  characters (a visible text box, empty). Type `main` and OK: the output shows
+  `branch=[main]` — the value is **not** replaced by `***`. Run again: the
+  dialog opens again, empty (nothing was kept).
+* Mixed script: `echo "u={{prompt:User}} p={{secret:Password}} u2={{prompt:User}}"`.
+  One dialog with exactly two rows, "User" then "Password" (order of first
+  appearance); "User" is visible, "Password" hides the characters. The output
+  shows `u=<typed user> p=*** u2=<typed user>` (same value for both uses of
+  "User").
+* Default value: `echo "cmd=[{{prompt:Command|default=/config}}]"`. The dialog
+  row is **pre-filled** with `/config` and has the focus with the text
+  **selected** when the dialog opens: typing replaces it (the box is the only
+  row, so it already has the focus: a click in it places the caret, as usual).
+  In a script with two rows where the `prompt` row with a default is **not** the
+  first (`{{secret:A}} {{prompt:Cmd|default=/config}}`), the first click in that
+  box gives it the focus and selects all the text without losing the selection;
+  OK without typing runs with `cmd=[/config]`. Edit the text to
+  `/config -v` and OK: `cmd=[/config -v]`. Clear the box and OK: the run does
+  not start and the status line names `{{prompt:Command|default=/config}}` as
+  without value.
+* `{{prompt:Command|default=/config|quote}}` and
+  `{{prompt:Command|quote|default=/config}}` behave the same and insert the
+  value shell-quoted. A default with `:`, `=` and spaces
+  (`{{prompt:Cmd|default=a:b=c d}}`) is pre-filled intact. `|default=` with
+  nothing after it gives an empty box.
+* Two macros with the same label and the same default, or only one of them
+  carrying the default, show one row with that default. Two **different**
+  defaults for one label (`{{prompt:C|default=a}} {{prompt:C|default=b}}`): no
+  dialog, `Macro error:` naming the label.
+* The same label used by `{{secret:X}}` and `{{prompt:X}}`: no dialog, `Macro
+  error:` naming the label.
+* `{{secret:Pwd|default=hunter2}}` (and `{{env:X|default=hunter2}}`): no dialog,
+  `Macro error:` saying that `default` is only supported by `prompt`; neither
+  the status line nor `mutagenMon.log` contains `hunter2`. A malformed token such
+  as `{{prompt:C|default=a|b}}` or `{{prompt:a|quote|quote}}` gives a `Macro
+  error:` naming the label.
+* Cancel the dialog (or close it with the title bar cross): the run does not
+  start and the status line reads that the values were not entered. Check
+  `mutagenMon.log`: the dialog records only the number of values and the outcome
+  (the run is also logged as not started), never a label, a value or a default
+  of the dialog.
+* A script with only `prompt` macros opens the dialog; a script without any
+  `secret` or `prompt` macro does not.
 
 ## FR-56 — `@session-script` scripts run from the Sync tab
 
@@ -2002,7 +2049,7 @@ flag and with `echo "plain"`.
 * Add `echo "{{env:UNDEFINED_VAR_XYZ}}"` to a flagged script and run it: the
   dialog opens with an
   empty pane and `Macro error:` in red, Close enabled, no ssh started. With a
-  `{{secret:…}}` macro, cancel the secret dialog: the dialog shows that the
+  `{{secret:…}}` or `{{prompt:…}}` macro, cancel the values dialog: the dialog shows that the
   run was cancelled.
 * Close the dialog, run the same script again: the pane starts empty.
 

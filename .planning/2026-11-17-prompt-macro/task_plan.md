@@ -4,10 +4,10 @@
 Add a macro type `prompt` to the Scripts tab: like `{{secret:<Label>}}` it asks the user for a value in the single pre-run dialog, but the input is a visible text box and the value is NOT masked in the output.
 
 ## Next Step
-Task 5.1: port the ScriptMacroTests of `SecretLabels` to `ValueRequests` and add the prompt/default parsing tests (Phase 5).
+Task 6.1: run the eortc-dotnet-code-reviewer loop on the final state, then summarise (Phase 6).
 
 ## Current Phase
-Phase 5
+Phase 6
 
 ## Phases
 
@@ -45,17 +45,17 @@ Phase 5
 - **Status:** complete
 
 ### Phase 5: Tests
-- [ ] 5.1 `ScriptMacroTests`: `prompt` type parsing (plain and `|quote`), comment handling, labels list with mixed kinds
-- [ ] 5.2 `ScriptMacroExpanderTests`: prompt resolved, NOT in `SecretsToMask`; empty/missing error; same label in `secret` and `prompt` gives a macro error naming the label (no value in the message); `|quote`; line break refused
-- [ ] 5.5 Default value, `ScriptMacroTests`: parsing of `|default=`, with and without `|quote`, either order, empty default, default containing `:` or `=`, `Default` in `ValueRequests`
-- [ ] 5.6 Default value, `ScriptMacroExpanderTests`: `default` on `secret` is an error; two different defaults for one label is an error; identical defaults are accepted; the default is never used as the resolved value (the lookup decides)
-- [ ] 5.3 `requirements/UserTests.md`: add UT-55.15 (`{{prompt:…}}`, mixed dialog, visible input, unmasked output, cancel, empty, pre-filled default, conflicting defaults, default on a `secret`)
-- [ ] 5.7 Doc/spec leftovers from the phase 4 review: `UserTests.md` wording "secret dialog" -> "values dialog" and the new cancel message (UT-55.14 and the line ~2005), `ScriptMacroSources`/`ScriptMacroExpander` XML doc mentions the `prompt` values, remove `ScriptMacro.SecretLabels`, FR-55.1: state that a repeated `|quote` on a non-prompt macro stays part of its name (or validate otherwise)
-- [ ] 5.4 Build per project (`-m:1`) and run `MutagenMon.Core.Tests`
-- **Status:** pending
+- [x] 5.1 `ScriptMacroTests`: `prompt` type parsing (plain and `|quote`), comment handling, labels list with mixed kinds
+- [x] 5.2 `ScriptMacroExpanderTests`: prompt resolved, NOT in `SecretsToMask`; empty/missing error; same label in `secret` and `prompt` gives a macro error naming the label (no value in the message); `|quote`; line break refused
+- [x] 5.5 Default value, `ScriptMacroTests`: parsing of `|default=`, with and without `|quote`, either order, empty default, default containing `:` or `=`, `Default` in `ValueRequests`
+- [x] 5.6 Default value, `ScriptMacroExpanderTests`: `default` on `secret` is an error; two different defaults for one label is an error; identical defaults are accepted; the default is never used as the resolved value (the lookup decides)
+- [x] 5.3 `requirements/UserTests.md`: add UT-55.15 (`{{prompt:…}}`, mixed dialog, visible input, unmasked output, cancel, empty, pre-filled default, conflicting defaults, default on a `secret`)
+- [x] 5.7 Doc/spec leftovers from the phase 4 review: `UserTests.md` wording "secret dialog" -> "values dialog" and the new cancel message (UT-55.14 and the line ~2005), `ScriptMacroSources`/`ScriptMacroExpander` XML doc mentions the `prompt` values, remove `ScriptMacro.SecretLabels`, FR-55.1: state that a repeated `|quote` on a non-prompt macro stays part of its name (or validate otherwise)
+- [x] 5.4 Build per project (`-m:1`) and run `MutagenMon.Core.Tests`
+- **Status:** complete
 
 ### Phase 6: Review & Delivery
-- [ ] 6.1 Run `eortc-dotnet-code-reviewer` loop on the changes (spec: FR-55)
+- [x] 6.1 Run `eortc-dotnet-code-reviewer` loop on the changes (spec: FR-55): done per batch (Core 3 iterations, App 1, tests 1; no 🔴/🟠 open)
 - [ ] 6.2 Fix findings, summarise, stop (no commit unless asked)
 - **Status:** pending
 

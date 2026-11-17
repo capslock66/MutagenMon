@@ -7,9 +7,9 @@ using MutagenMon.Core.Status;
 namespace MutagenMon.Core.Scripts;
 
 /// <summary>Where the macro values come from (FR-55). Core reads nothing
-/// itself: the application passes the Windows readers and the typed secrets
-/// as delegates, so the expansion is testable without a registry, a
-/// Credential Manager or a dialog (NFR-11). A delegate returns
+/// itself: the application passes the Windows readers and the typed values
+/// (secrets and prompts) as delegates, so the expansion is testable without a
+/// registry, a Credential Manager or a dialog (NFR-11). A delegate returns
 /// <c>null</c> when the value does not exist or cannot be read: it must not
 /// throw for a missing or unreadable value, which is reported as an
 /// unresolved macro (FR-55.6), not as an exception.</summary>

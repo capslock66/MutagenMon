@@ -199,17 +199,6 @@ public sealed record ScriptMacro(int Start, int Length, string TypeName, string 
     private static bool IsStartOfWord(string text, int index) =>
         index == 0 || text[index - 1] is ' ' or '\t' or '\n' or '\r' or ';' or '&' or '|' or '(' or ')' or '<' or '>';
 
-    /// <summary>The labels of the <c>secret</c> macros, each listed once,
-    /// in order of first appearance — one row per label in the dialog that
-    /// asks for the values (FR-55.11). Labels are case-sensitive; an empty
-    /// label is not listed (it is an error at expansion time).</summary>
-    public static IReadOnlyList<string> SecretLabels(IEnumerable<ScriptMacro> macros) =>
-        macros
-            .Where(macro_ => macro_.Type == ScriptMacroType.Secret && macro_.Name.Length > 0)
-            .Select(macro_ => macro_.Name)
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
-
     /// <summary>The values to ask for, one per distinct label of the <c>secret</c>
     /// and <c>prompt</c> macros, in order of first appearance — one row per
     /// label in the dialog (FR-55.11, FR-55.12). Labels are case-sensitive; an
