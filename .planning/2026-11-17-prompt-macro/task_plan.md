@@ -4,10 +4,10 @@
 Add a macro type `prompt` to the Scripts tab: like `{{secret:<Label>}}` it asks the user for a value in the single pre-run dialog, but the input is a visible text box and the value is NOT masked in the output.
 
 ## Next Step
-Task 3.1: add ScriptMacroType.Prompt in ScriptMacro.cs (Phase 3, awaiting user go).
+Task 4.1 (reviewer: trigger pre-check and dialog on ValueRequests, placeholder for both Secret and Prompt in 4.2): SecretValuesDialog with PasswordBox/TextBox rows (Phase 4). Note: MutagenMon.App does not compile until 4.2 (ScriptMacroSources has a new Prompt delegate).
 
 ## Current Phase
-Phase 3
+Phase 4
 
 ## Phases
 
@@ -26,12 +26,12 @@ Phase 3
 - **Status:** complete
 
 ### Phase 3: Core implementation (MutagenMon.Core)
-- [ ] 3.1 `ScriptMacro.cs`: add `ScriptMacroType.Prompt`, map `"prompt"` in `Type`
-- [ ] 3.2 `ScriptMacro.cs`: replace `SecretLabels` by a method returning the distinct requested inputs (kind + label, first-appearance order, one row per label)
-- [ ] 3.3 `ScriptMacroSources`: add the `Prompt` lookup delegate
-- [ ] 3.4 `ScriptMacroExpander.Resolve`: handle `Prompt` (empty name error, empty value error, `isMasked: false`); update "known types" error text; keep `|quote` and the line-break/NUL refusal
-- [ ] 3.5 `ScriptMacroExpander`: detect a label used by both `secret` and `prompt` and report one macro error naming the label and both types (reported by the pre-check, so no dialog opens)
-- **Status:** pending
+- [x] 3.1 `ScriptMacro.cs`: add `ScriptMacroType.Prompt`, map `"prompt"` in `Type`
+- [x] 3.2 `ScriptMacro.cs`: replace `SecretLabels` by a method returning the distinct requested inputs (kind + label, first-appearance order, one row per label): added as `ValueRequests`; `SecretLabels` kept for now (existing tests), remove in 4.2 if unused
+- [x] 3.3 `ScriptMacroSources`: add the `Prompt` lookup delegate
+- [x] 3.4 `ScriptMacroExpander.Resolve`: handle `Prompt` (empty name error, empty value error, `isMasked: false`); update "known types" error text; keep `|quote` and the line-break/NUL refusal
+- [x] 3.5 `ScriptMacroExpander`: detect a label used by both `secret` and `prompt` and report one macro error naming the label and both types (reported by the pre-check, so no dialog opens)
+- **Status:** complete
 
 ### Phase 4: App implementation (MutagenMon.App)
 - [ ] 4.1 `SecretValuesDialog`: accept inputs of two kinds; `PasswordBox` for secret, visible `TextBox` for prompt; adapt Focus/OK/clear logic; update title and intro text

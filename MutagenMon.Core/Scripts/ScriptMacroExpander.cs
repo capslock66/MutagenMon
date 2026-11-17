@@ -16,13 +16,15 @@ namespace MutagenMon.Core.Scripts;
 /// <param name="Environment">Environment variable name → value (FR-55.2).</param>
 /// <param name="Registry">Normalised key (<c>HKCU\...</c> or <c>HKLM\...</c>) and value name → value as text (FR-55.9).</param>
 /// <param name="Credential">Credential Manager target → password (FR-55.10).</param>
-/// <param name="Secret">Label → value typed by the user (FR-55.11).</param>
+/// <param name="Secret">Label → value typed by the user in a hidden input (FR-55.11).</param>
+/// <param name="Prompt">Label → value typed by the user in a visible input, not masked (FR-55.12).</param>
 /// <param name="SelectedSession">The session row selected in the Sync grid, or <c>null</c> (FR-55.3).</param>
 public sealed record ScriptMacroSources(
     Func<string, string?> Environment,
     Func<string, string, string?> Registry,
     Func<string, string?> Credential,
     Func<string, string?> Secret,
+    Func<string, string?> Prompt,
     SessionSummaryRow? SelectedSession);
 
 /// <summary>The result of <see cref="ScriptMacroExpander.Expand"/>.
@@ -30,7 +32,8 @@ public sealed record ScriptMacroSources(
 /// and an empty string otherwise (a failed expansion must never be run).
 /// <paramref name="Errors"/> names every unresolved macro, never a value.
 /// <paramref name="SecretsToMask"/> holds the values that came from an
-/// <c>env</c>, <c>reg</c>, <c>cred</c> or <c>secret</c> macro (FR-55.8).</summary>
+/// <c>env</c>, <c>reg</c>, <c>cred</c> or <c>secret</c> macro (FR-55.8); a
+/// <c>prompt</c> or <c>session</c> value is not in the list.</summary>
 public sealed record ScriptMacroExpansion(
     string Text, IReadOnlyList<string> Errors, IReadOnlyList<string> SecretsToMask)
 {
@@ -63,6 +66,7 @@ public static class ScriptMacroExpander
             return new ScriptMacroExpansion(text, [], []);
 
         var errors = new List<string>();
+        AddSharedLabelErrors(macros, errors);
         var secretsToMask = new List<string>();
         var builder = new StringBuilder(text.Length);
         var position = 0;
@@ -109,6 +113,18 @@ public static class ScriptMacroExpander
             : new ScriptMacroExpansion(builder.ToString(), errors, secretsToMask);
     }
 
+    // A label cannot be used by both a secret and a prompt macro (FR-55.12): the value would be asked
+    // in two inputs, one of them visible. Only the label and the two types are named, never a value.
+    private static void AddSharedLabelErrors(IReadOnlyList<ScriptMacro> macros, List<string> errors)
+    {
+        var secretLabels = macros.Where(macro_ => macro_.Type == ScriptMacroType.Secret && macro_.Name.Length > 0)
+            .Select(macro_ => macro_.Name).ToHashSet(StringComparer.Ordinal);
+        foreach (var label in macros
+                     .Where(macro_ => macro_.Type == ScriptMacroType.Prompt && secretLabels.Contains(macro_.Name))
+                     .Select(macro_ => macro_.Name).Distinct(StringComparer.Ordinal))
+            errors.Add($"the label '{label}' is used by both a secret and a prompt macro");
+    }
+
     private static void AddOnce(List<string> values, string value)
     {
         if (!values.Contains(value, StringComparer.Ordinal))
@@ -134,7 +150,7 @@ public static class ScriptMacroExpander
 
     private static Resolution Resolve(ScriptMacro macro, ScriptMacroSources sources)
     {
-        if (macro.Type is ScriptMacroType.Env or ScriptMacroType.Session or ScriptMacroType.Cred or ScriptMacroType.Secret
+        if (macro.Type is ScriptMacroType.Env or ScriptMacroType.Session or ScriptMacroType.Cred or ScriptMacroType.Secret or ScriptMacroType.Prompt
             && macro.Name.Length == 0)
             return Failed(macro, "the name is empty");
 
@@ -151,7 +167,8 @@ public static class ScriptMacroExpander
             ScriptMacroType.Secret => FromLookup(
                 macro, sources.Secret(macro.Name),
                 $"no value was entered for the secret '{macro.Name}'"),
-            _ => Failed(macro, $"unknown macro type '{macro.TypeName}' (known types: env, session, reg, cred, secret)"),
+            ScriptMacroType.Prompt => ResolvePrompt(macro, sources.Prompt(macro.Name)),
+            _ => Failed(macro, $"unknown macro type '{macro.TypeName}' (known types: env, session, reg, cred, secret, prompt)"),
         };
     }
 
@@ -159,6 +176,13 @@ public static class ScriptMacroExpander
     /// error, and a present value is masked in the output (FR-55.8).</summary>
     private static Resolution FromLookup(ScriptMacro macro, string? value, string errorWhenMissing) =>
         string.IsNullOrEmpty(value) ? Failed(macro, errorWhenMissing) : Resolved(value, isMasked: true);
+
+    /// <summary>A value typed by the user in a visible input: empty is an error,
+    /// and the value is not masked in the output (FR-55.12).</summary>
+    private static Resolution ResolvePrompt(ScriptMacro macro, string? value) =>
+        string.IsNullOrEmpty(value)
+            ? Failed(macro, $"no value was entered for the prompt '{macro.Name}'")
+            : Resolved(value, isMasked: false);
 
     private static Resolution ResolveSession(ScriptMacro macro, SessionSummaryRow? session)
     {

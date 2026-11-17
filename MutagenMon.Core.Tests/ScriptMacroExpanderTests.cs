@@ -15,11 +15,13 @@ public class ScriptMacroExpanderTests
         IDictionary<(string Key, string Value), string>? registry = null,
         IDictionary<string, string>? credentials = null,
         IDictionary<string, string>? secrets = null,
+        IDictionary<string, string>? prompts = null,
         SessionSummaryRow? session = null) => new(
         name_ => environment is not null && environment.TryGetValue(name_, out var value) ? value : null,
         (key_, valueName_) => registry is not null && registry.TryGetValue((key_, valueName_), out var value) ? value : null,
         target_ => credentials is not null && credentials.TryGetValue(target_, out var value) ? value : null,
         label_ => secrets is not null && secrets.TryGetValue(label_, out var value) ? value : null,
+        label_ => prompts is not null && prompts.TryGetValue(label_, out var value) ? value : null,
         session);
 
     private static Dictionary<string, string> Env(string name, string value) => new() { [name] = value };
@@ -421,7 +423,7 @@ public class ScriptMacroExpanderTests
             new Dictionary<(string Key, string Value), string> { [(@"HKCU\K", "V")] = "reg-value" },
             Env("C", "cred-value"),
             Env("S", "secret-value"),
-            Session);
+            session: Session);
 
         var expansion = ScriptMacroExpander.Expand(
             @"{{env:E}} {{env:E}} {{reg:HKCU\K:V}} {{cred:C}} {{secret:S}} {{session:name}}", sources);

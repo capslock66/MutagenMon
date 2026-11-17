@@ -12,7 +12,14 @@ public enum ScriptMacroType
     Reg,
     Cred,
     Secret,
+    Prompt,
 }
+
+/// <summary>One value the user is asked to type before a run (FR-55.11,
+/// FR-55.12): <paramref name="IsSecret"/> is <c>true</c> for a <c>secret</c> macro
+/// (hidden input, masked output) and <c>false</c> for a <c>prompt</c> macro
+/// (visible input, output not masked).</summary>
+public sealed record ScriptValueRequest(string Label, bool IsSecret);
 
 /// <summary>One macro token found in a script text (FR-55.1): <c>{{type:name}}</c>,
 /// optionally <c>{{type:name|quote}}</c> (<paramref name="IsQuoted"/>).
@@ -36,6 +43,7 @@ public sealed record ScriptMacro(int Start, int Length, string TypeName, string 
         "reg" => ScriptMacroType.Reg,
         "cred" => ScriptMacroType.Cred,
         "secret" => ScriptMacroType.Secret,
+        "prompt" => ScriptMacroType.Prompt,
         _ => ScriptMacroType.Unknown,
     };
 
@@ -137,5 +145,19 @@ public sealed record ScriptMacro(int Start, int Length, string TypeName, string 
             .Where(macro_ => macro_.Type == ScriptMacroType.Secret && macro_.Name.Length > 0)
             .Select(macro_ => macro_.Name)
             .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+    /// <summary>The values to ask for, one per distinct label of the <c>secret</c>
+    /// and <c>prompt</c> macros, in order of first appearance — one row per
+    /// label in the dialog (FR-55.11, FR-55.12). Labels are case-sensitive; an
+    /// empty label is not listed (it is an error at expansion time). A label used by both
+    /// types is listed once, with the type of its first appearance. The caller must run
+    /// <c>ScriptMacroExpander.Expand</c> with placeholder values before showing the dialog:
+    /// it reports such a label as an error (FR-55.12), so that no dialog is shown.</summary>
+    public static IReadOnlyList<ScriptValueRequest> ValueRequests(IEnumerable<ScriptMacro> macros) =>
+        macros
+            .Where(macro_ => macro_.Type is ScriptMacroType.Secret or ScriptMacroType.Prompt && macro_.Name.Length > 0)
+            .Select(macro_ => new ScriptValueRequest(macro_.Name, macro_.Type == ScriptMacroType.Secret))
+            .DistinctBy(request_ => request_.Label, StringComparer.Ordinal)
             .ToArray();
 }
