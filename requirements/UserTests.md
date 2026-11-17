@@ -15,10 +15,20 @@ compare what you see against the expected-result lines.
   `TIC-7`) so a failure can be traced back to
   [01-functional-requirements.md](01-functional-requirements.md) or
   [03-tray-icon-requirements.md](03-tray-icon-requirements.md).
-- ✅ = implemented today, run this test. ⏳ = **not implemented yet** — do
-  not run it, do not report it as a bug; it is listed here only so this
-  document stays the complete, single reference against the full feature
-  set.
+- Every test title ends with **two status markers**: its **writing** status,
+  then its **human execution** status. The execution is always done by a
+  person (nothing here is automated), so a test is never "implemented".
+  - Writing: 📝 = **to define** (the steps are not written yet; the title only
+    records the intent) · 📋 = **defined** (the steps are written and can be
+    run).
+  - Human execution: ⬜ = **not run** by a person yet · ✅ = **tested** by a
+    person and it passed (no date or initials needed) ·
+    ❌ = **failed** (add a reference to the problem) · ⏳ = **blocked**: the
+    feature is not implemented yet, do not run it and do not report it as a
+    bug.
+  - A new test starts as `📝 ⬜` while it is being drafted, then `📋 ⬜` once
+    its steps are written; the tester changes ⬜ to ✅ or ❌ after the run. A
+    change of the feature that invalidates a ✅ puts the test back to ⬜.
 
 ## 0. Test environment setup
 
@@ -41,7 +51,7 @@ compare what you see against the expected-result lines.
 
 ## FR-1 — Session configuration loading
 
-**UT-1.1 — Sessions are loaded from `mutagen-create.bat` (FR-1.1)** ✅
+**UT-1.1 — Sessions are loaded from `mutagen-create.bat` (FR-1.1)** 📋 ✅
 
 * Open `mutagen/mutagen-create.bat` and confirm it has one
   non-`rem `-prefixed `mutagen sync create ... --name=<name> ...` line per
@@ -54,7 +64,7 @@ compare what you see against the expected-result lines.
   line.
 
 **UT-1.2 — Duplicate session names are detected and only one definition is
-kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
+kept (FR-1.2)** 📋 ✅ *(log-only in this rewrite — see the note below)*
 
 * Edit `mutagen-create.bat` and duplicate one `--name=<name>` line so the
   same name appears twice.
@@ -68,7 +78,7 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
   this case; the current .NET rewrite only logs the warning — no popup is
   expected here yet.
 
-**UT-1.3 — Config file tolerates `#` comment lines (FR-1.3)** ✅
+**UT-1.3 — Config file tolerates `#` comment lines (FR-1.3)** 📋 ✅
 
 * Open `config/config_mutagenmon.json` and confirm several lines start
   with `#`.
@@ -78,14 +88,14 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
 
 ## FR-2/FR-3/FR-4 — Polling, session classification, aggregated status
 
-**UT-2.1 — Background polling runs on a fixed interval (FR-2.1)** ✅
+**UT-2.1 — Background polling runs on a fixed interval (FR-2.1)** 📋 ✅
 
 * Start MutagenMon with at least one configured session.
 * Open `log/mutagenMon.log` and watch it update.
 * A new raw `mutagen sync list` output block is appended roughly once per
   second (`MutagenPollPeriodMs`, default 1000 ms).
 
-**UT-2.2 — The aggregated status is the worst of all sessions (FR-4.1)** ✅
+**UT-2.2 — The aggregated status is the worst of all sessions (FR-4.1)** 📋 ✅
 
 * Configure two sessions, both syncing normally.
 * Produce a conflict in only one of them (see the setup in UT-9 below)
@@ -97,7 +107,7 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
   icon, not the Ready icon — the worst session wins even though the other
   one is fine.
 
-**UT-2.3 — Staging progress is parsed and logged (FR-2.2)** ✅
+**UT-2.3 — Staging progress is parsed and logged (FR-2.2)** 📋 ✅
 
 * Copy a large file (100+ MB, large enough that staging takes clearly
   longer than `MutagenPollPeriodMs`) into a session's alpha folder.
@@ -112,7 +122,7 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
 
 ## Tray icon (FR-5, TIC-1..10 — [03-tray-icon-requirements.md](03-tray-icon-requirements.md))
 
-**UT-T.1 — Initial "waiting for status" icon (TIC-3)** ✅
+**UT-100.1 — Initial "waiting for status" icon (TIC-3)** 📋 ✅
 
 * Start MutagenMon.
 * Look at the tray icon immediately, before the first poll has completed.
@@ -120,7 +130,7 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
 * Hover the mouse over the icon.
 * The tooltip reads "MutagenMon: waiting for status...".
 
-**UT-T.2 — Ready state**  ✅
+**UT-100.2 — Ready state** 📋 ✅
 
 * Wait until every configured session reaches "Watching for changes" in
   mutagen.
@@ -128,7 +138,7 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
 * The icon is plain green.
 * The tooltip reads "MutagenMon: mutagen is watching for changes".
 
-**UT-T.3 — Ready + "just updated" flash (tray icon §3, gap #2 fixed)** ✅
+**UT-100.3 — Ready + "just updated" flash (tray icon §3, gap #2 fixed)** 📋 ✅
 
 * With every session Ready, edit a file inside the alpha (or beta) test
   folder so mutagen syncs the change.
@@ -137,7 +147,7 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
   mutagen is watching for changes (updated)".
 * A few seconds later, the icon returns to plain green ("Ready").
 
-**UT-T.4 — Syncing state** ✅
+**UT-100.4 — Syncing state** 📋 ✅
 
 * Copy a large-enough file into the alpha test folder that staging/
   applying takes a few seconds.
@@ -145,7 +155,7 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
 * The icon shows `green-sync`.
 * The tooltip reads "MutagenMon: mutagen is syncing".
 
-**UT-T.5 — Scanning state** ✅
+**UT-100.5 — Scanning state** 📋 ✅
 
 * Left-click the tray icon to open the status view.
 * Click "Reload config" in its toolbar so sessions rescan from scratch.
@@ -155,14 +165,14 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
   [03-tray-icon-requirements.md §3.1](03-tray-icon-requirements.md)).
 * The tooltip reads "MutagenMon: mutagen is scanning".
 
-**UT-T.6 — Conflicts state** ✅
+**UT-100.6 — Conflicts state** 📋 ✅
 
 * Produce a conflict (see the setup in UT-9 below).
 * Hover over the tray icon.
 * The icon shows `green-conflict`.
 * The tooltip reads "MutagenMon: conflicts".
 
-**UT-T.7 — Problems state** ✅
+**UT-100.7 — Problems state** 📋 ✅
 
 * Make mutagen unable to apply a change on one side (e.g. mark the target
   file read-only on one endpoint, then edit it on the other side).
@@ -170,7 +180,7 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
 * The icon shows `green-error`.
 * The tooltip reads "MutagenMon: problems".
 
-**UT-T.8 — Stopping monitoring changes the icon (FR-7.2 interaction)** ✅
+**UT-100.8 — Stopping monitoring changes the icon (FR-7.2 interaction)** 📋 ✅
 
 * With a session Ready, open the status view and click "Stop Mutagen
   sessions" in its toolbar.
@@ -184,7 +194,7 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
   abnormal-poll threshold being crossed again brings it back — see
   UT-13.1).
 
-**UT-T.9 — Cannot connect / error state** ✅
+**UT-100.9 — Cannot connect / error state** 📋 ✅
 
 * Edit `mutagen-create.bat` and point one session's remote endpoint at an
   unreachable host.
@@ -200,7 +210,7 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
 * Restore the working endpoint in `mutagen-create.bat` and reload again
   afterwards.
 
-**UT-T.10 — Staleness degrades the icon (FR-6.2)** ✅
+**UT-100.10 — Staleness degrades the icon (FR-6.2)** 📋 ✅
 
 * Rename `mutagen.exe` (or whatever `MutagenPath` points at) so polling
   starts failing.
@@ -216,23 +226,23 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
 * The tooltip keeps the last known state's own wording, e.g. "MutagenMon:
   mutagen is watching for changes (stale)", not a generic message.
 
-**UT-T.11 — Restart threshold triggers a full self-restart (FR-6.3)** ✅
+**UT-100.11 — Restart threshold triggers a full self-restart (FR-6.3)** 📋 ✅
 
-* Continue directly from UT-T.10, without restoring `mutagen.exe`.
+* Continue directly from UT-100.10, without restoring `mutagen.exe`.
 * Wait until the staleness age passes 90 seconds
   (`StatusMaxLag.Restart`).
 * The MutagenMon process restarts itself: the tray icon disappears and
   reappears, starting again from the "waiting for status" state
-  (UT-T.1).
+  (UT-100.1).
 * `log/mutagenMon.log` contains a restart log entry.
 * Restore `mutagen.exe`/`MutagenPath` afterwards.
 
-**UT-T.12 — Left-click opens the status view (TIC-7)** ✅
+**UT-100.12 — Left-click opens the status view (TIC-7)** 📋 ✅
 
 * Left-click the tray icon.
 * The detailed status view opens (see FR-8 tests below).
 
-**UT-T.13 — Right-click opens the context menu (TIC-8)** ✅
+**UT-100.13 — Right-click opens the context menu (TIC-8)** 📋 ✅
 
 * Right-click the tray icon.
 * A menu is displayed with these options, top to bottom: "Show status",
@@ -241,8 +251,8 @@ kept (FR-1.2)** ✅ *(log-only in this rewrite — see the note below)*
   "Stop/Start Mutagen sessions" are status-view-toolbar-only now, not tray
   menu items).
 
-**UT-T.14 — Resilient to a stale native tray icon (e.g. after resuming
-from sleep/hibernate)** ✅
+**UT-100.14 — Resilient to a stale native tray icon (e.g. after resuming
+from sleep/hibernate)** 📋 ✅
 
 * Not deterministically reproducible on demand; verify after an actual
   occurrence — e.g. leave MutagenMon running, put the PC to sleep/
@@ -254,7 +264,7 @@ from sleep/hibernate)** ✅
   catch up automatically once the tray icon becomes valid again, with no
   error dialog and no app restart.
 
-**UT-T.15 — Native icon that cannot be recreated triggers a self-restart (TIC-9 / FR-6.4)**
+**UT-100.15 — Native icon that cannot be recreated triggers a self-restart (TIC-9 / FR-6.4)** 📋 ✅
 
 * Not deterministically reproducible on demand. Case 1: Explorer is
   running but the icon cannot be recreated for about one minute (no known
@@ -273,11 +283,11 @@ from sleep/hibernate)** ✅
 
 ## FR-6 — Staleness detection & self-restart
 
-Covered above by UT-T.10 and UT-T.11.
+Covered above by UT-100.10 and UT-100.11.
 
 ## FR-7 — Tray context menu & session control
 
-**UT-7.1 — "Reload config & restart mutagen" reloads in place (FR-7.1)** ✅
+**UT-7.1 — "Reload config & restart mutagen" reloads in place (FR-7.1)** 📋 ✅
 
 * Left-click the tray icon to open the status view.
 * Click "Reload config" in its toolbar (FR-16.1/16.2 — no longer a tray
@@ -296,7 +306,7 @@ Covered above by UT-T.10 and UT-T.11.
 * The full menu (Show status / Move to main screen / Exit) is displayed
   again.
 
-**UT-7.1b — Reload with an invalid config falls back safely (FR-7.1)** ✅
+**UT-7.1b — Reload with an invalid config falls back safely (FR-7.1)** 📋 ✅
 
 * Temporarily break `config/config_mutagenmon.json` (e.g. remove a closing
   brace) or point `MutagenSessionsBatFile` at a missing file.
@@ -308,18 +318,18 @@ Covered above by UT-T.10 and UT-T.11.
   disabled.
 * Restore the config file afterwards and reload again to confirm recovery.
 
-**UT-7.2 — "Stop Mutagen sessions" / "Start Mutagen sessions" (FR-7.2)** ✅
+**UT-7.2 — "Stop Mutagen sessions" / "Start Mutagen sessions" (FR-7.2)** 📋 ✅
 
 No longer a tray menu item (see the FR-7.2 change note) — covered by
 UT-8.5 via the status view's toolbar toggle.
 
-**UT-7.3 — "Show status" (FR-7.3)** ✅
+**UT-7.3 — "Show status" (FR-7.3)** 📋 ✅
 
 * Right-click the tray icon.
 * Click "Show status".
 * The same detailed status view as a left-click (FR-8) is displayed.
 
-**UT-7.4 — "Exit MutagenMon" (FR-7.4)** ✅
+**UT-7.4 — "Exit MutagenMon" (FR-7.4)** 📋 ✅
 
 * Right-click the tray icon.
 * Click "Exit MutagenMon".
@@ -336,7 +346,7 @@ UT-8.5 via the status view's toolbar toggle.
 Covered above by UT-7.1.
 
 **UT-7.6 — Declining the exit confirmation leaves the app running
-(FR-7.4)** ✅
+(FR-7.4)** 📋 ✅
 
 * Right-click the tray icon and click "Exit MutagenMon" (or open the
   status window and click "Exit").
@@ -348,7 +358,7 @@ Covered above by UT-7.1.
   confirmation`.
 
 **UT-7.7 — "Move to main screen" repositions every open window
-(FR-7.6)** ✅
+(FR-7.6)** 📋 ✅
 
 * With a multi-monitor setup, open the status view and drag it onto a
   secondary monitor. Also open a sync status popup (FR-28: click a row's
@@ -372,7 +382,7 @@ Covered above by UT-7.1.
 
 ## FR-8 — Detailed status view
 
-**UT-8.1 — Status view with no conflicts (FR-8.1/FR-8.3)** ✅
+**UT-8.1 — Status view with no conflicts (FR-8.1/FR-8.3)** 📋 ✅
 
 * With every session healthy and no conflicts, left-click the tray icon.
 * A window is displayed. Its title bar reads plain "MutagenMon" — there is
@@ -393,7 +403,7 @@ Covered above by UT-7.1.
 * Click "Close".
 * The window closes.
 
-**UT-8.2 — Status view with unresolved conflicts (FR-8.1/FR-8.2)** ✅
+**UT-8.2 — Status view with unresolved conflicts (FR-8.1/FR-8.2)** 📋 ✅
 
 * Produce at least one unresolved conflict (see UT-9 setup below).
 * Left-click the tray icon.
@@ -410,7 +420,7 @@ Covered above by UT-7.1.
   dialog (UT-9.1) appears on top of it, modal, and the status view keeps
   refreshing live underneath (FR-8.4) once the dialog is dismissed.
 
-**UT-8.3 — Status view stays live while open (FR-8.4)** ✅
+**UT-8.3 — Status view stays live while open (FR-8.4)** 📋 ✅
 
 * With every session healthy and no conflicts, left-click the tray icon to
   open the status view, and leave it open (don't click OK/Cancel).
@@ -426,7 +436,7 @@ Covered above by UT-7.1.
   changed don't visibly flicker/redraw (FR-8.4's no-op-when-unchanged
   behavior applies per row, not just to the window as a whole).
 
-**UT-8.4 — Upload progress shown while staging a large file (FR-2.2/FR-8.1)** ✅
+**UT-8.4 — Upload progress shown while staging a large file (FR-2.2/FR-8.1)** 📋 ✅
 
 * Change a large file (at least a few hundred MB, so staging takes more
   than a couple of polls) on one side of a healthy session.
@@ -445,7 +455,7 @@ Covered above by UT-7.1.
   text (e.g. "Watching for changes").
 
 **UT-8.5 — Status view exposes Reload/Stop-Start/Exit (FR-8.5, FR-16.1/
-16.5)** ✅
+16.5)** 📋 ✅
 
 * Left-click the tray icon to open the status view.
 * "Add" and "Stop Mutagen sessions" (or "Start Mutagen sessions" if
@@ -472,7 +482,7 @@ Covered above by UT-7.1.
   "Exit MutagenMon" would (FR-7.4) — see UT-7.4/UT-7.6 for the
   confirmation step itself.
 
-**UT-8.6 — Status window size is saved and restored (FR-8.6)** ✅
+**UT-8.6 — Status window size is saved and restored (FR-8.6)** 📋 ✅
 
 * Open the status window and drag its corner to a clearly different size
   (e.g. 1100 × 600). Wait one second, then open
@@ -495,7 +505,7 @@ Covered above by UT-7.1.
 
 ## FR-18 — Add/Edit window: identity fields
 
-**UT-18.5 — Local folder browse button next to Alpha/Beta (FR-18.5)** ✅
+**UT-18.5 — Local folder browse button next to Alpha/Beta (FR-18.5)** 📋 ✅
 
 * Open the Add/Edit session window (e.g. click "Add" in the status view's
   toolbar).
@@ -519,7 +529,7 @@ Covered above by UT-7.1.
 * Repeat the same sequence for the button next to Beta — it behaves
   identically and independently, writing only into the Beta box.
 
-**UT-18.6 — SSH server browse: no servers configured (FR-18.5)** ✅
+**UT-18.6 — SSH server browse: no servers configured (FR-18.5)** 📋 ✅
 
 * Open the Add/Edit session window, click the browse button next to Alpha,
   then "Browse SSH server…", with no servers configured yet (default
@@ -530,7 +540,7 @@ Covered above by UT-7.1.
   unchanged.
 
 **UT-18.7 — SSH server browse: connect, navigate multiple sub-levels,
-create folders, and pick a path (FR-18.5)** ✅
+create folders, and pick a path (FR-18.5)** 📋 ✅
 
 * Requires a real SSH server you can reach by key-based auth the same way
   the system `ssh`/`scp` binaries already used elsewhere in the app would
@@ -573,7 +583,7 @@ create folders, and pick a path (FR-18.5)** ✅
   "New folder" stay disabled.
 
 **UT-18.8 — SSH server browse preselects the host and auto-navigates to
-the existing path (FR-18.5)** ✅
+the existing path (FR-18.5)** 📋 ✅
 
 * With Beta already set to `robbie:sources/appman` (e.g. right after
   UT-18.7), click the browse button next to Beta again, then "Browse SSH
@@ -598,7 +608,7 @@ the existing path (FR-18.5)** ✅
 
 ## FR-34 — Mutagen monitor Configuration tab: SSH servers editor
 
-**UT-34.1 — Add/remove/validate SSH server entries (09-mutagen-monitor-config-editor-requirements.md's "SSH servers editor design")** ✅
+**UT-34.1 — Add/remove/validate SSH server entries (09-mutagen-monitor-config-editor-requirements.md's "SSH servers editor design")** 📋 ✅
 
 * Open the status window, go to the "Mutagen monitor Configuration" tab.
 * A vertical list of section names ("General", "SSH servers", "Logging &
@@ -629,7 +639,7 @@ the existing path (FR-18.5)** ✅
 
 ## FR-28 — Grid row action: view sync status
 
-**UT-28.1 — View sync status shows the raw CLI output (FR-28.1/FR-28.2)** ✅
+**UT-28.1 — View sync status shows the raw CLI output (FR-28.1/FR-28.2)** 📋 ✅
 
 * Left-click the tray icon to open the status view.
 * In the grid's leftmost column, each row shows three small icons in this
@@ -649,7 +659,7 @@ the existing path (FR-18.5)** ✅
 * Click "Close". The popup closes; the status view underneath is
   unaffected (still open, still refreshing).
 
-**UT-28.2 — The popup is non-modal (FR-28.5)** ✅
+**UT-28.2 — The popup is non-modal (FR-28.5)** 📋 ✅
 
 * Click the eye icon on a session's row to open its sync status popup.
 * Without closing that popup, click back on the status view behind it
@@ -661,7 +671,7 @@ the existing path (FR-18.5)** ✅
   UT-28.5 for re-clicking the *same* row's eye icon instead).
 
 **UT-28.3 — Refresh re-runs the command in place and re-stamps the title
-(FR-28.6/FR-28.7/FR-28.8)** ✅
+(FR-28.6/FR-28.7/FR-28.8)** 📋 ✅
 
 * With a sync status popup open (UT-28.1), wait at least a minute (so the
   refreshed timestamp visibly differs from the title's current one), then
@@ -684,7 +694,7 @@ the existing path (FR-18.5)** ✅
   this failed refresh.
 
 **UT-28.4 — View sync status failure (first open) shows an error dialog,
-no popup (FR-28.3)** ✅
+no popup (FR-28.3)** 📋 ✅
 
 * Trigger a failure, e.g. rename/remove the configured `mutagen` binary,
   or click the eye icon immediately after deleting that same session
@@ -696,7 +706,7 @@ no popup (FR-28.3)** ✅
   status view/grid are otherwise unaffected.
 
 **UT-28.5 — Re-clicking the same row's eye icon brings the existing
-popup to front instead of opening a duplicate (FR-28.9)** ✅
+popup to front instead of opening a duplicate (FR-28.9)** 📋 ✅
 
 * Click the eye icon on a session's row to open its sync status popup.
   Note its title's timestamp.
@@ -718,7 +728,7 @@ popup to front instead of opening a duplicate (FR-28.9)** ✅
 ## FR-29 — Mutagen config editor
 
 **UT-29.1 — Toolbar button opens the editor showing the file's current
-content (FR-29.1/FR-29.2/FR-30.1/FR-30.2/FR-30.3)** ✅
+content (FR-29.1/FR-29.2/FR-30.1/FR-30.2/FR-30.3)** 📋 ✅
 
 * Ensure `%USERPROFILE%\.mutagen.yml` exists with some content (create it
   by hand first if needed, e.g. `synchronization:\n  defaults:\n
@@ -742,7 +752,7 @@ content (FR-29.1/FR-29.2/FR-30.1/FR-30.2/FR-30.3)** ✅
   states the file does not exist yet; nothing else happens.
 
 **UT-29.2 — Missing file opens an empty editor with a notice, and Save
-creates it (FR-30.4/FR-32.2)** ✅
+creates it (FR-30.4/FR-32.2)** 📋 ✅
 
 * Ensure `%USERPROFILE%\.mutagen.yml` does **not** exist (rename/delete it
   if it does — back it up first if you care about its content).
@@ -760,7 +770,7 @@ creates it (FR-30.4/FR-32.2)** ✅
 
 **UT-29.3 — Check validates YAML and shows the red error / green "Check ok"
 label
-(FR-31.1/FR-31.2)** ✅
+(FR-31.1/FR-31.2)** 📋 ✅
 
 * Open "Edit mutagen config" (UT-29.1).
 * Replace the content with something syntactically invalid, e.g.
@@ -772,7 +782,7 @@ label
 * Break the content again and click "Check": the message is red again.
 
 **UT-29.4 — Save is blocked on invalid YAML and shows the same red error
-(FR-31.3)** ✅
+(FR-31.3)** 📋 ✅
 
 * Open "Edit mutagen config" (UT-29.1) and enter invalid YAML (as in
   UT-29.3), without clicking "Check" first.
@@ -781,7 +791,7 @@ label
   and the file on disk is unchanged.
 
 **UT-29.5 — Save preserves the file's original encoding
-(FR-30.3/FR-32.2)** ✅
+(FR-30.3/FR-32.2)** 📋 ✅
 
 * Save a UTF-8-with-BOM `.mutagen.yml` (most text editors' "UTF-8" option
   on Windows includes a BOM by default) containing a non-ASCII character,
@@ -794,7 +804,7 @@ label
   with the UTF-8 BOM (`EF BB BF`) and the accented character is intact.
 
 **UT-29.6 — Saving over an existing file shows the "not applied live"
-note; creating a new file does not (FR-32.4)** ✅
+note; creating a new file does not (FR-32.4)** 📋 ✅
 
 * With `%USERPROFILE%\.mutagen.yml` already existing (any valid content),
   open "Edit mutagen config" (UT-29.1), make a change, and click "Save".
@@ -821,7 +831,7 @@ note under FR-33's Status in
 [08-mutagen-config-editor-requirements.md](08-mutagen-config-editor-requirements.md).
 
 **UT-33.1 — The button starts disabled and stays disabled until a change
-is actually saved (FR-33.1/FR-33.2)** ✅
+is actually saved (FR-33.1/FR-33.2)** 📋 ✅
 
 * Open "Edit mutagen config" (UT-29.1) on an existing, valid
   `.mutagen.yml`.
@@ -833,7 +843,7 @@ is actually saved (FR-33.1/FR-33.2)** ✅
 * Now edit the text, then click "Save". The button becomes enabled.
 
 **UT-33.2 — Clicking it applies the change to already-running sessions
-(FR-33.3/FR-33.4)** ✅
+(FR-33.3/FR-33.4)** 📋 ✅
 
 * With at least one session running and configured to use a
   `synchronization.defaults` value from `.mutagen.yml` (e.g.
@@ -861,7 +871,7 @@ the beta folder (or its remote equivalent); then click "Start Mutagen
 sessions" again. Mutagen detects this as a two-sided edit and reports a
 conflict on its next poll.
 
-**UT-9.1 — Conflict grid and A/B comparison (FR-9.1)** ✅
+**UT-9.1 — Conflict grid and A/B comparison (FR-9.1)** 📋 ✅
 
 * Produce two conflicts (see setup above).
 * In the status view's grid, the conflicting session's Conflict column
@@ -877,7 +887,7 @@ conflict on its next poll.
   options "Visual merge", "Alpha wins", "Beta wins" and an "OK" button.
 
 **UT-9.2 — Default choice follows the most recently modified side
-(FR-9.3)** ✅
+(FR-9.3)** 📋 ✅
 
 * In the window from UT-9.1, note which radio button, "Alpha wins" or
   "Beta wins", is pre-selected.
@@ -886,7 +896,7 @@ conflict on its next poll.
 * The row's Resolution cell reads "<choice> (pending)".
 * Click another radio button: the Resolution cell follows immediately.
 
-**UT-9.3 — "Alpha wins" resolution (FR-9.2)** ✅
+**UT-9.3 — "Alpha wins" resolution (FR-9.2)** 📋 ✅
 
 * With a row selected, click the "Alpha wins" radio button.
 * Click "OK".
@@ -902,14 +912,14 @@ conflict on its next poll.
 * A new "Conflict resolved" line is present with the session name, both
   URLs, the file name, method "A wins", and no "[AUTO]" tag.
 
-**UT-9.4 — "Beta wins" resolution (FR-9.2)** ✅
+**UT-9.4 — "Beta wins" resolution (FR-9.2)** 📋 ✅
 
 * Select the other row, click the "Beta wins" radio button and click "OK".
 * Alpha's copy of the file now has Beta's content.
 * `log/mutagenMon.log` has a new "Conflict resolved" line with method "B
   wins".
 
-**UT-9.5 — Visual merge resolution (FR-9.2)** ✅
+**UT-9.5 — Visual merge resolution (FR-9.2)** 📋 ✅
 
 * Set `MergePath` in `config_mutagenmon.json` to a real merge tool (e.g.
   WinMerge) and restart MutagenMon.
@@ -924,7 +934,7 @@ conflict on its next poll.
   cell reads "Visual merge (resolved)".
 
 **UT-9.6 — Visual merge with no change leaves the row unresolved
-(FR-9.2)** ✅
+(FR-9.2)** 📋 ✅
 
 * Repeat UT-9.5, but close the merge tool without changing either pane.
 * An informational dialog says no change was made and the conflict is
@@ -932,13 +942,13 @@ conflict on its next poll.
 * The row stays unresolved and its options remain available.
 
 **UT-9.7 — Closing the window leaves unresolved rows untouched
-(FR-9.4)** ✅
+(FR-9.4)** 📋 ✅
 
 * Produce two conflicts and open the resolution window.
 * Resolve only the first row, then click "Close".
 * The second conflict is untouched and the status view still shows `1` in the Conflict column (once mutagen has reported the first as resolved).
 
-**UT-9.8 — Too-many-conflicts guard (FR-9.5)** ✅ *(needs 100+ conflicts —
+**UT-9.8 — Too-many-conflicts guard (FR-9.5)** 📋 ✅ *(needs 100+ conflicts —
 optional if you can't produce that many)*
 
 * Produce more than 100 unresolved conflicts.
@@ -949,7 +959,7 @@ optional if you can't produce that many)*
   resolving or resolve manually" (no trailing period) instead of the usual
   A/B comparison.
 
-**UT-9.9 — "Connecting..." indicator for remote endpoints (FR-9.6)** ✅
+**UT-9.9 — "Connecting..." indicator for remote endpoints (FR-9.6)** 📋 ✅
 
 * Produce a conflict where at least one side is an SSH endpoint.
 * Left-click the tray icon.
@@ -960,7 +970,7 @@ optional if you can't produce that many)*
   the grid — it is never dismissed by the user.
 
 **UT-9.10 — Directory-level conflict (FR-9.2, not covered by the original
-FR-9 wording)** ✅
+FR-9 wording)** 📋 ✅
 
 * Produce a conflict where mutagen reports a whole directory rather than a
   single file (e.g. delete a synced subdirectory on one side while new
@@ -980,7 +990,7 @@ FR-9 wording)** ✅
 ## FR-10 — Automatic conflict resolution
 
 **UT-10.1 — A matching rule auto-resolves without any prompt (FR-10.1/
-FR-10.2)** ✅
+FR-10.2)** 📋 ✅
 
 * Stop MutagenMon.
 * Edit `config/config_mutagenmon.json` and set:
@@ -995,7 +1005,7 @@ FR-10.2)** ✅
 * A new "Conflict resolved" line is present with method "A wins" and the
   "[AUTO]" tag.
 
-**UT-10.2 — First matching rule wins (FR-10.1)** ✅
+**UT-10.2 — First matching rule wins (FR-10.1)** 📋 ✅
 
 * Stop MutagenMon.
 * Edit `config/config_mutagenmon.json` and set:
@@ -1005,7 +1015,7 @@ FR-10.2)** ✅
   though the second rule also matches the file name.
 
 **UT-10.3 — Conflict excluded from the manual workflow once auto-resolved
-(FR-10.2)** ✅
+(FR-10.2)** 📋 ✅
 
 * With the rule from UT-10.1 active, produce a matching conflict.
 * Left-click the tray icon.
@@ -1018,7 +1028,7 @@ FR-10.2)** ✅
   batch (UT-9.1).
 
 **UT-10.4 — Grace period prevents reprocessing the same conflict
-(FR-10.3)** ✅
+(FR-10.3)** 📋 ✅
 
 * With the rule from UT-10.1 active and `AutoResolveHistoryAgeSeconds` at its
   default (30 seconds), let UT-10.1 run once.
@@ -1039,7 +1049,7 @@ FR-11.3 and FR-11.4 are called out separately below — their trigger points
 don't exist yet in this codebase. FR-11.1 and FR-11.2 are fully
 implemented.
 
-**UT-11.1 — New conflict raises a toast notification (FR-11.1)** ✅
+**UT-11.1 — New conflict raises a toast notification (FR-11.1)** 📋 ✅
 
 * Ensure `"NotifyConflicts": true` in `config/config_mutagenmon.json`.
 * Produce a conflict (see the FR-9 setup).
@@ -1047,7 +1057,7 @@ implemented.
   "New conflicts" appears near the tray icon, naming the session and file
   (`session:file`), then disappears on its own.
 
-**UT-11.2 — The same conflict is not renotified every poll (FR-11.1)** ✅
+**UT-11.2 — The same conflict is not renotified every poll (FR-11.1)** 📋 ✅
 
 * With the conflict from UT-11.1 still unresolved, wait a few more poll
   cycles.
@@ -1059,7 +1069,7 @@ implemented.
   again once everything had gone back to Ready in between.
 
 **UT-11.3 — Auto-resolved conflicts are excluded from the "new conflicts"
-toast (FR-10.2/FR-11.1)** ✅
+toast (FR-10.2/FR-11.1)** 📋 ✅
 
 * With an `AutoResolve` rule configured to match a file (see UT-10.1),
   produce a matching conflict.
@@ -1067,7 +1077,7 @@ toast (FR-10.2/FR-11.1)** ✅
   auto-resolve notification below instead.
 
 **UT-11.4 — Auto-resolve notification names the rule and the file
-(FR-11.2/FR-10.4)** ✅
+(FR-11.2/FR-10.4)** 📋 ✅
 
 * Ensure `"NotifyAutoresolve": true` in `config/config_mutagenmon.json`.
 * Produce a conflict matching an `AutoResolve` rule (see UT-10.1).
@@ -1075,7 +1085,7 @@ toast (FR-10.2/FR-11.1)** ✅
   naming the session, file, and the resolution applied (e.g. "A wins").
 
 **UT-11.5 — Each notification type is independently toggleable (FR-11)**
-✅
+📋 ✅
 
 * Set `"NotifyConflicts": false` and `"NotifyAutoresolve": true`, restart
   MutagenMon, and produce a plain (non-auto-resolved) conflict.
@@ -1084,7 +1094,7 @@ toast (FR-10.2/FR-11.1)** ✅
 * The "Conflict auto-resolved" toast still appears — the two toggles are
   independent.
 
-**UT-11.6 — Stuck-connection-restart notification (FR-11.3)** ✅
+**UT-11.6 — Stuck-connection-restart notification (FR-11.3)** 📋 ✅
 
 * Ensure `"NotifyRestartConnection": true` and a small
   `SessionMaxErrors` (e.g. `2`) in `config/config_mutagenmon.json`.
@@ -1097,7 +1107,7 @@ toast (FR-10.2/FR-11.1)** ✅
 * Set `"NotifyRestartConnection": false`, repeat — the session still
   restarts, but no toast appears.
 
-**UT-11.7 — Duplicate-restart notification, always on (FR-11.3b)** ✅
+**UT-11.7 — Duplicate-restart notification, always on (FR-11.3b)** 📋 ✅
 
 * Set `"NotifyRestartConnection": false` (deliberately, to prove this
   notification is not gated by it) and a small `SessionMaxDuplicate`
@@ -1109,7 +1119,7 @@ toast (FR-10.2/FR-11.1)** ✅
   `NotifyRestartConnection` is disabled — this notification has no
   toggle of its own and always fires.
 
-**UT-11.8 — No-session restart never notifies (FR-11.3c)** ✅
+**UT-11.8 — No-session restart never notifies (FR-11.3c)** 📋 ✅
 
 * With `"NotifyRestartConnection": true` and a small
   `SessionMaxNoSession` (e.g. `2`), make a session disappear from
@@ -1118,7 +1128,7 @@ toast (FR-10.2/FR-11.1)** ✅
 * The session is restarted, but no toast appears for it at all — this is
   the one restart cause that is silent by design, unconditionally.
 
-**UT-11.9 — Profile-update notification (FR-11.4)** ✅
+**UT-11.9 — Profile-update notification (FR-11.4)** 📋 ✅
 
 * Ensure `"NotifyMutagenProfileUpdate": true` in
   `config/config_mutagenmon.json`.
@@ -1131,13 +1141,13 @@ toast (FR-10.2/FR-11.1)** ✅
 ## FR-12 — Session profile change detection
 
 **UT-12.1 — Tray icon "updated" flash on archive change (FR-12.1/
-FR-12.3)** ✅
+FR-12.3)** 📋 ✅
 
-Covered above by UT-T.3 — the "updated" icon flash is this requirement's
+Covered above by UT-100.3 — the "updated" icon flash is this requirement's
 only user-visible tray effect today.
 
 **UT-12.2 — Debounced profile-update notification (FR-12.2, gates
-FR-11.4)** ✅
+FR-11.4)** 📋 ✅
 
 * Ensure `"NotifyMutagenProfileUpdate": true` and a short
   `MutagenProfileGraceSeconds` (e.g. `4`) in `config/config_mutagenmon.json`.
@@ -1150,7 +1160,7 @@ FR-11.4)** ✅
 
 ## FR-13 — Automatic session recovery
 
-**UT-13.1 — No-result restart (FR-13.1)** ✅
+**UT-13.1 — No-result restart (FR-13.1)** 📋 ✅
 
 * Set a small `SessionMaxNoSession` (e.g. `2`) in
   `config/config_mutagenmon.json` and restart MutagenMon.
@@ -1164,7 +1174,7 @@ FR-11.4)** ✅
 * `log/mutagenMon.log` gets a new Warning-level line with the raw status
   snapshot and `Restarting: <name>`.
 
-**UT-13.2 — Duplicate-name restart (FR-13.2)** ✅
+**UT-13.2 — Duplicate-name restart (FR-13.2)** 📋 ✅
 
 * Set a small `SessionMaxDuplicate` (e.g. `2`).
 * Produce a duplicate session name (e.g. two sessions sharing the same
@@ -1174,7 +1184,7 @@ FR-11.4)** ✅
 * The session is restarted and a toast appears (see UT-11.7).
 * `log/mutagenMon.log` gets a line with `Restarting duplicate: <name>`.
 
-**UT-13.3 — Stuck-connecting restart (FR-13.3)** ✅
+**UT-13.3 — Stuck-connecting restart (FR-13.3)** 📋 ✅
 
 * Set a small `SessionMaxErrors` (e.g. `2`).
 * Force a session's status to stay "Connecting to..."/"Waiting to
@@ -1185,7 +1195,7 @@ FR-11.4)** ✅
 * `log/mutagenMon.log` gets a line with `Restarting connection: <name>`.
 
 **UT-13.4 — Restart is terminate-then-recreate, each step independent
-(FR-13.5)** ✅
+(FR-13.5)** 📋 ✅
 
 * Trigger UT-13.2 (duplicate) or UT-13.3 (stuck-connecting) while the
   session is already gone from `mutagen`'s own session list (so the
@@ -1196,7 +1206,7 @@ FR-11.4)** ✅
   warning for the failed termination but the session is still running.
 
 **UT-13.4b — No-session restart skips the termination step
-(FR-13.5)** ✅
+(FR-13.5)** 📋 ✅
 
 * Trigger UT-13.1 (no-result restart).
 * `log/mutagenMon.log` has **no** "Failed to terminate session" warning
@@ -1206,7 +1216,7 @@ FR-11.4)** ✅
 * MutagenMon still recreates the session — `mutagen sync list` shows it
   again.
 
-**UT-13.5 — Disabled monitoring never auto-restarts (FR-13.6)** ✅
+**UT-13.5 — Disabled monitoring never auto-restarts (FR-13.6)** 📋 ✅
 
 * In the status view's toolbar, click "Stop Mutagen sessions" (FR-7.2).
 * Leave a session in an abnormal state (or let it disappear) well past its
@@ -1218,7 +1228,7 @@ FR-11.4)** ✅
 ## FR-14 — Logging & diagnostics
 
 **UT-14.1 — An unhandled exception is logged and shown to the user
-(FR-14.1)** ✅ *(the deliberate "Boum" test button that used to make this
+(FR-14.1)** 📋 ✅ *(the deliberate "Boum" test button that used to make this
 repro trivial has been removed from the status view — this now needs a
 real unhandled exception, e.g. any of the FR-9 conflict-resolution crashes
 covered elsewhere in this document)*
@@ -1236,7 +1246,7 @@ covered elsewhere in this document)*
   `Error` entry from source "MutagenMon" — every Critical entry reaches
   the Windows Event Log, not just ones logged before config is loaded.
 
-**UT-14.2 — A startup failure is logged and shown (FR-14.1)** ✅
+**UT-14.2 — A startup failure is logged and shown (FR-14.1)** 📋 ✅
 
 * Stop MutagenMon.
 * Rename `config/config_mutagenmon.json` (or edit it so the JSON is
@@ -1255,23 +1265,23 @@ covered elsewhere in this document)*
   text — the only durable trace of this failure.
 * Restore the config file afterwards.
 
-**UT-14.3 — Conflict resolutions are logged to the unified log (FR-9.7)** ✅
+**UT-14.3 — Conflict resolutions are logged to the unified log (FR-9.7)** 📋 ✅
 
 Covered above by UT-9.3/UT-9.4/UT-10.1 — every resolution is logged to
 `mutagenMon.log`. There is no separate `resolve.log` any more (see
 FR-14.3's rewrite note).
 
-**UT-14.4 — Automatic restarts are logged to the unified log (FR-13.4)** ✅
+**UT-14.4 — Automatic restarts are logged to the unified log (FR-13.4)** 📋 ✅
 
 Covered above by UT-13.1/UT-13.2/UT-13.3 — every FR-13 automatic restart
 is logged to `mutagenMon.log`. There is no separate `restart.log` any more
 (see FR-14.3's rewrite note). Note: the *whole-app* self-restart mechanism
-(staleness watchdog, FR-6 — see UT-T.11) is a separate, unrelated
+(staleness watchdog, FR-6 — see UT-100.11) is a separate, unrelated
 mechanism that has always logged to `mutagenMon.log` only — this entry is
 specifically about FR-13's per-session restarts, which used to go to a
 dedicated file and no longer do.
 
-**UT-14.5 — Verbosity gate (FR-14.2)** ✅
+**UT-14.5 — Verbosity gate (FR-14.2)** 📋 ✅
 
 * Stop MutagenMon.
 * Set `"MinLogLevel": "Warning"` in `config/config_mutagenmon.json`.
@@ -1294,7 +1304,7 @@ dedicated file and no longer do.
   is the key that actually controls verbosity in the rewrite.
 
 **UT-14.6 — Every menu/button action is logged as "User action: ..."
-(FR-14.4)** ✅
+(FR-14.4)** 📋 ✅
 
 * Left-click the tray icon (or use "Show status" from the context menu) to
   open the status window.
@@ -1329,7 +1339,7 @@ dedicated file and no longer do.
 
 ## FR-15 — Single, always-on background operation
 
-**UT-15.1 — No main window is ever shown (FR-15.1)** ✅
+**UT-15.1 — No main window is ever shown (FR-15.1)** 📋 ✅
 
 * With `ShowMainScreenAtStartup` absent or `false` in
   `config/config_mutagenmon.json` (the default), start MutagenMon
@@ -1339,11 +1349,11 @@ dedicated file and no longer do.
 * No application window is displayed anywhere — only the tray icon is
   visible.
 
-**UT-15.2 — Clean shutdown on Exit (FR-15.2)** ✅
+**UT-15.2 — Clean shutdown on Exit (FR-15.2)** 📋 ✅
 
 Covered above by UT-7.4.
 
-**UT-15.3 — Second launch shows the running instance's status window instead of starting a duplicate (NFR-3)** ✅
+**UT-15.3 — Second launch shows the running instance's status window instead of starting a duplicate (NFR-3)** 📋 ✅
 
 * Start MutagenMon normally; wait for the tray icon to leave the
   "waiting for status" (lightgray-init) state.
@@ -1360,7 +1370,7 @@ Covered above by UT-7.4.
 * `log/mutagenMon.log` (the first instance's log) contains `Show-status
   request received from a second instance; showing status window`.
 
-**UT-15.4 — ShowMainScreenAtStartup shows the status window automatically (FR-15.3)** ✅
+**UT-15.4 — ShowMainScreenAtStartup shows the status window automatically (FR-15.3)** 📋 ✅
 
 * Stop MutagenMon (if running). Set `"ShowMainScreenAtStartup": true` in
   `config/config_mutagenmon.json` (or, in the "Mutagen monitor
@@ -1377,7 +1387,7 @@ Covered above by UT-7.4.
 
 ## FR-43/44/45/46 — Logs tab: master/detail, error highlighting, generate exception, auto-scroll
 
-**UT-40.5 — Column headers don't sort the grid (FR-40.5)** ✅
+**UT-40.5 — Column headers don't sort the grid (FR-40.5)** 📋 ✅
 
 * Open the status window, "Logs" tab, with events actively arriving (e.g.
   leave a session polling).
@@ -1388,7 +1398,7 @@ Covered above by UT-7.4.
   arrival order, exactly as before clicking the header (no reordering
   ever happens).
 
-**UT-40.6 — "Hide category column" checkbox (FR-40.6)** ✅
+**UT-40.6 — "Hide category column" checkbox (FR-40.6)** 📋 ✅
 
 * Open the status window, "Logs" tab.
 * The "Hide category column" checkbox in the toolbar is checked by
@@ -1399,7 +1409,7 @@ Covered above by UT-7.4.
 * Check it again. The Category column disappears again — no rows are
   lost, reordered, or otherwise affected by toggling it.
 
-**UT-43.1 — Master/detail split with splitter (FR-43)** ✅
+**UT-43.1 — Master/detail split with splitter (FR-43)** 📋 ✅
 
 * Open the status window, "Logs" tab.
 * Let a few events accumulate (or restart the app to generate startup
@@ -1415,13 +1425,13 @@ Covered above by UT-7.4.
   message (e.g. an exception, see UT-45.1 below) — a vertical scrollbar
   appears in the detail panel instead of the panel growing.
 
-**UT-43.2 — Detail clears on Clear (FR-43.3)** ✅
+**UT-43.2 — Detail clears on Clear (FR-43.3)** 📋 ✅
 
 * With a row selected (its message shown in the detail panel), click
   "Clear".
 * The grid empties (FR-41.1) and the detail panel goes blank too.
 
-**UT-43.3 — Grid Message column collapses multi-line entries (FR-43.4)** ✅
+**UT-43.3 — Grid Message column collapses multi-line entries (FR-43.4)** 📋 ✅
 
 * Trigger a log line whose message spans multiple lines — easiest is
   UT-45.1 below (an unhandled exception logs the message followed by the
@@ -1435,7 +1445,7 @@ Covered above by UT-7.4.
 * A single-line message (most log lines) is unaffected — shown in full in
   the grid, with no `[+... ]` suffix.
 
-**UT-44.1 — Error and Critical rows in red, Warning rows in orange (FR-44)** ✅
+**UT-44.1 — Error and Critical rows in red, Warning rows in orange (FR-44)** 📋 ✅
 
 * Trigger at least one `Error`-level log line (a real error path, such
   as FR-42.2's failure branch, or any Error-level entry already visible
@@ -1448,7 +1458,7 @@ Covered above by UT-7.4.
 * Rows at every other level (Trace/Debug/Information) keep the default
   (black) text color.
 
-**UT-45.1 — "Generate exception" button, hidden by default (FR-45)** ✅
+**UT-45.1 — "Generate exception" button, hidden by default (FR-45)** 📋 ✅
 
 * With `ShowGenerateException` absent or `false` in
   `config/config_mutagenmon.json`, open the "Logs" tab.
@@ -1475,7 +1485,7 @@ Covered above by UT-7.4.
 * Set `ShowGenerateException` back to `false` and restart — the button
   is hidden again.
 
-**UT-46.1 — New entries auto-scroll into view (FR-46.1)** ✅
+**UT-46.1 — New entries auto-scroll into view (FR-46.1)** 📋 ✅
 
 * Open the "Logs" tab and leave nothing selected.
 * Let enough events accumulate (e.g. leave the app running through a few
@@ -1485,7 +1495,7 @@ Covered above by UT-7.4.
   at the bottom as each new entry arrives — you never have to scroll down
   manually to see the latest line.
 
-**UT-46.2 — Selecting a row suspends auto-scroll (FR-46.2)** ✅
+**UT-46.2 — Selecting a row suspends auto-scroll (FR-46.2)** 📋 ✅
 
 * With the grid scrolled to the bottom and new entries still arriving,
   click an older row to select it (scroll up first if needed).
@@ -1495,7 +1505,7 @@ Covered above by UT-7.4.
   visible and selected, and its message stays shown in the detail panel,
   even as new rows keep being added above/below the visible area.
 
-**UT-46.3 — Scrolling back to the bottom resumes auto-scroll (FR-46.3)** ✅
+**UT-46.3 — Scrolling back to the bottom resumes auto-scroll (FR-46.3)** 📋 ✅
 
 * Continuing from UT-46.2 (a row selected, auto-scroll suspended), use
   the scrollbar or mouse wheel to scroll all the way down to the last
@@ -1505,7 +1515,7 @@ Covered above by UT-7.4.
   follows it, exactly as in UT-46.1 — even though a row is technically
   still selected.
 
-**UT-46.4 — Clear resets auto-scroll (FR-46.4)** ✅
+**UT-46.4 — Clear resets auto-scroll (FR-46.4)** 📋 ✅
 
 * With auto-scroll suspended (a row selected, scrolled away from the
   bottom), click "Clear".
@@ -1522,7 +1532,7 @@ non-interactive `ssh` (no password prompt), configured in `~/.ssh/config`
 under an alias used below as `robbie` — replace it with your own. `SshPath`
 in `config/config_mutagenmon.json` must point at the `ssh` binary.
 
-**UT-47.1 — The Scripts tab, its place and its toolbar (FR-47)** ✅
+**UT-47.1 — The Scripts tab, its place and its toolbar (FR-47)** 📋 ✅
 
 * Open the status window. The tabs, left to right, are "Sync", "Scripts",
   "Mutagen Configuration", "Mutagen monitor Configuration", "Logs".
@@ -1533,7 +1543,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   pane and a status line.
 * With nothing selected, Delete, Save, Run, Cancel, ▲ and ▼ are disabled.
 
-**UT-48.1 — Reading the scripts file: sections, directives, bash tests (FR-48)** ✅
+**UT-48.1 — Reading the scripts file: sections, directives, bash tests (FR-48)** 📋 ✅
 
 * Close the app. Put this in `config/scripts.ini`, replacing `robbie`:
 
@@ -1559,7 +1569,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   (directive comments included).
 * Select "no-host". Run is disabled.
 
-**UT-49.1 — Reload, selection kept, missing file (FR-49.1/FR-49.2)** ✅
+**UT-49.1 — Reload, selection kept, missing file (FR-49.1/FR-49.2)** 📋 ✅
 
 * Select "hello". With the scripts file open in an editor (click the link
   at the top of the tab), add a new section at the end and save the file.
@@ -1573,7 +1583,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   entries are marked invalid with "duplicate script name 'hello'" and Run
   is disabled for them.
 
-**UT-50.1 — Running a script: one connection, shared shell state (FR-50/FR-51/FR-52)** ✅
+**UT-50.1 — Running a script: one connection, shared shell state (FR-50/FR-51/FR-52)** 📋 ✅
 
 * Add this script, then Reload and select it:
 
@@ -1592,7 +1602,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   status line ends with "Exit code 0 (N.Ns)" in the normal text colour.
   The tray icon and the Sync tab keep refreshing during the run.
 
-**UT-51.1 — stop-on-error and exit codes (FR-51.2)** ✅
+**UT-51.1 — stop-on-error and exit codes (FR-51.2)** 📋 ✅
 
 * Script A: `# @host: robbie`, then `false`, then `echo "after false"`.
   Run it: "after false" is **not** printed; the status line shows a
@@ -1600,7 +1610,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
 * Add `# @stop-on-error: false` to script A, save, and run again:
   "after false" is printed this time, and the exit code is 0.
 
-**UT-51.2 — Cancel and timeout (FR-51.4/FR-51.5)** ✅
+**UT-51.2 — Cancel and timeout (FR-51.4/FR-51.5)** 📋 ✅
 
 * Script `sleeper`: `# @host: robbie`, then `sleep 120`. Run it, wait a few
   seconds, click **Cancel**. The status line turns red with "Cancelled
@@ -1611,7 +1621,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   line shows "Timed out after 5.0s. ..." in red. The Logs tab has a
   Warning line "Script 'sleeper' on robbie ended: TimedOut ...".
 
-**UT-51.2b — Cancel only on the running script (FR-47.2)** ✅
+**UT-51.2b — Cancel only on the running script (FR-47.2)** 📋 ✅
 
 * Set `sleeper` to `sleep 120` and the script timeout back to its default
   (UT-51.3). Run `sleeper`. While it runs, select another script in the
@@ -1634,7 +1644,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
 * (After FR-56 is implemented) a run started from the Sync tab never enables
   the Scripts tab **Cancel**: see UT-56.5.
 
-**UT-51.3 — Script timeout setting (FR-51.4, config `ScriptTimeoutSeconds`)** ✅
+**UT-51.3 — Script timeout setting (FR-51.4, config `ScriptTimeoutSeconds`)** 📋 ✅
 
 * Open "Mutagen monitor Configuration" > "General". A field "Script timeout
   (seconds)" shows 300 (the default).
@@ -1642,7 +1652,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   a whole number" and nothing is saved. Type 5 and Save; the value is
   written to `config/config_mutagenmon.json` as `ScriptTimeoutSeconds`.
 
-**UT-52.1 — Output is capped and per script (FR-52.4)** ✅
+**UT-52.1 — Output is capped and per script (FR-52.4)** 📋 ✅
 
 * Script `chatty`: `# @host: robbie`, then `seq 1 20000`. Run it. The
   output pane ends with `20000` and holds at most 5000 lines (scroll to
@@ -1652,7 +1662,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
 * Start `sleeper`, switch to another script while it runs, and switch back
   after a few seconds: the pane shows the output accumulated meanwhile.
 
-**UT-52.2 — Elapsed time in the status line and in the title (FR-52.6)** ✅
+**UT-52.2 — Elapsed time in the status line and in the title (FR-52.6)** 📋 ✅
 
 * Script `sleeper` (`# @host: robbie`, `sleep 20`). Click **Run**. The
   status line shows "Running 'sleeper' on robbie, 0 seconds", then 1 second,
@@ -1670,13 +1680,13 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
 * Run a script that fails to start (bad `SshPath`) or has a macro error: the
   title never changes.
 
-**UT-53.1 — Confirmation before running (FR-53.1)** ✅
+**UT-53.1 — Confirmation before running (FR-53.1)** 📋 ✅
 
 * Add `# @confirm: true` to `shell-state` and save. Click Run.
 * A confirmation "Run script 'shell-state' on robbie?" with "Run" and
   "Cancel" buttons is shown. "Cancel" runs nothing; "Run" runs the script.
 
-**UT-54.1 — Run logging, without script output (FR-54)** ✅
+**UT-54.1 — Run logging, without script output (FR-54)** 📋 ✅
 
 * Run `shell-state`, then open the Logs tab.
 * It shows "Script 'shell-state' starting on robbie" and "Script
@@ -1687,7 +1697,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
 * Set `SshPath` to a non-existent file, restart, run a script: the status
   line shows "Failed to start ssh: ..." and an Error line is logged.
 
-**UT-55.1 — Editing a script's text, Save, tab marker (Scripts tab editing)** ✅
+**UT-55.1 — Editing a script's text, Save, tab marker (Scripts tab editing)** 📋 ✅
 
 * Select `shell-state` and type something in the text box. Save becomes
   enabled and the tab title turns bold: "**Scripts \***". Run stays
@@ -1720,7 +1730,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
 * Edit again and click **Reload**: a confirmation warns that unsaved
   changes are discarded; "Cancel" keeps them, "Reload" discards them.
 
-**UT-55.2 — Renaming a script (Name box)** ✅
+**UT-55.2 — Renaming a script (Name box)** 📋 ✅
 
 * Select `shell-state`, change the name to `renamed script` and click
   Save. The list shows the new name, the script stays selected, its last
@@ -1734,7 +1744,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   is running: it cannot be renamed until it ends."; the Name box is
   read-only while it runs.
 
-**UT-55.3 — Add (Scripts tab)** ✅
+**UT-55.3 — Add (Scripts tab)** 📋 ✅
 
 * In "Mutagen monitor Configuration" > "SSH servers" make sure the first
   host is `robbie`. In "Scripts" click **Add**.
@@ -1744,7 +1754,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
 * Remove all SSH servers, save, restart, and click Add: the new script has
   `# @host: TODO` instead.
 
-**UT-55.4 — Delete (Scripts tab)** ✅
+**UT-55.4 — Delete (Scripts tab)** 📋 ✅
 
 * Select a script and click **Delete**. A confirmation names the script
   and the file: "Delete the script '<name>'?". "Cancel" does nothing.
@@ -1752,7 +1762,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   from the list; nothing is selected afterwards.
 * While a script runs, Delete is disabled.
 
-**UT-55.5 — Move up / down (Scripts tab)** ✅
+**UT-55.5 — Move up / down (Scripts tab)** 📋 ✅
 
 * With at least three scripts, select the middle one and click ▲: it moves
   above the first one, stays selected, and the file's section order
@@ -1760,7 +1770,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
 * ▲ is disabled for the first script, ▼ for the last one. The spacing
   between sections in the file is unchanged.
 
-**UT-55.6 — Scripts file path in the monitor configuration (config `ScriptsFile`)** ✅
+**UT-55.6 — Scripts file path in the monitor configuration (config `ScriptsFile`)** 📋 ✅
 
 * In "Mutagen monitor Configuration" > "Paths", a "Scripts file" field
   shows `config/scripts.ini`. Its "..." button opens a file dialog titled
@@ -1773,7 +1783,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   are folder pickers). "Log path" is in this section, not under
   "Logging & notifications".
 
-**UT-55.7 — File links on top of the tabs (Scripts, Mutagen monitor Configuration, Logs)** ✅
+**UT-55.7 — File links on top of the tabs (Scripts, Mutagen monitor Configuration, Logs)** 📋 ✅
 
 * Each of the three tabs shows the full path of its file as a link above
   the toolbar/fields: the scripts file, `config_mutagenmon.json`, and the
@@ -1782,7 +1792,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
 * The Logs toolbar has no "Open log file" button any more (Clear and
   Clear log file remain).
 
-**UT-55.8 — Script groups in the tree (`# @group:`)** ✅
+**UT-55.8 — Script groups in the tree (`# @group:`)** 📋 ✅
 
 * In `config/scripts.ini` give two scripts `# @group: appman`, one
   `# @group: other`, and leave one with no `@group`. Click Reload. The list
@@ -1798,7 +1808,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   reload the script sits in the new group, which is opened, and the
   script stays selected. Removing the line moves it to the top level.
 
-**UT-55.9 — Moving scripts and groups (▲ ▼ with groups)** ✅
+**UT-55.9 — Moving scripts and groups (▲ ▼ with groups)** 📋 ✅
 
 * Select a script in a group: ▲ ▼ move it within that group only (the
   section order in the file changes; the other groups are unaffected). ▲
@@ -1809,7 +1819,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   the group's scripts are now one contiguous block, and the ungrouped
   scripts come after all groups. The group stays selected.
 
-**UT-55.10 — Run icon and F5 shortcut (Scripts tab)** ✅
+**UT-55.10 — Run icon and F5 shortcut (Scripts tab)** 📋 ✅
 
 * The Run button shows a green ▶ triangle before "Run" (gray while the
   button is disabled); its tooltip says "Run (F5)".
@@ -1820,7 +1830,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
 * On any other tab ("Sync", the two configuration tabs, "Logs"), F5 does
   not run a script, even if a script was selected earlier in the Scripts tab.
 
-**UT-55.11 — `{{env:…}}` and `{{session:…}}` macros (FR-55.1 to FR-55.8)** ✅
+**UT-55.11 — `{{env:…}}` and `{{session:…}}` macros (FR-55.1 to FR-55.8)** 📋 ✅
 
 * In a script of `config/scripts.ini`, write `echo "env=[{{env:MM_TEST_VAR}}]"`
   and `echo "session=[{{session:name}}]"`. Create the Windows user variable
@@ -1881,7 +1891,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   `a # ***`), and so is `echo a#b {{env:MM_ROOT}}`. A `{{secret:…}}` written
   only in a comment opens no dialog.
 
-**UT-55.12 — `{{reg:…}}` macro (FR-55.9)** ✅
+**UT-55.12 — `{{reg:…}}` macro (FR-55.9)** 📋 ✅
 
 * Create `HKCU\Software\MyApp` with a `REG_SZ` value `DbPassword=s3cret`, a
   `REG_DWORD` value `Port=3306` and a `REG_BINARY` value `Blob`. In a
@@ -1905,7 +1915,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   is readable without elevation: compare it with the build number shown by
   `winver`.
 
-**UT-55.13 — `{{cred:…}}` macro (FR-55.10)** ✅
+**UT-55.13 — `{{cred:…}}` macro (FR-55.10)** 📋 ✅
 
 * In a command prompt run
   `cmdkey /generic:MyApp/DbPassword /user:x /pass:s3cret`. In a script write
@@ -1921,7 +1931,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   intact. An entry of the "Windows credentials" (domain) type on the same
   target, or with an empty password, is reported as not found / empty.
 
-**UT-55.14 — `{{secret:…}}` macro and the single grid dialog (FR-55.11)** ✅
+**UT-55.14 — `{{secret:…}}` macro and the single grid dialog (FR-55.11)** 📋 ✅
 
 * Write a script with `echo "a={{secret:Database password}}"`,
   `echo "b={{secret:API token}}"` and `echo "c={{secret:Database password}}"`.
@@ -1938,7 +1948,7 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
 * Type a value with `'` and `$(id)`: raw insertion interprets it according to
   where the macro is written; `{{secret:Label|quote}}` inserts it literally.
 
-**UT-55.15 — `{{prompt:…}}` macro and its default value (FR-55.12)** ✅
+**UT-55.15 — `{{prompt:…}}` macro and its default value (FR-55.12)** 📋 ⬜
 
 * Write `echo "branch=[{{prompt:Branch}}]"` and run it: **one** dialog opens
   ("Script values") with one row "Branch" whose input **shows** the typed
@@ -1995,7 +2005,7 @@ server, alias `robbie`). In `config/scripts.ini`, prepare three scripts on
 `# @confirm: true` and `echo "b"; echo "err" >&2; exit 3`; `plain` without the
 flag and with `echo "plain"`.
 
-**UT-56.1 — The `@session-script` flag (FR-48.5)** ✅
+**UT-56.1 — The `@session-script` flag (FR-48.5)** 📋 ✅
 
 * In the Scripts tab, `sess-a` (flag without a value) and `sess-b` are listed
   like any other script and run normally; the flag changes nothing there.
@@ -2005,7 +2015,7 @@ flag and with `echo "plain"`.
   `# @session-script`.
 * Write `# @Session-Script` (other case): same as the lower-case form `# @session-script`.
 
-**UT-56.2 — Toolbar layout and script combo (FR-56.1, FR-56.2)** ✅
+**UT-56.2 — Toolbar layout and script combo (FR-56.1, FR-56.2)** 📋 ✅
 
 * Open the Sync tab. Left to right: **Add**, **Duplicate**, a combo, a green
   ▶ **Run** button; at the right edge, **Resolve conflicts** then, as the
@@ -2022,7 +2032,7 @@ flag and with `echo "plain"`.
 * Rename the scripts file in the configuration (or make it unreadable) and
   reload the configuration: the combo is empty and disabled, no error popup.
 
-**UT-56.3 — Run enabled rules and F5 (FR-56.3)** ✅
+**UT-56.3 — Run enabled rules and F5 (FR-56.3)** 📋 ✅
 
 * With no session selected in the grid: **Run** is disabled and **F5** does
   nothing, whatever the combo holds.
@@ -2033,7 +2043,7 @@ flag and with `echo "plain"`.
   (the dialog of UT-56.4 opens). On the Scripts tab F5 still runs the selected
   script of that tab; on the configuration tabs and "Logs" it does nothing.
 
-**UT-56.4 — Run dialog: output and status (FR-56.4, FR-56.5)** ✅
+**UT-56.4 — Run dialog: output and status (FR-56.4, FR-56.5)** 📋 ✅
 
 * Select session `S` and script `sess-a`, click Run: a dialog opens titled
   with `sess-a` and `S`; the output shows `session=[S]` and the status line
@@ -2053,7 +2063,7 @@ flag and with `echo "plain"`.
   run was cancelled.
 * Close the dialog, run the same script again: the pane starts empty.
 
-**UT-56.5 — One run at a time (FR-56.6)** ✅
+**UT-56.5 — One run at a time (FR-56.6)** 📋 ✅
 
 * Start a long script (`sleep 60`) from the Scripts tab, then go to the Sync
   tab: **Run** is disabled (and F5 does nothing). When the Scripts tab run
@@ -2062,7 +2072,7 @@ flag and with `echo "plain"`.
   by the modal dialog; after Cancel and Close, the Run buttons of both tabs
   are enabled again.
 
-**UT-56.6 — Logging (FR-56.7)** ✅
+**UT-56.6 — Logging (FR-56.7)** 📋 ✅
 
 * After UT-56.4, open the Logs tab: the user action and the outcome of each
   run (script name, host, exit code, duration) are logged; the script output
@@ -2074,7 +2084,7 @@ These are documented, intentional limitations of the current phase, not
 defects:
 
 * The three "generated placeholder" tray icons (`green-scan`,
-  `green-timeout-white`, `green-timeout-red`, seen in UT-T.5/UT-T.10) are
+  `green-timeout-white`, `green-timeout-red`, seen in UT-100.5/UT-100.10) are
   simple colored-circle stand-ins, not final design assets — see
   [03-tray-icon-requirements.md §3.1/§7.1](03-tray-icon-requirements.md).
 * Duplicate session names (UT-1.2) are only logged, not shown in a popup
