@@ -67,6 +67,7 @@ public static class ScriptMacroExpander
 
         var errors = new List<string>();
         AddSharedLabelErrors(macros, errors);
+        AddDefaultValueErrors(macros, errors);
         var secretsToMask = new List<string>();
         var builder = new StringBuilder(text.Length);
         var position = 0;
@@ -77,6 +78,10 @@ public static class ScriptMacroExpander
         {
             builder.Append(text, position, macro.Start - position);
             position = macro.Start + macro.Length;
+
+            // A rejected macro is reported by AddDefaultValueErrors and never resolved: no reason may be built from its raw name.
+            if (macro.IsRejected)
+                continue;
 
             if (!resolutions.TryGetValue((macro.TypeName, macro.Name), out var resolution))
             {
@@ -117,12 +122,32 @@ public static class ScriptMacroExpander
     // in two inputs, one of them visible. Only the label and the two types are named, never a value.
     private static void AddSharedLabelErrors(IReadOnlyList<ScriptMacro> macros, List<string> errors)
     {
-        var secretLabels = macros.Where(macro_ => macro_.Type == ScriptMacroType.Secret && macro_.Name.Length > 0)
-            .Select(macro_ => macro_.Name).ToHashSet(StringComparer.Ordinal);
+        var secretLabels = macros.Where(macro_ => macro_.Type == ScriptMacroType.Secret && macro_.SafeName.Length > 0)
+            .Select(macro_ => macro_.SafeName).ToHashSet(StringComparer.Ordinal);
         foreach (var label in macros
-                     .Where(macro_ => macro_.Type == ScriptMacroType.Prompt && secretLabels.Contains(macro_.Name))
-                     .Select(macro_ => macro_.Name).Distinct(StringComparer.Ordinal))
+                     .Where(macro_ => macro_.Type == ScriptMacroType.Prompt && secretLabels.Contains(macro_.SafeName))
+                     .Select(macro_ => macro_.SafeName).Distinct(StringComparer.Ordinal))
             errors.Add($"the label '{label}' is used by both a secret and a prompt macro");
+    }
+
+    // `default` is only for prompt macros: a default on a secret would put a secret in the scripts file (FR-53.3).
+    // One prompt label has one default: several different defaults are ambiguous. Errors are reported once each.
+    private static void AddDefaultValueErrors(IReadOnlyList<ScriptMacro> macros, List<string> errors)
+    {
+        foreach (var macro in macros)
+            if (macro.MalformedModifierLabel is { } label)
+                AddOnce(errors, $"the {macro.TypeName} label '{label}' has malformed modifiers (only |quote and |default=<value> are supported, each at most once; a default cannot contain '|')");
+            else if (macro is { Type: ScriptMacroType.Prompt, DefaultText: { } defaultText } && defaultText.Contains('\0'))
+                AddOnce(errors, $"the default value of the prompt '{macro.SafeName}' contains a NUL character");
+
+        foreach (var macro in macros.Where(macro_ => macro_.MalformedModifierLabel is null && macro_.DefaultText is not null && macro_.Type is not (ScriptMacroType.Prompt or ScriptMacroType.Unknown)))
+            AddOnce(errors, $"{macro.Display}: the default modifier is only supported by the prompt macro");
+
+        foreach (var group in macros
+                     .Where(macro_ => macro_.Type == ScriptMacroType.Prompt && macro_.Default is not null)
+                     .GroupBy(macro_ => macro_.SafeName, StringComparer.Ordinal)
+                     .Where(group_ => group_.Select(macro_ => macro_.Default).Distinct(StringComparer.Ordinal).Count() > 1))
+            AddOnce(errors, $"the prompt label '{group.Key}' has different default values");
     }
 
     private static void AddOnce(List<string> values, string value)
