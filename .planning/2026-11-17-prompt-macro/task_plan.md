@@ -4,10 +4,10 @@
 Add a macro type `prompt` to the Scripts tab: like `{{secret:<Label>}}` it asks the user for a value in the single pre-run dialog, but the input is a visible text box and the value is NOT masked in the output.
 
 ## Next Step
-Task 4.1 (reviewer: trigger pre-check and dialog on ValueRequests, placeholder for both Secret and Prompt in 4.2): SecretValuesDialog with PasswordBox/TextBox rows (Phase 4). Note: MutagenMon.App does not compile until 4.2 (ScriptMacroSources has a new Prompt delegate).
+Task 5.1: port the ScriptMacroTests of `SecretLabels` to `ValueRequests` and add the prompt/default parsing tests (Phase 5).
 
 ## Current Phase
-Phase 4
+Phase 5
 
 ## Phases
 
@@ -28,7 +28,7 @@ Phase 4
 
 ### Phase 3: Core implementation (MutagenMon.Core)
 - [x] 3.1 `ScriptMacro.cs`: add `ScriptMacroType.Prompt`, map `"prompt"` in `Type`
-- [x] 3.2 `ScriptMacro.cs`: replace `SecretLabels` by a method returning the distinct requested inputs (kind + label, first-appearance order, one row per label): added as `ValueRequests`; `SecretLabels` kept for now (existing tests), remove in 4.2 if unused
+- [x] 3.2 `ScriptMacro.cs`: replace `SecretLabels` by a method returning the distinct requested inputs (kind + label, first-appearance order, one row per label): added as `ValueRequests`; `SecretLabels` kept for now (existing tests), remove in 5.1 with the port of its tests (the App no longer uses it)
 - [x] 3.3 `ScriptMacroSources`: add the `Prompt` lookup delegate
 - [x] 3.4 `ScriptMacroExpander.Resolve`: handle `Prompt` (empty name error, empty value error, `isMasked: false`); update "known types" error text; keep `|quote` and the line-break/NUL refusal
 - [x] 3.5 `ScriptMacroExpander`: detect a label used by both `secret` and `prompt` and report one macro error naming the label and both types (reported by the pre-check, so no dialog opens)
@@ -38,11 +38,11 @@ Phase 4
 - **Status:** complete
 
 ### Phase 4: App implementation (MutagenMon.App)
-- [ ] 4.1 `SecretValuesDialog`: accept inputs of two kinds; `PasswordBox` for secret, visible `TextBox` for prompt; adapt Focus/OK/clear logic; update title and intro text
-- [ ] 4.2 `ScriptRunCoordinator.ExpandMacros`: ask for both kinds in one dialog, pre-check with placeholders for both, build the two lookups, update the cancel message
-- [ ] 4.3 Logging: keep "never log values nor labels" (dialog logs counts only; the pre-filled default is not logged)
-- [ ] 4.4 Default value: `SecretValuesDialog` pre-fills the `TextBox` of a `prompt` row with its default and selects the text on focus; the returned value is the field content
-- **Status:** pending
+- [x] 4.1 `SecretValuesDialog`: accept inputs of two kinds; `PasswordBox` for secret, visible `TextBox` for prompt; adapt Focus/OK/clear logic; update title and intro text
+- [x] 4.2 `ScriptRunCoordinator.ExpandMacros`: ask for both kinds in one dialog, pre-check with placeholders for both, build the two lookups, update the cancel message
+- [x] 4.3 Logging: keep "never log values nor labels" (dialog logs counts only; the pre-filled default is not logged)
+- [x] 4.4 Default value: `SecretValuesDialog` pre-fills the `TextBox` of a `prompt` row with its default and selects the text on focus; the returned value is the field content
+- **Status:** complete
 
 ### Phase 5: Tests
 - [ ] 5.1 `ScriptMacroTests`: `prompt` type parsing (plain and `|quote`), comment handling, labels list with mixed kinds
@@ -50,6 +50,7 @@ Phase 4
 - [ ] 5.5 Default value, `ScriptMacroTests`: parsing of `|default=`, with and without `|quote`, either order, empty default, default containing `:` or `=`, `Default` in `ValueRequests`
 - [ ] 5.6 Default value, `ScriptMacroExpanderTests`: `default` on `secret` is an error; two different defaults for one label is an error; identical defaults are accepted; the default is never used as the resolved value (the lookup decides)
 - [ ] 5.3 `requirements/UserTests.md`: add UT-55.15 (`{{prompt:…}}`, mixed dialog, visible input, unmasked output, cancel, empty, pre-filled default, conflicting defaults, default on a `secret`)
+- [ ] 5.7 Doc/spec leftovers from the phase 4 review: `UserTests.md` wording "secret dialog" -> "values dialog" and the new cancel message (UT-55.14 and the line ~2005), `ScriptMacroSources`/`ScriptMacroExpander` XML doc mentions the `prompt` values, remove `ScriptMacro.SecretLabels`, FR-55.1: state that a repeated `|quote` on a non-prompt macro stays part of its name (or validate otherwise)
 - [ ] 5.4 Build per project (`-m:1`) and run `MutagenMon.Core.Tests`
 - **Status:** pending
 

@@ -34,7 +34,7 @@ public partial class ScriptRunWindow : Window
 
     /// <summary>Opens the dialog for <paramref name="preparation"/> and blocks
     /// until it is closed. A preparation that carries a failure (macro error,
-    /// cancelled secret dialog) is shown as its message, without running.</summary>
+    /// cancelled values dialog) is shown as its message, without running.</summary>
     public static void ShowRun(
         Window? owner, ILogger logger, ScriptRunCoordinator coordinator, ScriptRunPreparation preparation, string sessionName)
     {

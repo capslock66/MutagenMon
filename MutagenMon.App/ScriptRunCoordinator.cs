@@ -33,7 +33,7 @@ public sealed record ScriptRunCallbacks(
 /// A run that passed the confirmation and the macro expansion (FR-56.4), ready
 /// for <see cref="ScriptRunCoordinator.RunPreparedAsync"/>; or, when
 /// <see cref="FailureMessage"/> is set, a run that cannot start (macro error,
-/// secret dialog cancelled: FR-55.6, FR-55.11) with the reason to show. The
+/// values dialog cancelled: FR-55.6, FR-55.11) with the reason to show. The
 /// expansion holds secret values: it is kept only for the run it was made for.
 /// </summary>
 public sealed record ScriptRunPreparation(
@@ -46,7 +46,7 @@ public sealed record ScriptRunPreparation(
 /// <summary>
 /// The run of one script, shared by every place that runs a script (FR-51,
 /// FR-53, FR-55, FR-56): the `@confirm` confirmation, the macro expansion
-/// (with the secret dialog), the <see cref="ScriptRunner"/> call, the cancel
+/// (with the values dialog), the <see cref="ScriptRunner"/> call, the cancel
 /// and the outcome text. Only one script runs at a time (FR-51.1, FR-56.6):
 /// <see cref="IsRunning"/> is the single source of that rule. What is shown —
 /// the Scripts tab pane or the Sync tab dialog — is the caller's, through
@@ -280,7 +280,7 @@ public sealed class ScriptRunCoordinator(ILogger logger, Func<ScriptRunner> runn
 
     /// <summary>Expands the macros of the body of <paramref name="script"/>
     /// (FR-55). A script without macros is ready as written (no expansion). A run
-    /// that must not start — an unresolved macro, or the secret dialog cancelled —
+    /// that must not start — an unresolved macro, or the values dialog cancelled —
     /// comes back with the reason (FR-55.6, FR-55.11).</summary>
     private ScriptRunPreparation ExpandMacros(Window? owner, ScriptDefinition script, SessionSummaryRow? session)
     {
@@ -288,24 +288,25 @@ public sealed class ScriptRunCoordinator(ILogger logger, Func<ScriptRunner> runn
         if (macros.Count == 0)
             return new ScriptRunPreparation(script, null);
 
-        IReadOnlyDictionary<string, string>? typedSecrets = null;
-        var labels = ScriptMacro.SecretLabels(macros);
-        if (labels.Count > 0)
+        IReadOnlyDictionary<string, string>? typedValues = null;
+        var requests = ScriptMacro.ValueRequests(macros);
+        if (requests.Count > 0)
         {
-            // The other macros are checked first, with a placeholder for the secrets, so the user is not asked
-            // to type secrets for a run that cannot start anyway.
+            // The other macros are checked first, with a placeholder for the typed values (secret and prompt),
+            // so the user is not asked to type values for a run that cannot start anyway: an unresolved macro,
+            // a label shared by a secret and a prompt macro, a misplaced default (FR-55.12) are reported before the dialog.
             var preCheck = ScriptMacroExpander.Expand(script.Body, BuildMacroSources(session, _ => "x"));
             if (!preCheck.IsSuccess)
                 return NotRun(script, "Macro error: " + string.Join("; ", preCheck.Errors), isError: true);
 
-            typedSecrets = SecretValuesDialog.Ask(owner, logger, labels);
-            if (typedSecrets is null)
-                return NotRun(script, "Run cancelled: the secret values were not entered.", isError: false);
+            typedValues = SecretValuesDialog.Ask(owner, logger, requests);
+            if (typedValues is null)
+                return NotRun(script, "Run cancelled: the values were not entered.", isError: false);
         }
 
         var result = ScriptMacroExpander.Expand(
             script.Body,
-            BuildMacroSources(session, label_ => typedSecrets is not null && typedSecrets.TryGetValue(label_, out var value_) ? value_ : null));
+            BuildMacroSources(session, label_ => typedValues is not null && typedValues.TryGetValue(label_, out var value_) ? value_ : null));
         if (!result.IsSuccess)
             return NotRun(script, "Macro error: " + string.Join("; ", result.Errors), isError: true);
 
@@ -314,10 +315,11 @@ public sealed class ScriptRunCoordinator(ILogger logger, Func<ScriptRunner> runn
 
     /// <summary>The macro value sources (FR-55): the Windows readers for
     /// `env`, `reg` and `cred` (they return null instead of throwing), the
-    /// given secret lookup, and the selected session.</summary>
-    private static ScriptMacroSources BuildMacroSources(SessionSummaryRow? session, Func<string, string?> secret) =>
+    /// given lookup of the typed values for `secret` and `prompt` (one label
+    /// cannot be both, FR-55.12), and the selected session.</summary>
+    private static ScriptMacroSources BuildMacroSources(SessionSummaryRow? session, Func<string, string?> typedValue) =>
         new(WindowsMacroValueReader.ReadEnvironmentVariable, WindowsMacroValueReader.ReadRegistryValue,
-            WindowsMacroValueReader.ReadCredentialPassword, secret, session);
+            WindowsMacroValueReader.ReadCredentialPassword, typedValue, typedValue, session);
 
     /// <summary>Logs why the run cannot start and returns it as a preparation.
     /// The message names macros, never values.</summary>
