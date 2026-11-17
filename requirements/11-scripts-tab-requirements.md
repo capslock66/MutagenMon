@@ -272,7 +272,10 @@ scripts file.
 - FR-55.1: **Syntax**: `{{type:name}}`, case-sensitive. The token contains no
   line break between `{{` and `}}`; it may sit anywhere in a line, with other
   text around it, and several may appear on one line (e.g.
-  `{{session:name}}-{{env:SUFFIX}}`). Text that merely contains `{{`, or
+  `{{session:name}}-{{env:SUFFIX}}`). After the name, a token may carry
+  **modifiers**, each introduced by `|`: `|quote` (FR-55.4, every type) and
+  `|default=<value>` (`prompt` only, FR-55.12), in any order, each at most
+  once (e.g. `{{prompt:Command|default=/config|quote}}`). Text that merely contains `{{`, or
   bash constructs such as `${VAR}` or `$(cmd)`, is not a macro. **A macro in a
   comment is ignored**: everything to the right of a bash comment marker, up
   to the end of the line, is neither expanded, nor checked, nor masked, nor
@@ -350,7 +353,8 @@ scripts file.
   (environment variable not found or empty, unknown session property, a
   `session:*` macro with no session selected, registry value or credential
   not found or empty or of an unsupported type, `secret` or `prompt` left empty, a label used by both a `secret` and a
-  `prompt` macro (FR-55.12), unknown
+  `prompt` macro, a `default` modifier on a macro other than `prompt`, one
+  `prompt` label with different defaults (FR-55.12), unknown
   type), the run does not start, ssh is not launched and the status line
   shows an error listing every unresolved macro (e.g. `Macro error:
   environment variable 'DB_PWD' is not defined`). The error names the macro,
@@ -418,11 +422,13 @@ scripts file.
   without a `secret` macro shows no dialog (the dialog also carries the
   `prompt` rows, FR-55.12).
 
-- FR-55.12: **`{{prompt:<Label>}}`** is a value typed by the user when the
+- FR-55.12: **`{{prompt:<Label>}}`** (optionally
+  **`{{prompt:<Label>|default=<value>}}`**) is a value typed by the user when the
   script runs, like `secret` (FR-55.11), but **not a secret**: the input shows
   the typed characters and the value is **not masked** in the output
-  (FR-55.8). All the text after `prompt:` is the label (case-sensitive, no line
-  break, not empty); two macros with the same label are the same value. The
+  (FR-55.8). The text after `prompt:`, up to the first `|default=` or `|quote`
+  modifier (or up to `}}`), is the label (case-sensitive, no line
+  break, not empty; it may contain `=` or `:`); two macros with the same label are the same value. The
   value is asked for in the **same single dialog** as the `secret` values
   (FR-55.11): one row per distinct label of the script, `secret` and `prompt`
   rows together, in order of first appearance; a `secret` row hides the typed
@@ -435,6 +441,20 @@ scripts file.
   shown in a visible input. `|quote` (FR-55.4) and the refusal of a line
   break or a NUL (FR-55.5) apply as for every macro. A script without a
   `secret` or a `prompt` macro shows no dialog.
+
+  **Default value.** `|default=<value>` gives the row an initial value: the
+  input is pre-filled with it and its text is selected, so that typing
+  replaces it; the value of the run is the content of the input when the user
+  clicks OK, whether edited or not. The default is plain text of the script
+  (not a secret): it ends at the next `|` or at `}}`, so it cannot contain
+  `|` or `}}`; it may contain `:`, `=` and spaces, and it follows
+  the rules of FR-55.5 (no line break, no NUL). An empty `|default=` is the
+  same as no default. The macros of one label may all carry the same default,
+  or only some of them carry it (it then applies to the label); two different
+  defaults for one label are a macro error naming the label (FR-55.6),
+  detected before any dialog opens. `default` is refused on a `secret` macro
+  (macro error, FR-55.6): the scripts file must not hold secrets (FR-53.3).
+  An input cleared by the user is an empty value, refused as above.
 
 ## FR-56 — Run a script on the selected session from the Sync tab
 
