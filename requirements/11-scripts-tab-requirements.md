@@ -244,7 +244,7 @@ tmux has-session -t appman-rc 2>/dev/null || tmux new -d -s appman-rc "$CCD --re
   same level as `~/.ssh/config`. The only external values the application
   interpolates into a script body are those of the explicit macros
   `{{env:…}}`, `{{session:…}}`, `{{reg:…}}`, `{{cred:…}}` and
-  `{{secret:…}}` (FR-55), substituted locally at run time; it never
+  `{{secret:…}}` and `{{prompt:…}}` (FR-55), substituted locally at run time; it never
   interpolates anything else (paths, conflict data, ...), and the text in
   the file and in the editor is never modified by the expansion.
 - FR-53.3: The file MUST NOT hold secrets (NFR-9): a secret is referenced
@@ -276,7 +276,7 @@ scripts file.
   bash constructs such as `${VAR}` or `$(cmd)`, is not a macro. **A macro in a
   comment is ignored**: everything to the right of a bash comment marker, up
   to the end of the line, is neither expanded, nor checked, nor masked, nor
-  asked for by the secret dialog, and stays in the text as written (bash
+  asked for by the values dialog, and stays in the text as written (bash
   ignores it too). A `#` is a comment marker when it begins a word (start of
   the line, or right after a space, a tab, `;`, `&`, `|`, `(`, `)`, `<` or
   `>`; another Unicode space is part of the word) and is not
@@ -288,8 +288,8 @@ scripts file.
   comment after it is not detected and its macros are expanded and checked.
   The `$'…'` quoting is not recognised either (`\'` ends the quote). The text of a macro is
   never read as a quote or a comment marker (`{{secret:Item #2}}`). The types are
-  `env` (FR-55.2), `session` (FR-55.3), `reg` (FR-55.9), `cred` (FR-55.10)
-  and `secret` (FR-55.11); an unknown type is an error (FR-55.6), not
+  `env` (FR-55.2), `session` (FR-55.3), `reg` (FR-55.9), `cred` (FR-55.10),
+  `secret` (FR-55.11) and `prompt` (FR-55.12); an unknown type is an error (FR-55.6), not
   ignored.
 - FR-55.2: **`{{env:NAME}}`** is the value of the environment variable `NAME`
   of the **Windows workstation** running MutagenMon, never of the server
@@ -349,7 +349,8 @@ scripts file.
 - FR-55.6: **Failure before the run**: when any macro cannot be resolved
   (environment variable not found or empty, unknown session property, a
   `session:*` macro with no session selected, registry value or credential
-  not found or empty or of an unsupported type, `secret` left empty, unknown
+  not found or empty or of an unsupported type, `secret` or `prompt` left empty, a label used by both a `secret` and a
+  `prompt` macro (FR-55.12), unknown
   type), the run does not start, ssh is not launched and the status line
   shows an error listing every unresolved macro (e.g. `Macro error:
   environment variable 'DB_PWD' is not defined`). The error names the macro,
@@ -375,7 +376,7 @@ scripts file.
   remote bash running in the `C` locale. The output is decoded as UTF-8: a
   remote shell writing another encoding is not masked. A very short secret
   (one or two characters) is replaced everywhere it appears, which can make the
-  output hard to read. Session property values are not masked.
+  output hard to read. Session property values and `{{prompt:…}}` values are not masked.
 - FR-55.9: **`{{reg:<key>:<value name>}}`** is the data of a value of a
   registry key of the **Windows workstation**, e.g.
   `{{reg:HKCU\Software\MyApp:DbPassword}}`. The text between `reg:` and the
@@ -414,7 +415,26 @@ scripts file.
   only: never stored, never logged, never reused by a later run. Cancel (or
   closing the dialog) cancels the run: it does not start and the status line
   says it was cancelled. An empty value is unresolved (FR-55.6). A script
-  without a `secret` macro shows no dialog.
+  without a `secret` macro shows no dialog (the dialog also carries the
+  `prompt` rows, FR-55.12).
+
+- FR-55.12: **`{{prompt:<Label>}}`** is a value typed by the user when the
+  script runs, like `secret` (FR-55.11), but **not a secret**: the input shows
+  the typed characters and the value is **not masked** in the output
+  (FR-55.8). All the text after `prompt:` is the label (case-sensitive, no line
+  break, not empty); two macros with the same label are the same value. The
+  value is asked for in the **same single dialog** as the `secret` values
+  (FR-55.11): one row per distinct label of the script, `secret` and `prompt`
+  rows together, in order of first appearance; a `secret` row hides the typed
+  characters, a `prompt` row shows them. The value is kept in memory for this
+  run only: never stored, never logged, never reused by a later run. Cancel
+  (or closing the dialog) cancels the run (FR-55.11). An empty value is
+  unresolved (FR-55.6). **A label cannot be used by both a `secret` and a
+  `prompt` macro** of the same script: it is a macro error (FR-55.6) naming
+  the label, detected before any dialog opens, so that a secret is never
+  shown in a visible input. `|quote` (FR-55.4) and the refusal of a line
+  break or a NUL (FR-55.5) apply as for every macro. A script without a
+  `secret` or a `prompt` macro shows no dialog.
 
 ## FR-56 — Run a script on the selected session from the Sync tab
 
@@ -457,7 +477,7 @@ without going through the Scripts tab.
   file (FR-48), read again at the click. Then, exactly as on the Scripts tab: the `@confirm`
   confirmation if the script asks for it (FR-53.1, with the
   `Selected session:` line of FR-55.7 when the script uses a `session`
-  macro), the macro expansion (FR-55, including the secret dialog), and
+  macro), the macro expansion (FR-55, including the values dialog), and
   `ScriptRunner` (FR-50, FR-51.2 to FR-51.5). The script runs even when
   it contains no `session` macro.
 - FR-56.5: **Run dialog.** The run is shown in a modal dialog owned by the
@@ -469,7 +489,7 @@ without going through the Scripts tab.
   starts as soon as the dialog opens. The dialog cannot be closed (button,
   title bar, Esc) while the script runs: the user clicks Cancel first and
   closes it when the status line shows the outcome. If the run does not
-  start because of a macro error or a cancelled secret dialog (FR-55.6,
+  start because of a macro error or a cancelled values dialog (FR-55.6,
   FR-55.11), the dialog still opens, with an empty pane and that message in
   the status line, and Close is enabled. The output of a session run is
   not kept after the dialog closes (no per-script cache, unlike FR-52.4).
@@ -507,7 +527,7 @@ without going through the Scripts tab.
   script (the saved one, under its new name if it was renamed) and the session selected in the Sync grid
   (`StatusWindow` provides it) to `ScriptRunCoordinator.RunAsync`; the
   coordinator asks for the `@confirm` confirmation, expands the macros
-  (checking the non-secret macros before asking for the secrets) and runs
+  (checking the other macros before asking for the typed values) and runs
   the script, and `ScriptsView` shows the output, the status line and
   `Macro error: …` or the cancellation without starting ssh (FR-55.6,
   FR-55.11).
@@ -523,8 +543,9 @@ without going through the Scripts tab.
   dialog of the Sync tab; `MutagenMon.App/ScriptOutputPane.cs`: the output
   pane appending (stderr in red, 5000-line cap) shared with the Scripts tab.
 - `MutagenMon.App/SecretValuesDialog.xaml`/`.xaml.cs`: the single dialog
-  of the `secret` macros (FR-55.11), one `PasswordBox` row per distinct
-  label.
+  of the `secret` and `prompt` macros (FR-55.11, FR-55.12), one row per
+  distinct label: a `PasswordBox` for `secret`, a visible `TextBox` for
+  `prompt`.
 - `MutagenMon.App/config/scripts.ini`: shipped sample file.
 - Tests: `MutagenMon.Core.Tests` — `ScriptFileParserTests`,
   `ScriptFileEditorTests`, `ScriptRunnerTests`, `ScriptMacroTests`,
