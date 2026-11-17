@@ -4,10 +4,10 @@
 Add a macro type `prompt` to the Scripts tab: like `{{secret:<Label>}}` it asks the user for a value in the single pre-run dialog, but the input is a visible text box and the value is NOT masked in the output.
 
 ## Next Step
-Task 6.1: run the eortc-dotnet-code-reviewer loop on the final state, then summarise (Phase 6).
+All phases complete. Remaining outside the plan: push (blocked in the sandbox) and run UT-55.15 on Windows.
 
 ## Current Phase
-Phase 6
+Complete
 
 ## Phases
 
@@ -56,8 +56,8 @@ Phase 6
 
 ### Phase 6: Review & Delivery
 - [x] 6.1 Run `eortc-dotnet-code-reviewer` loop on the changes (spec: FR-55): done per batch (Core 3 iterations, App 1, tests 1; no 🔴/🟠 open)
-- [ ] 6.2 Fix findings, summarise, stop (no commit unless asked)
-- **Status:** pending
+- [x] 6.2 Fix findings, summarise, stop (no commit unless asked)
+- **Status:** complete
 
 ## Decisions Made
 | Decision | Rationale |
