@@ -273,12 +273,17 @@ scripts file.
   line break between `{{` and `}}`; it may sit anywhere in a line, with other
   text around it, and several may appear on one line (e.g.
   `{{session:name}}-{{env:SUFFIX}}`). After the name, a token may carry
-  **modifiers**, each introduced by `|`: `|quote` (FR-55.4, every type) and
-  `|default=<value>` (`prompt` only, FR-55.12), in any order, each at most
-  once (e.g. `{{prompt:Command|default=/config|quote}}`); a repeated or
-  misplaced modifier of a `prompt` macro is a macro error (FR-55.6), whereas on
-  the other types a repeated `|quote` stays part of the name, as before the
-  modifiers existed. Text that merely contains `{{`, or
+  **modifiers**, each introduced by `|`: `|quote` (FR-55.4, every type),
+  `|required` (FR-55.13, every type) and `|default=<value>` (`prompt` only,
+  FR-55.12), in any order, each at most once (e.g.
+  `{{prompt:Command|default=/config|quote|required}}`); a repeated or
+  misplaced modifier of a `prompt` macro, or a repeated `|required` on any type, is
+  a macro error (FR-55.6), whereas on the other types a repeated `|quote`
+  stays part of the name, as before the modifiers existed (every modifier written
+  before a repeated one is then part of the name too: `{{env:X|quote|quote|required}}`
+  is the name `X|quote` with `|quote` and `|required`, whereas
+  `{{env:X|required|quote|quote}}` leaves a `|required` in the name and is a
+  macro error). Text that merely contains `{{`, or
   bash constructs such as `${VAR}` or `$(cmd)`, is not a macro. **A macro in a
   comment is ignored**: everything to the right of a bash comment marker, up
   to the end of the line, is neither expanded, nor checked, nor masked, nor
@@ -315,7 +320,9 @@ scripts file.
   of an unsupported type (`REG_BINARY`, `REG_MULTI_SZ`) is ignored, as if it
   was absent. A variable absent from the registry falls back to the process
   environment of MutagenMon. A registry that cannot be read falls back to the
-  process environment too.
+  process environment too. A variable that is absent is unresolved
+  (FR-55.6); one that is defined but empty is accepted unless the macro is
+  `|required` (FR-55.13).
 - FR-55.3: **`{{session:<property>}}`** is the value of that property of the
   session row selected in the Sync grid (e.g. `{{session:name}}`). Every
   property of the session row is supported; the property names are those of
@@ -339,7 +346,7 @@ scripts file.
 
   The list follows the row model: a property added to it is available
   without a change to the macro code. A session value is context, not a
-  secret: it may be empty and is not masked (FR-55.8).
+  secret: it may be empty (unless `|required`, FR-55.13) and is not masked (FR-55.8).
 - FR-55.4: **Raw insertion by default**: the value is inserted verbatim, no
   quote added; the script author chooses the quoting around the macro (e.g.
   `mysql -p'{{env:DB_PWD}}'`). A value containing `$`, `` ` ``, `"`, `'`,
@@ -353,9 +360,11 @@ scripts file.
   start and the status line names the offending macro (a line break would
   inject a new command line into the script).
 - FR-55.6: **Failure before the run**: when any macro cannot be resolved
-  (environment variable not found or empty, unknown session property, a
-  `session:*` macro with no session selected, registry value or credential
-  not found or empty or of an unsupported type, `secret` or `prompt` left empty, a label used by both a `secret` and a
+  (environment variable not found, registry value or credential
+  not found or of an unsupported type, credential with an empty password,
+  unknown session property, a
+  `session:*` macro with no session selected, an empty value with the
+  `|required` modifier (FR-55.13), a label used by both a `secret` and a
   `prompt` macro, a `default` modifier on a macro other than `prompt`, one
   `prompt` label with different defaults (FR-55.12), unknown
   type), the run does not start, ssh is not launched and the status line
@@ -395,8 +404,8 @@ scripts file.
   `REG_EXPAND_SZ` (expanded as in FR-55.2), `REG_DWORD` and `REG_QWORD`
   (unsigned decimal text);
   `REG_BINARY`, `REG_MULTI_SZ` and any other type are an error. A missing
-  key or value, an unsupported type or an empty value is unresolved
-  (FR-55.6).
+  key or value or an unsupported type is unresolved (FR-55.6); an empty
+  value is accepted unless the macro is `|required` (FR-55.13).
 - FR-55.10: **`{{cred:<Target>}}`** is the password of the **generic**
   credential named `<Target>` in the Windows Credential Manager of the
   Windows user running MutagenMon, e.g. `{{cred:MyApp/DbPassword}}`. All the
@@ -408,7 +417,9 @@ scripts file.
   unreadable). It is read just before each run.
   MutagenMon only reads credentials: they are created and edited with the
   Windows Credential Manager or `cmdkey`. A target not found, an empty
-  password or an unreadable password is unresolved (FR-55.6). The secret is
+  password or an unreadable password is unresolved (FR-55.6), with or
+  without `|required`: an empty password is reported as absent by the
+  Credential Manager reader. The secret is
   kept encrypted by Windows (DPAPI, bound to the user): this is the
   recommended source for passwords.
 - FR-55.11: **`{{secret:<Label>}}`** is a value typed by the user when the
@@ -421,7 +432,8 @@ scripts file.
   times is asked once per run. The values are kept in memory for this run
   only: never stored, never logged, never reused by a later run. Cancel (or
   closing the dialog) cancels the run: it does not start and the status line
-  says it was cancelled. An empty value is unresolved (FR-55.6). A script
+  says it was cancelled. An empty value is accepted unless the macro is
+  `|required` (FR-55.13). A script
   without a `secret` macro shows no dialog (the dialog also carries the
   `prompt` rows, FR-55.12).
 
@@ -438,7 +450,7 @@ scripts file.
   characters, a `prompt` row shows them. The value is kept in memory for this
   run only: never stored, never logged, never reused by a later run. Cancel
   (or closing the dialog) cancels the run (FR-55.11). An empty value is
-  unresolved (FR-55.6). **A label cannot be used by both a `secret` and a
+  accepted unless the macro is `|required` (FR-55.13). **A label cannot be used by both a `secret` and a
   `prompt` macro** of the same script: it is a macro error (FR-55.6) naming
   the label, detected before any dialog opens, so that a secret is never
   shown in a visible input. `|quote` (FR-55.4) and the refusal of a line
@@ -457,7 +469,29 @@ scripts file.
   defaults for one label are a macro error naming the label (FR-55.6),
   detected before any dialog opens. `default` is refused on a `secret` macro
   (macro error, FR-55.6): the scripts file must not hold secrets (FR-53.3).
-  An input cleared by the user is an empty value, refused as above.
+  An input cleared by the user is an empty value (FR-55.13).
+
+- FR-55.13: **`|required` modifier**, supported by every macro type, written
+  like `|quote` without a value (`{{secret:Password|required}}`). Without it
+  the macro is not required. A **required** macro must have a **non-empty
+  value**: an empty value (including one made only of what the user cleared in
+  the values dialog; spaces count as a value) is unresolved (FR-55.6), and the
+  error names the macro, never a value. A non-required macro accepts an empty
+  value, which is inserted as an empty text (`''` with `|quote`) and masks
+  nothing (FR-55.8: an empty value is never added to the masked values); a
+  value that is **absent** (variable, registry value or credential not found,
+  no value asked for) is an error whether the macro is required or not.
+  In the values dialog (FR-55.11, FR-55.12) the label of a **required** row
+  is followed by a red asterisk `*` (in its own column, so the asterisks are
+  aligned), and a note under the rows reads "`*` are required fields", the
+  asterisk in red (shown only when a row is required); **OK is
+  disabled while a required input is empty** (it is enabled again as soon as
+  every required input has text, and also enabled at opening when no row is
+  required or every required row is pre-filled by its default). A label used
+  by several macros is required when **at least one** of them is
+  `|required`. A required `prompt` pre-filled with a non-empty default is
+  satisfied until the user clears it. The modifier is combined freely with
+  `|quote` and `|default=`.
 
 ## FR-56 — Run a script on the selected session from the Sync tab
 
@@ -568,7 +602,8 @@ without going through the Scripts tab.
 - `MutagenMon.App/SecretValuesDialog.xaml`/`.xaml.cs`: the single dialog
   of the `secret` and `prompt` macros (FR-55.11, FR-55.12), one row per
   distinct label: a `PasswordBox` for `secret`, a visible `TextBox` for
-  `prompt`.
+  `prompt`; a red asterisk marks the required rows and OK is disabled while
+  one of them is empty (FR-55.13).
 - `MutagenMon.App/config/scripts.ini`: shipped sample file.
 - Tests: `MutagenMon.Core.Tests` — `ScriptFileParserTests`,
   `ScriptFileEditorTests`, `ScriptRunnerTests`, `ScriptMacroTests`,

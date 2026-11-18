@@ -89,6 +89,10 @@ public static class ScriptMacroExpander
                 resolutions[(macro.TypeName, macro.Name)] = resolution;
             }
 
+            // A required macro refuses an empty value (FR-55.13); the check is per occurrence, the resolution is shared.
+            if (resolution is { Value.Length: 0, EmptyReason: { } emptyReason } && macro.IsRequired)
+                resolution = Failed(macro, emptyReason);
+
             if (resolution is not { Value: { } value })
             {
                 // The first occurrence of a failing macro reports it; the later ones add nothing.
@@ -98,7 +102,8 @@ public static class ScriptMacroExpander
                 continue;
             }
 
-            if (resolution.IsMasked)
+            // An empty value is never masked: it would match everywhere (FR-55.8, FR-55.13).
+            if (resolution.IsMasked && value.Length > 0)
             {
                 AddOnce(secretsToMask, value);
                 // `set -x` traces a value containing a single quote with each quote escaped as '\''
@@ -136,7 +141,7 @@ public static class ScriptMacroExpander
     {
         foreach (var macro in macros)
             if (macro.MalformedModifierLabel is { } label)
-                AddOnce(errors, $"the {macro.TypeName} label '{label}' has malformed modifiers (only |quote and |default=<value> are supported, each at most once; a default cannot contain '|')");
+                AddOnce(errors, $"the {macro.TypeName} label '{label}' has malformed modifiers (only |quote, |required and |default=<value> are supported, each at most once; a default cannot contain '|')");
             else if (macro is { Type: ScriptMacroType.Prompt, DefaultText: { } defaultText } && defaultText.Contains('\0'))
                 AddOnce(errors, $"the default value of the prompt '{macro.SafeName}' contains a NUL character");
 
@@ -156,9 +161,10 @@ public static class ScriptMacroExpander
             values.Add(value);
     }
 
-    private sealed record Resolution(string? Value, string? Error, bool IsMasked);
+    // EmptyReason is the error reported when the value is empty and the macro is required (FR-55.13).
+    private sealed record Resolution(string? Value, string? Error, bool IsMasked, string? EmptyReason = null);
 
-    private static Resolution Resolved(string value, bool isMasked) => new(value, null, isMasked);
+    private static Resolution Resolved(string value, bool isMasked, string? emptyReason = null) => new(value, null, isMasked, emptyReason);
 
     private static Resolution Failed(ScriptMacro macro, string reason) => new(null, $"{macro.Display}: {reason}", false);
 
@@ -183,31 +189,36 @@ public static class ScriptMacroExpander
         {
             ScriptMacroType.Env => FromLookup(
                 macro, sources.Environment(macro.Name),
-                $"environment variable '{macro.Name}' is not defined or is empty"),
+                $"environment variable '{macro.Name}' is not defined",
+                $"environment variable '{macro.Name}' is empty"),
             ScriptMacroType.Session => ResolveSession(macro, sources.SelectedSession),
             ScriptMacroType.Reg => ResolveRegistry(macro, sources.Registry),
             ScriptMacroType.Cred => FromLookup(
                 macro, sources.Credential(macro.Name),
-                $"credential '{macro.Name}' was not found or has an empty password"),
+                $"credential '{macro.Name}' was not found or has an empty password",
+                $"credential '{macro.Name}' has an empty password"),
             ScriptMacroType.Secret => FromLookup(
                 macro, sources.Secret(macro.Name),
+                $"no value was entered for the secret '{macro.Name}'",
                 $"no value was entered for the secret '{macro.Name}'"),
             ScriptMacroType.Prompt => ResolvePrompt(macro, sources.Prompt(macro.Name)),
             _ => Failed(macro, $"unknown macro type '{macro.TypeName}' (known types: env, session, reg, cred, secret, prompt)"),
         };
     }
 
-    /// <summary>A value read from an external source: missing or empty is an
-    /// error, and a present value is masked in the output (FR-55.8).</summary>
-    private static Resolution FromLookup(ScriptMacro macro, string? value, string errorWhenMissing) =>
-        string.IsNullOrEmpty(value) ? Failed(macro, errorWhenMissing) : Resolved(value, isMasked: true);
+    /// <summary>A value read from an external source: an absent (<c>null</c>) value is an
+    /// error; an empty one is accepted unless the macro is required (FR-55.13). A present value
+    /// is masked in the output (FR-55.8).</summary>
+    private static Resolution FromLookup(ScriptMacro macro, string? value, string errorWhenMissing, string errorWhenEmpty) =>
+        value is null ? Failed(macro, errorWhenMissing) : Resolved(value, isMasked: true, errorWhenEmpty);
 
-    /// <summary>A value typed by the user in a visible input: empty is an error,
-    /// and the value is not masked in the output (FR-55.12).</summary>
+    /// <summary>A value typed by the user in a visible input: absent is an error, empty is
+    /// accepted unless the macro is required (FR-55.13), and the value is not masked in the
+    /// output (FR-55.12).</summary>
     private static Resolution ResolvePrompt(ScriptMacro macro, string? value) =>
-        string.IsNullOrEmpty(value)
+        value is null
             ? Failed(macro, $"no value was entered for the prompt '{macro.Name}'")
-            : Resolved(value, isMasked: false);
+            : Resolved(value, isMasked: false, $"no value was entered for the prompt '{macro.Name}'");
 
     private static Resolution ResolveSession(ScriptMacro macro, SessionSummaryRow? session)
     {
@@ -221,8 +232,8 @@ public static class ScriptMacroExpander
         if (property is null || property.GetIndexParameters().Length > 0)
             return Failed(macro, $"unknown session property '{macro.Name}'");
 
-        // Session values are context, not secrets: an empty value is allowed and the value is not masked.
-        return Resolved(FormatSessionValue(property.GetValue(session)), isMasked: false);
+        // Session values are context, not secrets: an empty value is allowed unless the macro is required, and the value is not masked.
+        return Resolved(FormatSessionValue(property.GetValue(session)), isMasked: false, $"session property '{macro.Name}' is empty");
     }
 
     private static string FormatSessionValue(object? value) => value switch
@@ -255,7 +266,8 @@ public static class ScriptMacroExpander
 
         return FromLookup(
             macro, registry(hive + "\\" + subKey, valueName),
-            $"registry value '{valueName}' of key '{hive}\\{subKey}' was not found, is empty or has an unsupported type");
+            $"registry value '{valueName}' of key '{hive}\\{subKey}' was not found or has an unsupported type",
+            $"registry value '{valueName}' of key '{hive}\\{subKey}' is empty");
     }
 
     /// <summary>Short hive name for the supported hives, accepting the long

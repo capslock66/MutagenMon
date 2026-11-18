@@ -341,7 +341,7 @@ UT-8.5 via the status view's toolbar toggle.
 * The MutagenMon process is no longer running, and no new instance
   starts on its own.
 
-**UT-7.5 — Menu collapses to "Reloading..." during a reload (FR-7.5)**
+**UT-7.5 — Menu collapses to "Reloading..." during a reload (FR-7.5)** 📋 ✅
 
 Covered above by UT-7.1.
 
@@ -741,7 +741,7 @@ content (FR-29.1/FR-29.2/FR-30.1/FR-30.2/FR-30.3)** 📋 ✅
   monospace, multi-line, editable text box. No "file does not exist"
   notice is shown.
 
-**UT-29.1b — File hyperlink opens the file in the default editor**
+**UT-29.1b — File hyperlink opens the file in the default editor** 📋 ✅
 
 * Ensure `%USERPROFILE%\.mutagen.yml` exists. Open the status view and
   select the "Mutagen Configuration" tab.
@@ -1942,13 +1942,13 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   the same value is used for both uses of "Database password". Run again:
   the dialog opens again, empty (nothing was kept).
 * Cancel the dialog (or close it): the run does not start and the status line
-  says it was cancelled. Leave one row empty and OK: the run does not start
-  and the status line names the macro.
+  says it was cancelled. Leave one row empty and OK: the run starts with an empty
+  value (`a=`), the secret is not required (FR-55.13, UT-55.16).
 * A script without a `secret` macro (and without a `prompt` macro, UT-55.15) opens no dialog.
 * Type a value with `'` and `$(id)`: raw insertion interprets it according to
   where the macro is written; `{{secret:Label|quote}}` inserts it literally.
 
-**UT-55.15 — `{{prompt:…}}` macro and its default value (FR-55.12)** 📋 ⬜
+**UT-55.15 — `{{prompt:…}}` macro and its default value (FR-55.12)** 📋 ✅
 
 * Write `echo "branch=[{{prompt:Branch}}]"` and run it: **one** dialog opens
   ("Script values") with one row "Branch" whose input **shows** the typed
@@ -1968,9 +1968,8 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   first (`{{secret:A}} {{prompt:Cmd|default=/config}}`), the first click in that
   box gives it the focus and selects all the text without losing the selection;
   OK without typing runs with `cmd=[/config]`. Edit the text to
-  `/config -v` and OK: `cmd=[/config -v]`. Clear the box and OK: the run does
-  not start and the status line names `{{prompt:Command|default=/config}}` as
-  without value.
+  `/config -v` and OK: `cmd=[/config -v]`. Clear the box and OK: the run starts
+  with `cmd=[]` (not required, FR-55.13, UT-55.16).
 * `{{prompt:Command|default=/config|quote}}` and
   `{{prompt:Command|quote|default=/config}}` behave the same and insert the
   value shell-quoted. A default with `:`, `=` and spaces
@@ -1994,6 +1993,30 @@ in `config/config_mutagenmon.json` must point at the `ssh` binary.
   of the dialog.
 * A script with only `prompt` macros opens the dialog; a script without any
   `secret` or `prompt` macro does not.
+
+**UT-55.16 — `|required` modifier and the mandatory marker of the dialog (FR-55.13)** 📋 ✅
+
+* `echo "cmd=[{{prompt:Command|required}}]"`: the dialog row is labelled
+  `Command` followed by a red asterisk (aligned with the other asterisks), a note
+  "* are required fields" (red asterisk) is shown under the rows,
+  and **OK is disabled** while the box is empty. Type one character: OK is
+  enabled; delete it: OK is disabled again. Type `ls` and OK: `cmd=[ls]`.
+* `echo "cmd=[{{prompt:Command}}]"` (no `required`): no asterisk, no note, OK
+  enabled with an empty box; OK runs with `cmd=[]`.
+* `echo "p=[{{secret:Pwd|required}}]"`: asterisk, OK disabled until something
+  is typed in the hidden input; the output shows `p=[***]`.
+* `{{prompt:Command|default=/config|required}}`: OK enabled at opening
+  (pre-filled); clear the box: OK disabled; type again: enabled. The
+  modifiers combine in any order with `|quote` and `|default=`.
+* Mixed rows: `{{prompt:A|required}} {{prompt:B}}`: only `A` has the asterisk;
+  OK needs `A` only. `{{prompt:A}} {{prompt:A|required}}` (same label): the
+  single row `A` is required.
+* Other types: `echo "[{{session:alphaUrl|required}}]"` with a session
+  selected runs; `echo "[{{env:NOPE|required}}]"` (variable absent): `Macro
+  error:` as without `required`; an environment variable defined but empty:
+  accepted without `required` (inserts nothing), `Macro error:` with it.
+* `{{env:X|required|required}}`: `Macro error:` about malformed modifiers
+  naming the label.
 
 ## FR-56 — `@session-script` scripts run from the Sync tab
 

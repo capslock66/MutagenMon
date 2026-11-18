@@ -91,11 +91,15 @@ public class ScriptMacroExpanderTests
     }
 
     [Fact]
-    public void AnEmptyEnvironmentValueIsAnError()
+    public void AnEmptyEnvironmentValueIsAcceptedUnlessTheMacroIsRequired()
     {
-        var expansion = ScriptMacroExpander.Expand("{{env:V}}", Sources(Env("V", "")));
+        var accepted = ScriptMacroExpander.Expand("a{{env:V}}b", Sources(Env("V", "")));
+        var required = ScriptMacroExpander.Expand("{{env:V|required}}", Sources(Env("V", "")));
 
-        Assert.False(expansion.IsSuccess);
+        Assert.True(accepted.IsSuccess);
+        Assert.Equal("ab", accepted.Text);
+        Assert.Empty(accepted.SecretsToMask);
+        Assert.Contains("{{env:V|required}}", Assert.Single(required.Errors));
     }
 
     [Fact]
@@ -330,10 +334,11 @@ public class ScriptMacroExpanderTests
     }
 
     [Fact]
-    public void CredentialMacroWithAMissingTargetOrEmptyPasswordIsAnError()
+    public void CredentialMacroWithAMissingTargetIsAnErrorAndAnEmptyPasswordIsAnErrorOnlyWhenRequired()
     {
         Assert.False(ScriptMacroExpander.Expand("{{cred:Missing}}", Sources()).IsSuccess);
-        Assert.False(ScriptMacroExpander.Expand("{{cred:T}}", Sources(credentials: Env("T", ""))).IsSuccess);
+        Assert.False(ScriptMacroExpander.Expand("{{cred:T|required}}", Sources(credentials: Env("T", ""))).IsSuccess);
+        Assert.True(ScriptMacroExpander.Expand("{{cred:T}}", Sources(credentials: Env("T", ""))).IsSuccess);
     }
 
     [Fact]
@@ -412,10 +417,15 @@ public class ScriptMacroExpanderTests
     }
 
     [Fact]
-    public void SecretMacroWithoutAValueOrWithAnEmptyValueIsAnError()
+    public void SecretMacroWithoutAValueIsAnErrorAndAnEmptyValueIsAnErrorOnlyWhenRequired()
     {
         Assert.False(ScriptMacroExpander.Expand("{{secret:Token}}", Sources()).IsSuccess);
-        Assert.False(ScriptMacroExpander.Expand("{{secret:Token}}", Sources(secrets: Env("Token", ""))).IsSuccess);
+        Assert.False(ScriptMacroExpander.Expand("{{secret:Token|required}}", Sources(secrets: Env("Token", ""))).IsSuccess);
+
+        var accepted = ScriptMacroExpander.Expand("p[{{secret:Token}}]", Sources(secrets: Env("Token", "")));
+        Assert.True(accepted.IsSuccess);
+        Assert.Equal("p[]", accepted.Text);
+        Assert.Empty(accepted.SecretsToMask);
     }
 
     [Fact]
@@ -489,13 +499,13 @@ public class ScriptMacroExpanderTests
     }
 
     [Fact]
-    public void PromptMacroWithAMissingOrEmptyValueIsAnErrorNamingTheMacro()
+    public void PromptMacroWithAMissingValueOrARequiredEmptyValueIsAnErrorNamingTheMacro()
     {
         var missing = ScriptMacroExpander.Expand("{{prompt:Path}}", Sources());
-        var empty = ScriptMacroExpander.Expand("{{prompt:Path}}", Sources(prompts: Env("Path", "")));
+        var empty = ScriptMacroExpander.Expand("{{prompt:Path|required}}", Sources(prompts: Env("Path", "")));
 
         Assert.Contains("{{prompt:Path}}", Assert.Single(missing.Errors));
-        Assert.Contains("{{prompt:Path}}", Assert.Single(empty.Errors));
+        Assert.Contains("{{prompt:Path|required}}", Assert.Single(empty.Errors));
         Assert.Equal("", missing.Text);
         Assert.Equal("", empty.Text);
     }
@@ -674,5 +684,95 @@ public class ScriptMacroExpanderTests
         var expansion = ScriptMacroExpander.Expand("{{foo:bar}}", Sources());
 
         Assert.Contains("prompt", Assert.Single(expansion.Errors));
+    }
+
+    [Fact]
+    public void AnEmptyPromptValueIsAcceptedWhenNotRequiredAndQuotedAsEmptyText()
+    {
+        var expansion = ScriptMacroExpander.Expand("a={{prompt:P}} b={{prompt:P|quote}}", Sources(prompts: Env("P", "")));
+
+        Assert.True(expansion.IsSuccess);
+        Assert.Equal("a= b=''", expansion.Text);
+        Assert.Empty(expansion.SecretsToMask);
+    }
+
+    [Fact]
+    public void ARequiredMacroOfALabelDoesNotMakeTheOtherOccurrencesRequired()
+    {
+        var sources = Sources(prompts: Env("P", ""));
+
+        var optionalOnly = ScriptMacroExpander.Expand("{{prompt:P}}", sources);
+        var mixed = ScriptMacroExpander.Expand("{{prompt:P}} {{prompt:P|required}}", sources);
+
+        Assert.True(optionalOnly.IsSuccess);
+        Assert.Contains("{{prompt:P|required}}", Assert.Single(mixed.Errors));
+    }
+
+    [Fact]
+    public void ARequiredNonEmptyValueIsResolvedWithTheOtherModifiers()
+    {
+        var expansion = ScriptMacroExpander.Expand(
+            "{{prompt:Command|default=/config|quote|required}}", Sources(prompts: Env("Command", "a b")));
+
+        Assert.Equal("'a b'", expansion.Text);
+    }
+
+    [Fact]
+    public void ARequiredSessionPropertyWithAnEmptyValueIsAnError()
+    {
+        var session = Session with { AlphaUrl = "" };
+
+        Assert.True(ScriptMacroExpander.Expand("{{session:alphaUrl}}", Sources(session: session)).IsSuccess);
+        Assert.False(ScriptMacroExpander.Expand("{{session:alphaUrl|required}}", Sources(session: session)).IsSuccess);
+    }
+
+    [Fact]
+    public void ARequiredMacroWithAMissingValueIsAnErrorAndNeverResolved()
+    {
+        Assert.False(ScriptMacroExpander.Expand("{{env:Nope|required}}", Sources()).IsSuccess);
+        Assert.False(ScriptMacroExpander.Expand("{{secret:S|required}}", Sources()).IsSuccess);
+    }
+
+    [Fact]
+    public void ARepeatedRequiredModifierIsAMacroErrorOnAnyType()
+    {
+        foreach (var text in new[] { "{{env:A|required|required}}", "{{prompt:A|required|quote|required}}", "{{secret:A|required|required}}" })
+        {
+            var expansion = ScriptMacroExpander.Expand(text, Sources(Env("A|required", "x"), secrets: Env("A|required", "x"), prompts: Env("A", "x")));
+
+            Assert.Contains("malformed modifiers", Assert.Single(expansion.Errors));
+        }
+    }
+
+    [Fact]
+    public void ARequiredValueMadeOfSpacesIsAValue()
+    {
+        var expansion = ScriptMacroExpander.Expand("[{{prompt:P|required}}]", Sources(prompts: Env("P", " ")));
+
+        Assert.Equal("[ ]", expansion.Text);
+    }
+
+    [Fact]
+    public void AnEmptyRegistryValueIsAcceptedUnlessRequired()
+    {
+        var registry = new Dictionary<(string Key, string Value), string> { [(@"HKCU\K", "V")] = "" };
+
+        Assert.True(ScriptMacroExpander.Expand(@"{{reg:HKCU\K:V}}", Sources(registry: registry)).IsSuccess);
+        Assert.False(ScriptMacroExpander.Expand(@"{{reg:HKCU\K:V|required}}", Sources(registry: registry)).IsSuccess);
+    }
+
+    [Fact]
+    public void ARequiredMacroInACommentIsIgnored()
+    {
+        Assert.True(ScriptMacroExpander.Expand("echo ok # {{env:NOPE|required}}", Sources()).IsSuccess);
+    }
+
+    [Fact]
+    public void ARejectedMacroWithRequiredNeverLeaksItsDefaultText()
+    {
+        var expansion = ScriptMacroExpander.Expand("{{secret:S|default=hunter2|required}}", Sources(secrets: Env("S", "x")));
+
+        Assert.False(expansion.IsSuccess);
+        Assert.DoesNotContain("hunter2", string.Join("|", expansion.Errors));
     }
 }

@@ -401,4 +401,63 @@ public class ScriptMacroTests
         Assert.Equal("L", request.Label);
         Assert.True(request.IsSecret);
     }
+
+    [Theory]
+    [InlineData("{{env:A|required}}", "A", false, true, null)]
+    [InlineData("{{env:A|quote|required}}", "A", true, true, null)]
+    [InlineData("{{env:A|required|quote}}", "A", true, true, null)]
+    [InlineData("{{prompt:Cmd|default=/config|required}}", "Cmd", false, true, "/config")]
+    [InlineData("{{prompt:Cmd|required|default=/config|quote}}", "Cmd", true, true, "/config")]
+    [InlineData("{{prompt:Cmd|quote|default=/config}}", "Cmd", true, false, "/config")]
+    [InlineData("{{secret:S}}", "S", false, false, null)]
+    [InlineData("{{secret:S|requiredx}}", "S|requiredx", false, false, null)]
+    [InlineData("{{env:X|quote|quote|required}}", "X|quote", true, true, null)]
+    public void TheRequiredModifierIsAFlagInAnyOrderWithTheOtherModifiers(string text, string name, bool isQuoted, bool isRequired, string? defaultText)
+    {
+        var macro = Assert.Single(ScriptMacro.Find(text));
+
+        Assert.Equal(name, macro.Name);
+        Assert.Equal(isQuoted, macro.IsQuoted);
+        Assert.Equal(isRequired, macro.IsRequired);
+        Assert.Equal(defaultText, macro.DefaultText);
+        Assert.Null(macro.MalformedModifierLabel);
+    }
+
+    [Fact]
+    public void ARequiredLeftInTheNameByARepeatedQuoteIsMalformed()
+    {
+        var macro = Assert.Single(ScriptMacro.Find("{{env:X|required|quote|quote}}"));
+
+        Assert.Equal("X|required|quote", macro.Name);
+        Assert.Equal("X", macro.MalformedModifierLabel);
+    }
+
+    [Fact]
+    public void ARepeatedRequiredLeavesTheModifierInTheNameAndIsMalformedOnEveryType()
+    {
+        foreach (var text in new[] { "{{env:A|required|required}}", "{{secret:A|required|required}}", "{{prompt:A|required|required}}" })
+        {
+            var macro = Assert.Single(ScriptMacro.Find(text));
+
+            Assert.Equal("A|required", macro.Name);
+            Assert.Equal("A", macro.MalformedModifierLabel);
+            Assert.True(macro.IsRejected);
+        }
+    }
+
+    [Fact]
+    public void ValueRequestsMarkALabelRequiredWhenAnyOfItsMacrosIsRequired()
+    {
+        var requests = ScriptMacro.ValueRequests(ScriptMacro.Find("{{prompt:A}} {{prompt:A|required}} {{secret:B}} {{prompt:C|required|default=x}}"));
+
+        Assert.Equal(
+            new[] { new ScriptValueRequest("A", false, null, true), new ScriptValueRequest("B", true, null, false), new ScriptValueRequest("C", false, "x", true) },
+            requests);
+    }
+
+    [Fact]
+    public void DisplayShowsTheRequiredModifier()
+    {
+        Assert.Equal("{{secret:S|quote|required}}", Assert.Single(ScriptMacro.Find("{{secret:S|required|quote}}")).Display);
+    }
 }
