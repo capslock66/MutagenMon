@@ -65,7 +65,7 @@ Error-stale if the underlying data hasn't refreshed recently. Past the
 | `100` | Ready, freshly updated | yes | **yes** | none | "mutagen is watching for changes (updated)" | [`green-success.ico`](icons/green-success.ico) *(see quirk §6.2 — currently unreachable)* |
 | `100` | Ready, but monitoring being turned off | **no** | — | any | "mutagen is stopping" | [`green-stop.ico`](icons/green-stop.ico) |
 | `60` | Conflicts detected | yes | — | none | "conflicts" | [`green-conflict.ico`](icons/green-conflict.ico) |
-| `50` | Problems detected | yes | — | none | "problems" | [`green-error.ico`](icons/green-error.ico) |
+| `50` | Problems detected (also: a session halted by a Mutagen safety check, see [12-halted-sessions-requirements.md](12-halted-sessions-requirements.md) FR-57 — no new icon) | yes | — | none | "problems" | [`green-error.ico`](icons/green-error.ico) |
 | `40` | Syncing | yes | no | none | "mutagen is syncing" | [`green-sync.ico`](icons/green-sync.ico) |
 | `40` | Syncing, freshly updated | yes | **yes** | none | "mutagen is syncing (updated)" | [`green-success.ico`](icons/green-success.ico) |
 | `30` | Scanning | yes | no | none | "mutagen is scanning" | [`green-scan.ico`](icons/green-scan.ico) *(⚠ placeholder — asset never existed, §6.1)* |

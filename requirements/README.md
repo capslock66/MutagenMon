@@ -43,7 +43,16 @@ This folder documents the required behavior of MutagenMon.
    Implemented (FR-47 through FR-55). FR-56 (`@session-script` directive and
    running such a script on the selected session from the Sync tab) is
    implemented and its manual tests (UT-56.x) are validated.
-10. [UserTests.md](UserTests.md) — manual, click-by-click acceptance test
+10. [12-halted-sessions-requirements.md](12-halted-sessions-requirements.md) —
+   requirements and design for sessions halted by a Mutagen safety check:
+   recognition and display (red grid row, Problems icon), identification of
+   the emptied side, a manual "Accept deletion" action and an opt-in
+   automatic resolution (purge of the other side, then `mutagen sync
+   reset`) for the "one-sided root emptying" halt, notifications, the
+   configuration keys and the per-session `@halted-auto-fix` directive in
+   `mutagen-create.bat`. Specified (FR-57 through FR-65), not yet
+   implemented.
+11. [UserTests.md](UserTests.md) — manual, click-by-click acceptance test
    script for verifying each requirement against the running application,
    kept in step with implementation progress.
 

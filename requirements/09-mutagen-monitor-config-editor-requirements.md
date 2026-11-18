@@ -63,6 +63,12 @@ FR-16 revision note for the shared bottom toolbar this tab's "Reload config
   description, sourced from 06-configuration-reference.md's table — see
   FR-37.2 for why this replaces the shipped file's `#` comments as the
   place that documentation lives once this tab has saved the file.
+- FR-35.5: The keys added by
+  [12-halted-sessions-requirements.md](12-halted-sessions-requirements.md)
+  FR-63 follow the same rule (one typed field each): `HaltedOneSidedRootEmptying`
+  in the **Paths** section, `HaltedOneSidedRootEmptyingAutoFix` and
+  `HaltedOneSidedRootEmptyingCooldownSeconds` in a new **Halted sessions**
+  section. The cooldown joins the numeric fields checked by FR-36.1.
 
 ## FR-36 — Validation ("Check")
 

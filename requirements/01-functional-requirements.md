@@ -65,6 +65,11 @@ IDs are stable identifiers to be referenced from code, tests, and PRs.
     "1/2", not "0/2". Not yet surfaced in the tray tooltip.
 - FR-2.3: The full raw status text and the timestamp of the last successful
   poll MUST be retained for display and for staleness detection (FR-6).
+- FR-2.4: The parser MUST also read each endpoint's "Synchronizable
+  contents" block (counts of directories, files and symbolic links), used to
+  identify the emptied side of a halted session — see
+  [12-halted-sessions-requirements.md](12-halted-sessions-requirements.md)
+  FR-58.
 
 ## FR-3 — Session status classification (numeric code)
 
@@ -77,6 +82,7 @@ long, or duplicated, degrades to an error code regardless of other flags):
 | `100` | Ready / watching for changes | status starts with "Watching for changes" |
 | `40` | Syncing | status starts with "Waiting 5 seconds for rescan", "Reconciling changes", "Staging files on", "Applying changes", or "Saving archive" |
 | `30` | Scanning | status starts with "Scanning files" |
+| `50` | Halted by a Mutagen safety check | status starts with "Halted" (case-insensitive), whatever the previous code — see [12-halted-sessions-requirements.md](12-halted-sessions-requirements.md) FR-57 |
 | `-1` | No session / not running | no status reported for 3 consecutive polls in a row (2, if this is the very first poll ever for that session — see note below) |
 | `-2` | Connecting / cannot connect | status starts with "Connecting to", "Waiting to connect", or "Unknown" for 3 consecutive polls in a row, OR session is a duplicate for 3 consecutive polls in a row |
 | `0` | Unknown / waiting for first status | initial value, before the first poll completes |
@@ -365,6 +371,11 @@ three FR-13 restart causes deliberately do NOT share one toggle:
 - FR-11.4: **Mutagen session profile/archive updated** on disk (i.e. a
   session's underlying sync archive changed), per session name.
   Toggle: `NotifyMutagenProfileUpdate` (default `false`).
+- FR-11.5: **Halted sessions** (a Mutagen safety halt, not resolved
+  automatically, or an automatic fix that failed). Raised once per halt
+  episode, with **no configuration toggle** — see
+  [12-halted-sessions-requirements.md](12-halted-sessions-requirements.md)
+  FR-62.
 
 See [06-configuration-reference.md](06-configuration-reference.md) for the
 full default-value table.

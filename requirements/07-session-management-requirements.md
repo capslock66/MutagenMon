@@ -89,7 +89,10 @@ the design discussion that produced this document.
   before "Name", containing two small icon buttons per row: **Edit**
   (`PackIconMaterial Kind="PencilOutline"`) and **Delete**
   (`PackIconMaterial Kind="TrashCanOutline"`) — see FR-16.3 for the icon
-  package.
+  package. A conditional extra icon, "Accept deletion", is shown on rows
+  halted by a root-emptying halt — see
+  [12-halted-sessions-requirements.md](12-halted-sessions-requirements.md)
+  FR-60.1.
 - FR-17.2: Edit opens the add/edit window (FR-18) in "edit" mode,
   pre-populated from that row's session (FR-18, FR-26).
 - FR-17.3: **(confirmed)** Delete MUST show a blocking confirmation
@@ -109,7 +112,9 @@ the design discussion that produced this document.
      make it inert but still visible/confusing, and provides no benefit
      over just deleting it since the source of truth is the file itself,
      which is presumably under the user's own version control if history
-     is wanted).
+     is wanted). It also removes the session's `@halted-auto-fix` directive
+     line, if any ([12-halted-sessions-requirements.md](12-halted-sessions-requirements.md)
+     FR-64.5).
   3. Remove the session from the live in-memory session list so the grid
      updates on the next render without waiting for a full reload.
 - FR-17.5: If step 1 or 2 of FR-17.4 fails unexpectedly (e.g. the file is
@@ -403,6 +408,11 @@ the design discussion that produced this document.
      came back blank on the next Edit; fixed by having Save raise an
      event instead of closing the window directly, with the caller only
      closing it once the CLI call has actually succeeded.)
+- FR-27.4b: **Amendment.** The Add/Edit window has a further "Recovery"
+  tab (per-session `@halted-auto-fix` directive), and an Edit whose only
+  change is that directive MUST NOT terminate or recreate the session — see
+  [12-halted-sessions-requirements.md](12-halted-sessions-requirements.md)
+  FR-64 and FR-65.
 - FR-27.5: After a successful Add/Edit, the status view's in-memory
   session list and grid MUST update immediately, without waiting for the
   next poll cycle or a manual reload.

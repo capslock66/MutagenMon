@@ -4,10 +4,10 @@
 mutagenMon recognises any Mutagen `Halted…` session status, and can resolve the "root emptying" halt (opt-in, per session): it reads from `mutagen sync list` which side was emptied, purges the content of the other side, then runs `mutagen sync reset` (which restarts the session itself; no `resume` needed), without any waiting.
 
 ## Next Step
-Phase 2: write the requirements (new FR for `Halted` status handling + tray icon rule) in `requirements/` before touching code.
+Phase 3: after the user's review of requirements/12-halted-sessions-requirements.md (FR-57 to FR-65), start with the `Halted` classification in SessionStateTracker and the "Synchronizable contents" parsing, tests first. Do not start without an explicit request.
 
 ## Current Phase
-Phase 2
+Phase 3
 
 ## Phases
 
@@ -20,15 +20,15 @@ Phase 2
 - **Status:** complete
 
 ### Phase 2: Requirements
-- [ ] Add an FR: recognise every `Halted…` status for display (prefix match) with a dedicated message; the root-emptying auto-fix is triggered only by the configured text `HaltedOneSidedRootEmptying` (case-insensitive, matched at the start of the status)
-- [ ] Add an FR: determine the emptied side from the "Synchronizable contents" of the two endpoints in `mutagen sync list` (sample and parsing rules in findings.md)
-- [ ] Specify the tray/grid mapping (decided: every Halted case maps to Problems / `green-error`, the session row turns red) and update requirements/03-tray-icon-requirements.md §3 (tray icon is the top-priority requirement)
-- [ ] Add an FR for the manual action "Accept deletion" (purge the side that was not emptied + reset, no resume): an icon in the grid's actions column, shown only for a session halted by root emptying (not for root deletion / root type change), with a confirmation dialog (session, purged side URL, file count)- [ ] Add an FR for the automatic resolution behind a flag (default off): session directive else global flag, two-way-safe only, not while monitoring is disabled, both directions, no waiting, cooldown and 3-failure limit
-- [ ] Add an FR for the halt notifications (effective flag false: notify the problem; fix succeeded: silent; fix failed: notify), including once-per-halt de-duplication (same idea as ConflictNotificationTracker)
-- [ ] Add the new config keys to requirements/06-configuration-reference.md: `HaltedOneSidedRootEmptying` (text), `HaltedOneSidedRootEmptyingAutoFix` (bool, false), `HaltedOneSidedRootEmptyingCooldownSeconds` (int, 60)
-- [ ] Specify the startup auto-add of missing keys (requirements/06 and 09) and the new fields in the monitor config editor (text key in "Paths", flag and cooldown)
-- [ ] Specify the per-session directive (syntax, placement, fallback, tri-state values, rename/delete handling, orphan handling) and the session editor field (new "Recovery" tab, tri-state) in requirements/07, as new FRs
-- **Status:** pending
+- [x] Add an FR: recognise every `Halted…` status for display (prefix match) with a dedicated message; the root-emptying auto-fix is triggered only by the configured text `HaltedOneSidedRootEmptying` (case-insensitive, matched at the start of the status)
+- [x] Add an FR: determine the emptied side from the "Synchronizable contents" of the two endpoints in `mutagen sync list` (sample and parsing rules in findings.md)
+- [x] Specify the tray/grid mapping (decided: every Halted case maps to Problems / `green-error`, the session row turns red) and update requirements/03-tray-icon-requirements.md §3 (tray icon is the top-priority requirement)
+- [x] Add an FR for the manual action "Accept deletion" (purge the side that was not emptied + reset, no resume): an icon in the grid's actions column, shown only for a session halted by root emptying (not for root deletion / root type change), with a confirmation dialog (session, purged side URL, file count)- [ ] Add an FR for the automatic resolution behind a flag (default off): session directive else global flag, two-way-safe only, not while monitoring is disabled, both directions, no waiting, cooldown and 3-failure limit
+- [x] Add an FR for the halt notifications (effective flag false: notify the problem; fix succeeded: silent; fix failed: notify), including once-per-halt de-duplication (same idea as ConflictNotificationTracker)
+- [x] Add the new config keys to requirements/06-configuration-reference.md: `HaltedOneSidedRootEmptying` (text), `HaltedOneSidedRootEmptyingAutoFix` (bool, false), `HaltedOneSidedRootEmptyingCooldownSeconds` (int, 60)
+- [x] Specify the startup auto-add of missing keys (requirements/06 and 09) and the new fields in the monitor config editor (text key in "Paths", flag and cooldown)
+- [x] Specify the per-session directive (syntax, placement, fallback, tri-state values, rename/delete handling, orphan handling) and the session editor field (new "Recovery" tab, tri-state) in requirements/07, as new FRs
+- **Status:** complete
 
 ### Phase 3: Halted status recognition
 - [ ] Parse `Halted…` in SessionStateTracker: new classification mapped to Problems (no silent fall-through), for all three halts
