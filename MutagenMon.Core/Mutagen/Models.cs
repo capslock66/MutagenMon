@@ -6,7 +6,20 @@ public enum TransportKind
     Ssh,
 }
 
-public sealed record SessionEndpoint(string Url, TransportKind Transport, string? Server, string? RemoteDirectory);
+/// <summary>The counts printed under an endpoint's "Synchronizable contents:"
+/// line in `mutagen sync list` (sizes are ignored). While a session is halted
+/// they are a frozen snapshot taken when the halt occurred (FR-58).</summary>
+public sealed record EndpointContents(int Directories, int Files, int SymbolicLinks)
+{
+    /// <summary>FR-58.2: an endpoint is empty when only its root directory
+    /// is left — no file, no symbolic link, at most one directory.</summary>
+    public bool IsEmpty => Files == 0 && SymbolicLinks == 0 && Directories <= 1;
+}
+
+/// <param name="Contents">Null when the poll output carried no
+/// "Synchronizable contents" block for this endpoint (e.g. not connected).</param>
+public sealed record SessionEndpoint(
+    string Url, TransportKind Transport, string? Server, string? RemoteDirectory, EndpointContents? Contents = null);
 
 /// <summary>One session's parsed `mutagen sync list` block. Null (in the
 /// dictionaries below) means the session was not reported at all this poll —

@@ -263,6 +263,15 @@
                             <Button Grid.Column="2" Content="..." Margin="4,0,0,0" Padding="8,0" ToolTip="Browse for a folder"
                                     Tag="{Binding ElementName=LogPathBox}" Click="OnBrowseFolderClick" />
                         </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Halted status text (root emptying)"
+                                   ToolTip="Text identifying the Mutagen root-emptying halt: compared case-insensitively against the start of a session's status. Only this halt can be resolved by MutagenMon." />
+                            <TextBox x:Name="HaltedOneSidedRootEmptyingBox" Grid.Column="1" />
+                        </Grid>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
@@ -314,6 +323,32 @@
                             <Label Grid.Column="0" Content="Profile update grace (s)"
                                    ToolTip="Debounce window: an archive modification is only reported once at least this many seconds have passed since the previous one." />
                             <TextBox x:Name="MutagenProfileGraceSecondsBox" Grid.Column="1" />
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- FR-63.2: halted-session settings (requirements/12-halted-sessions-requirements.md). -->
+            <TabItem Header="Halted sessions">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Auto-fix a root-emptying halt"
+                                   ToolTip="Global default: purge the side that was not emptied, then reset the session. A session's own '@halted-auto-fix' setting overrides it." />
+                            <CheckBox x:Name="HaltedAutoFixCheck" Grid.Column="1" VerticalAlignment="Center" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Auto-fix cooldown (seconds)"
+                                   ToolTip="Minimum delay between two automatic resolutions on the same session." />
+                            <TextBox x:Name="HaltedCooldownSecondsBox" Grid.Column="1" />
                         </Grid>
                     </StackPanel>
                 </ScrollViewer>

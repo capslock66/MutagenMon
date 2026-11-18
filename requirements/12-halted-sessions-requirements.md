@@ -66,8 +66,8 @@ not executed here):
   introduced. A session that is already halted when the application starts
   MUST be classified on the first poll, not left at code `0`.
 - FR-57.3: In the status grid (FR-8.1), the row of a halted session MUST
-  be drawn with a **red** background (legible text, readable in light and
-  dark themes) and MUST return to normal on the first poll that no longer
+  be drawn with a **red** background (`#C62828`, white text — legible in
+  light and dark themes) and MUST return to normal on the first poll that no longer
   reports a `Halted` status. The Status column keeps showing the raw status
   text.
 - FR-57.4: A halted session MUST NOT be terminated or restarted by the
@@ -249,7 +249,9 @@ Three keys are added to
     (checkbox) and `HaltedOneSidedRootEmptyingCooldownSeconds` (numeric
     text box);
   - each field has a tooltip from the table of 06; "Check" (FR-36.1) also
-    requires the cooldown to be a whole number greater than or equal to 0.
+    requires the cooldown to be a whole number greater than or equal to 0
+    and the status text not to be empty (an empty text would match the
+    start of every status).
 - FR-63.3: The global flag is only a default: a per-session directive
   (FR-64) overrides it in both directions.
 
@@ -293,15 +295,20 @@ Three keys are added to
 - FR-65.1: The Add/Edit window (FR-18, FR-19.3) gains a **"Recovery"** tab
   in its left-hand section list, with one combobox, "Auto-fix of a halted
   session (root emptying)": **Inherit global setting**, **Enabled**,
-  **Disabled**. Add defaults to *Inherit*. Edit pre-selects the value read
-  from the directive (FR-64.4). *Inherit* means no directive line.
+  **Disabled**. Add defaults to *Inherit*; Duplicate starts from the value
+  of the source session, like every other field it copies. Edit pre-selects
+  the value read from the directive (FR-64.4). *Inherit* means no directive
+  line.
 - FR-65.2: Save writes the directive according to FR-64 (a line for
   *Enabled* and *Disabled*, none for *Inherit*) after the session itself
   was saved successfully; on failure the file is not touched (FR-27.4
   step 4).
 - FR-65.3: **Amendment to FR-27.4.** When the only change of an Edit is the
-  directive — the regenerated `mutagen sync create` line is identical to the
-  stored one — Save MUST NOT terminate or recreate the session (which would
-  reset its history and could cause the conflicts the recovery avoids): it
-  rewrites the directive only, and the new effective flag MUST apply
-  without restarting any session.
+  directive — the session keeps its name and the stored line and the
+  regenerated `mutagen sync create` line give the same command once both go
+  through the same parser and renderer, so a hand-written line that differs
+  only by formatting counts as unchanged — Save MUST NOT terminate or
+  recreate the session (which would reset its history and could cause the
+  conflicts the recovery avoids): it rewrites the directive only (and does
+  not touch the file at all when the directive is unchanged too), and the new
+  effective flag MUST apply without restarting any session.

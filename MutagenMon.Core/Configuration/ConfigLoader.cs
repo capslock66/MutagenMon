@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -68,16 +69,75 @@ public static class ConfigLoader
         if (existing.IsMatch(text))
             return existing.Replace(text, m_ => m_.Groups[1].Value + value, 1);
 
+        return InsertKey(text, key, value.ToString(CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>Inserts <c>"key": jsonValue</c> right after the opening brace
+    /// of the root object, leaving every other line (comments included)
+    /// untouched. <paramref name="jsonValue"/> is already valid JSON text.</summary>
+    private static string InsertKey(string text, string key, string jsonValue)
+    {
         // Matches up to and including the first "{" of a line that is not a "#" comment line, i.e. the root object's
         // opening brace; no capture groups — the end of the match (Index + Length) is the insertion point.
         var open = Regex.Match(text, @"(?m)^[^#\r\n]*?\{");
         if (!open.Success)
-            throw new InvalidDataException("Config file has no root object to add the window size to.");
+            throw new InvalidDataException($"Config file has no root object to add the key '{key}' to.");
 
         var afterOpen = open.Index + open.Length;
         var isEmptyObject = text.AsSpan(afterOpen).TrimStart().StartsWith("}");
         var lineEnding = text.Contains("\r\n") ? "\r\n" : "\n";
-        return text.Insert(afterOpen, $"{lineEnding}  \"{key}\": {value}{(isEmptyObject ? "" : ",")}");
+        return text.Insert(afterOpen, $"{lineEnding}  \"{key}\": {jsonValue}{(isEmptyObject ? "" : ",")}");
+    }
+
+    /// <summary>FR-63.1: adds to the file, with their default value, every
+    /// halted-session key (<c>HaltedOneSidedRootEmptying*</c>) that is absent
+    /// from it, and returns the names of the keys it added (empty when the
+    /// file already had them all, in which case it is not rewritten). The
+    /// file is edited as text, like <see cref="SaveWindowSize"/>, so the
+    /// <c>#</c> comments and every other key are kept; a key already present
+    /// is never modified. The caller decides what to do if the file cannot be
+    /// written.</summary>
+    public static IReadOnlyList<string> EnsureHaltedKeys(string path)
+    {
+        var updated = ApplyMissingHaltedKeys(File.ReadAllText(path), out var added);
+        if (added.Count > 0)
+            File.WriteAllText(path, updated);
+        return added;
+    }
+
+    internal static string ApplyMissingHaltedKeys(string text, out IReadOnlyList<string> addedKeys)
+    {
+        var defaults = new MutagenMonOptions();
+        (string Key, string JsonValue)[] keys =
+        [
+            (nameof(MutagenMonOptions.HaltedOneSidedRootEmptying), JsonSerializer.Serialize(defaults.HaltedOneSidedRootEmptying)),
+            (nameof(MutagenMonOptions.HaltedOneSidedRootEmptyingAutoFix), defaults.HaltedOneSidedRootEmptyingAutoFix ? "true" : "false"),
+            (nameof(MutagenMonOptions.HaltedOneSidedRootEmptyingCooldownSeconds),
+                defaults.HaltedOneSidedRootEmptyingCooldownSeconds.ToString(CultureInfo.InvariantCulture)),
+        ];
+
+        var added = new List<string>();
+        // Each insertion goes right after the opening brace, which reverses the order of the added keys: walking the
+        // list backwards leaves them in the order declared above.
+        for (var i = keys.Length - 1; i >= 0; i--)
+        {
+            if (KeyExists(text, keys[i].Key))
+                continue;
+            text = InsertKey(text, keys[i].Key, keys[i].JsonValue);
+            added.Insert(0, keys[i].Key);
+        }
+
+        addedKeys = added;
+        return text;
+    }
+
+    private static bool KeyExists(string text, string key)
+    {
+        // Matches the quoted key followed by a colon, at the start of a line or right after a "{" or a "," (so a
+        // minified file is handled too). Whole-line "#" comments are stripped first, so a commented-out key never
+        // matches. One capture group (the separator before the key), not used.
+        var existing = new Regex($$"""(?m)(^|[{,])\s*"{{key}}"\s*:""");
+        return existing.IsMatch(StripCommentLines(text));
     }
 
     private static string StripCommentLines(string text)

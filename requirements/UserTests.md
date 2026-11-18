@@ -2101,6 +2101,115 @@ flag and with `echo "plain"`.
   run (script name, host, exit code, duration) are logged; the script output
   and the expanded text (`session=[S]`) appear nowhere in the log.
 
+## FR-57/FR-58/FR-63/FR-64/FR-65 — Halted sessions (recognition, configuration, directive)
+
+Specified in [12-halted-sessions-requirements.md](12-halted-sessions-requirements.md).
+Only the parts delivered by phase 3 of the plan are covered here: the
+recognition and display of a halted session, the configuration keys and the
+`@halted-auto-fix` directive. The recovery itself (manual action, automatic
+fix, notifications — FR-59 to FR-62) is not implemented yet: to leave a halt
+during these tests, run `mutagen sync reset <session>` by hand (the other
+side's files are copied back, which is fine for a test session).
+
+Prerequisite for UT-57.1: a throw-away session `temp` between two local
+folders (e.g. `C:\MutagenMonTest\temp-a` and `C:\MutagenMonTest\temp-b`) that
+holds at least 4 small files and is in sync (status "Watching for changes").
+
+**UT-57.1 — A halted session is shown as a problem (FR-57, FR-58)** 📋 ⬜
+
+* Delete **one** file in `temp-a`: the session stays "Watching for changes"
+  (Mutagen does not halt for a single file). Restore the file.
+* Delete **all** the files in `temp-a`. Within a few seconds the status of
+  `temp` becomes "Halted due to one-sided root emptying".
+* Open the status window: the Status column of `temp` shows that text, the
+  whole row has a **red background with white text**, and the Status icon is
+  the `green-error` one. The other sessions' rows are unchanged. The tray
+  icon is `green-error` with the tooltip "problems".
+* In the log (Logs tab or `mutagenMon.log`): **one** Warning line
+  `Session 'temp' is halted by Mutagen: Halted due to one-sided root
+  emptying (alpha: 1 directories, 0 files, 0 symbolic links, beta: 1
+  directories, 4 files, 0 symbolic links)` (the numbers follow your test
+  data). It is not repeated on every poll.
+* Wait more than a minute (and more than the `SessionMax*` thresholds in the
+  configuration): `temp` is **not** terminated or restarted — no "Restarting:
+  temp" line and no `mutagen sync terminate`.
+* Quit the application and start it again while `temp` is still halted: the
+  tray icon goes to `green-error` after the first poll (it does not stay gray
+  "waiting for status…"), and the row is red.
+* Run `mutagen sync reset temp`: the row returns to normal on the next poll
+  and the log shows `Session 'temp' is no longer halted`.
+
+**UT-63.1 — Missing configuration keys are added at startup (FR-63.1)** 📋 ⬜
+
+* Quit the application. In `config/config_mutagenmon.json`, delete the keys
+  `HaltedOneSidedRootEmptying`, `HaltedOneSidedRootEmptyingAutoFix` and
+  `HaltedOneSidedRootEmptyingCooldownSeconds` if they are there, and add a
+  `# my comment` line at the top. Start the application.
+* The three keys are now at the top of the root object, in that order, with
+  the values `"Halted due to one-sided root emptying"`, `false` and `60`. Your
+  `# my comment` line and every other key are unchanged. The log has an
+  Information line `Added the missing halted-session key(s) to …`.
+* Change `HaltedOneSidedRootEmptyingCooldownSeconds` to `5` and start the
+  application again: the file is not modified (the value stays `5`).
+* Quit, make the file read-only, delete one of the three keys and start the
+  application: it starts normally and the log has a Warning
+  `Could not add the missing halted-session key(s)…`. Restore write access.
+
+**UT-63.2 — Monitor configuration editor fields (FR-63.2)** 📋 ⬜
+
+* Open the "Mutagen monitor Configuration" tab, section **Paths**: a text box
+  "Halted status text (root emptying)" shows `Halted due to one-sided root
+  emptying`; its tooltip explains it.
+* Open the new section **Halted sessions**: a checkbox "Auto-fix a root-emptying
+  halt" (unchecked by default) and a text box "Auto-fix cooldown (seconds)"
+  showing `60`; both have a tooltip.
+* Empty the status text and click **Check**: a red error says it must not be
+  empty. Put `abc`, then `-1`, in the cooldown: errors say it must be a whole
+  number, then greater than or equal to 0. **Save** is blocked in each case.
+* Restore valid values, check the box, set the cooldown to `120`, **Save**: the
+  JSON file contains `"HaltedOneSidedRootEmptyingAutoFix": true` and
+  `"HaltedOneSidedRootEmptyingCooldownSeconds": 120`. After "Reload config &
+  restart", the editor shows them again.
+
+**UT-64.1 — The `@halted-auto-fix` directive is read (FR-64.1, FR-64.2, FR-64.4, FR-65.1)** 📋 ⬜
+
+* In `mutagen-create.bat`, add the line `rem sync --name=temp : @halted-auto-fix:
+  true` anywhere and reload the configuration: no new session row appears (the
+  line is a comment, not a session) and the grid is unchanged.
+* **Edit** `temp`, open the **Recovery** tab: the combo reads **Enabled**.
+  Cancel. Change the line to `... : @HALTED-AUTO-FIX: FALSE` (upper case, no
+  extra space), reload: the combo reads **Disabled**. Remove the line, reload:
+  it reads **Inherit global setting**.
+* Put `... : @halted-auto-fix: maybe` for `temp`, then `rem sync --name=ghost :
+  @halted-auto-fix: true` (no such session), reload: the combo of `temp` reads
+  **Inherit global setting**, and the log has one Warning per ignored line.
+
+**UT-65.1 — Saving the directive from the Add/Edit window (FR-64.3, FR-64.5, FR-65.2, FR-65.3)** 📋 ⬜
+
+Use a sessions file with a `mutagen sync terminate --all` line, preceded by a
+blank line.
+
+* **Edit** `temp`, Recovery → **Enabled**, Save. The window closes and `temp`
+  is **not** restarted: its status stays "Watching for changes", the other
+  sessions are not restarted, and the log has no `terminate` for `temp`. In the
+  file, one line `rem sync --name=temp : @halted-auto-fix: true` sits just above
+  the blank line that precedes `mutagen sync terminate --all`; the session line
+  is unchanged.
+* **Edit** `temp` again: the combo reads **Enabled**; set **Disabled**, Save: the
+  directive now ends with `false`, still one line. Set **Inherit global
+  setting**, Save: the directive line is gone, nothing else changed.
+* Set **Enabled** and also change another field (e.g. add an ignore pattern),
+  Save: this time the session **is** recreated (restart as before FR-65), and
+  the directive is there.
+* **Rename** `temp` to `temp2` while it is **Enabled**, Save: the directive
+  line now names `temp2` (no leftover for `temp`).
+* **Add** a session with Recovery **Disabled**: its directive is appended to
+  the same block. **Duplicate** a session that is **Enabled**: the new session
+  starts as **Enabled** too.
+* **Delete** `temp2`: its session line **and** its directive line are removed.
+* Open the Edit window of a session and click Save without changing anything:
+  the file is not modified (check its timestamp).
+
 ## Appendix — known, accepted gaps (do not report as bugs)
 
 These are documented, intentional limitations of the current phase, not

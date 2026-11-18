@@ -12,8 +12,11 @@ public sealed record SessionSummaryRow(
     int ConflictCount,
     string AlphaUrl,
     string BetaUrl,
-    DateTimeOffset? LastChangedUtc)
+    DateTimeOffset? LastChangedUtc,
+    bool IsHalted = false)
 {
+    // IsHalted: the session reports a Mutagen safety halt (FR-57.3); the grid draws such a row in red.
+
     /// <summary>The Conflict column: the number of unresolved
     /// (non-autoresolved) conflicts, blank when there are none.</summary>
     public string ConflictDisplay => ConflictCount > 0 ? ConflictCount.ToString() : "";

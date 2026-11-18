@@ -594,4 +594,100 @@ public class SessionMonitorServiceTests
 
         Assert.Contains(logger.Messages, m => m.Contains("Restarting: alpha-sync"));
     }
+
+    private static string HaltedSession(string name) => $"""
+        Name: {name}
+        Identifier: id-{name}
+        Alpha:
+            URL: C:/local/{name}
+            Connected: Yes
+            Synchronizable contents:
+                1 directory
+                0 files (0 B)
+                0 symbolic links
+        Beta:
+            URL: remote:/home/{name}
+            Connected: Yes
+            Synchronizable contents:
+                1 directory
+                4 files (0 B)
+                0 symbolic links
+        Status: Halted due to one-sided root emptying
+        """;
+
+    [Fact]
+    public async Task AHaltedSessionIsPublishedAsProblemsWithTheContentsOfBothSides()
+    {
+        var cli = new FakeMutagenCliClient();
+        cli.Enqueue(HaltedSession("alpha-sync"));
+        var store = new SessionStateStore();
+        var sessions = new[] { new SessionDefinition("alpha-sync", "mutagen sync create --name=alpha-sync ...") };
+        var service = BuildService(cli, store, sessions);
+
+        await service.PollOnceAsync(CancellationToken.None);
+
+        var snapshot = store.Get();
+        Assert.Equal(SessionStatusCode.Problems, snapshot.WorstCode);
+        Assert.Equal(SessionStatusCode.Problems, snapshot.SessionCodes["alpha-sync"]);
+        var status = snapshot.SessionStatuses["alpha-sync"]!;
+        Assert.True(status.Alpha!.Contents!.IsEmpty);
+        Assert.Equal(4, status.Beta!.Contents!.Files);
+    }
+
+    [Fact]
+    public async Task AHaltedSessionIsNeverTerminatedOrRestartedWhateverTheThresholds()
+    {
+        var cli = new FakeMutagenCliClient();
+        for (var i = 0; i < 6; i++)
+            cli.Enqueue(HaltedSession("alpha-sync"));
+        var queue = new NotificationQueue();
+        var sessions = new[] { new SessionDefinition("alpha-sync", "mutagen sync create --name=alpha-sync ...") };
+        var service = BuildService(
+            cli, new SessionStateStore(), sessions, notificationQueue: queue,
+            sessionMaxNoSession: 1, sessionMaxDuplicate: 1, sessionMaxErrors: 1);
+
+        for (var i = 0; i < 6; i++)
+            await service.PollOnceAsync(CancellationToken.None);
+
+        Assert.Empty(cli.TerminatedSessions);
+        Assert.Empty(cli.CreatedSessions);
+        Assert.Empty(queue.DrainAll());
+    }
+
+    [Fact]
+    public async Task AHaltIsLoggedOnceAndTheEndOfTheHaltIsLoggedToo()
+    {
+        var cli = new FakeMutagenCliClient();
+        cli.Enqueue(HaltedSession("alpha-sync"));
+        cli.Enqueue(HaltedSession("alpha-sync"));
+        cli.Enqueue(HaltedSession("alpha-sync"));
+        cli.Enqueue(ReadySession("alpha-sync", "id-a"));
+        var sessions = new[] { new SessionDefinition("alpha-sync", "mutagen sync create --name=alpha-sync ...") };
+        var logger = new CapturingLogger<SessionMonitorService>();
+        var service = BuildService(cli, new SessionStateStore(), sessions, logger: logger);
+
+        for (var i = 0; i < 4; i++)
+            await service.PollOnceAsync(CancellationToken.None);
+
+        Assert.Single(logger.Messages, m => m.Contains("is halted by Mutagen"));
+        Assert.Contains(logger.Messages, m => m.Contains("alpha: 1 directories, 0 files, 0 symbolic links"));
+        Assert.Single(logger.Messages, m => m.Contains("is no longer halted"));
+    }
+
+    [Fact]
+    public async Task AHaltedSessionReturnsToReadyOnceItLeavesTheHalt()
+    {
+        var cli = new FakeMutagenCliClient();
+        cli.Enqueue(HaltedSession("alpha-sync"));
+        cli.Enqueue(ReadySession("alpha-sync", "id-a"));
+        var store = new SessionStateStore();
+        var sessions = new[] { new SessionDefinition("alpha-sync", "mutagen sync create --name=alpha-sync ...") };
+        var service = BuildService(cli, store, sessions);
+
+        await service.PollOnceAsync(CancellationToken.None);
+        Assert.Equal(SessionStatusCode.Problems, store.Get().WorstCode);
+        await service.PollOnceAsync(CancellationToken.None);
+
+        Assert.Equal(SessionStatusCode.Ready, store.Get().WorstCode);
+    }
 }

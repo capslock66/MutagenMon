@@ -216,4 +216,231 @@ public class SessionEditingServiceTests
             File.Delete(path);
         }
     }
+
+    private const string DirectiveForX = "rem sync --name=x : @halted-auto-fix: true";
+
+    [Fact]
+    public async Task AddWritesTheDirectiveAfterCreatingTheSession()
+    {
+        var path = CreateTempSessionsFile("@echo off", "", "mutagen sync terminate --all");
+        try
+        {
+            var cli = new FakeMutagenCliClient();
+            var service = new SessionEditingService(cli, path, new CapturingLogger<SessionEditingService>());
+            var model = new SessionCommandLine { Name = "x", Alpha = "A", Beta = "B", HaltedAutoFix = true };
+
+            await service.AddAsync(model, CancellationToken.None);
+
+            Assert.Equal(
+                ["@echo off", DirectiveForX, "", "mutagen sync terminate --all", "mutagen sync create A B --name=x"],
+                File.ReadAllLines(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task AddWithInheritRemovesAnOrphanDirectiveOfTheSameName()
+    {
+        // The session line of "x" was deleted by hand, its directive stayed (FR-64.5). Session "y" has its own directive.
+        const string directiveForY = "rem sync --name=y : @halted-auto-fix: false";
+        var path = CreateTempSessionsFile(
+            "@echo off", DirectiveForX, directiveForY, "", "mutagen sync terminate --all", "mutagen sync create A B --name=y");
+        try
+        {
+            var service = new SessionEditingService(new FakeMutagenCliClient(), path, new CapturingLogger<SessionEditingService>());
+
+            await service.AddAsync(new SessionCommandLine { Name = "x", Alpha = "A", Beta = "B" }, CancellationToken.None);
+
+            Assert.Equal(
+                [
+                    "@echo off", directiveForY, "", "mutagen sync terminate --all",
+                    "mutagen sync create A B --name=y", "mutagen sync create A B --name=x",
+                ],
+                File.ReadAllLines(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task AddWithInheritWritesNoDirective()
+    {
+        var path = CreateTempSessionsFile("@echo off");
+        try
+        {
+            var service = new SessionEditingService(new FakeMutagenCliClient(), path, new CapturingLogger<SessionEditingService>());
+
+            await service.AddAsync(new SessionCommandLine { Name = "x", Alpha = "A", Beta = "B" }, CancellationToken.None);
+
+            Assert.Equal(["@echo off", "mutagen sync create A B --name=x"], File.ReadAllLines(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task AnEditThatOnlyChangesTheDirectiveDoesNotTerminateOrRecreateTheSession()
+    {
+        var path = CreateTempSessionsFile("@echo off", "", "mutagen sync terminate --all", "mutagen sync create A B --name=x");
+        try
+        {
+            var cli = new FakeMutagenCliClient();
+            var service = new SessionEditingService(cli, path, new CapturingLogger<SessionEditingService>());
+            var model = new SessionCommandLine { Name = "x", Alpha = "A", Beta = "B", HaltedAutoFix = true };
+
+            var outcome = await service.EditAsync("x", model, CancellationToken.None);
+
+            Assert.Equal(SessionEditOutcome.DirectiveOnly, outcome);
+            Assert.Empty(cli.TerminatedSessions);
+            Assert.Empty(cli.CreatedRawCommands);
+            Assert.Equal(
+                ["@echo off", DirectiveForX, "", "mutagen sync terminate --all", "mutagen sync create A B --name=x"],
+                File.ReadAllLines(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task AHandWrittenLineThatIsEquivalentOnceNormalisedCountsAsUnchanged()
+    {
+        // Same command as the model below, but with the flags in another order and the short mode flag.
+        const string handWritten = "mutagen sync create --name=x -m two-way-safe A B";
+        var path = CreateTempSessionsFile(handWritten);
+        try
+        {
+            var cli = new FakeMutagenCliClient();
+            var service = new SessionEditingService(cli, path, new CapturingLogger<SessionEditingService>());
+            var model = SessionCommandLineParser.Parse(handWritten);
+            model.HaltedAutoFix = false;
+
+            var outcome = await service.EditAsync("x", model, CancellationToken.None);
+
+            Assert.Equal(SessionEditOutcome.DirectiveOnly, outcome);
+            Assert.Empty(cli.CreatedRawCommands);
+            Assert.Contains("rem sync --name=x : @halted-auto-fix: false", File.ReadAllLines(path));
+            Assert.Contains(handWritten, File.ReadAllLines(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task AnEditWithNothingChangedLeavesTheFileAlone()
+    {
+        var path = CreateTempSessionsFile("@echo off", "mutagen sync create A B --name=x");
+        try
+        {
+            var cli = new FakeMutagenCliClient();
+            var service = new SessionEditingService(cli, path, new CapturingLogger<SessionEditingService>());
+            var before = File.ReadAllText(path);
+
+            var outcome = await service.EditAsync(
+                "x", new SessionCommandLine { Name = "x", Alpha = "A", Beta = "B" }, CancellationToken.None);
+
+            Assert.Equal(SessionEditOutcome.DirectiveOnly, outcome);
+            Assert.Equal(before, File.ReadAllText(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task AnEditThatRenamesTheSessionRecreatesItAndRenamesItsDirective()
+    {
+        var path = CreateTempSessionsFile(
+            "@echo off", DirectiveForX, "", "mutagen sync terminate --all", "mutagen sync create A B --name=x");
+        try
+        {
+            var cli = new FakeMutagenCliClient();
+            var service = new SessionEditingService(cli, path, new CapturingLogger<SessionEditingService>());
+            var model = new SessionCommandLine { Name = "y", Alpha = "A", Beta = "B", HaltedAutoFix = true };
+
+            var outcome = await service.EditAsync("x", model, CancellationToken.None);
+
+            Assert.Equal(SessionEditOutcome.Recreated, outcome);
+            Assert.Equal(["x"], cli.TerminatedSessions);
+            Assert.Equal(
+                ["@echo off", "rem sync --name=y : @halted-auto-fix: true", "", "mutagen sync terminate --all", "mutagen sync create A B --name=y"],
+                File.ReadAllLines(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task AnEditThatChangesTheCommandAndSetsInheritRemovesTheDirective()
+    {
+        var path = CreateTempSessionsFile("@echo off", DirectiveForX, "", "mutagen sync create A B --name=x");
+        try
+        {
+            var cli = new FakeMutagenCliClient();
+            var service = new SessionEditingService(cli, path, new CapturingLogger<SessionEditingService>());
+            var model = new SessionCommandLine { Name = "x", Alpha = "A", Beta = "C" };
+
+            var outcome = await service.EditAsync("x", model, CancellationToken.None);
+
+            Assert.Equal(SessionEditOutcome.Recreated, outcome);
+            Assert.Equal(["@echo off", "", "mutagen sync create A C --name=x"], File.ReadAllLines(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task AFailedEditLeavesTheFileAndItsDirectiveUntouched()
+    {
+        var path = CreateTempSessionsFile("@echo off", DirectiveForX, "", "mutagen sync create A B --name=x");
+        try
+        {
+            var cli = new FakeMutagenCliClient { FailCreationContaining = "--name=x" };
+            var service = new SessionEditingService(cli, path, new CapturingLogger<SessionEditingService>());
+            var before = File.ReadAllLines(path);
+            var model = new SessionCommandLine { Name = "x", Alpha = "A", Beta = "C", HaltedAutoFix = false };
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() => service.EditAsync("x", model, CancellationToken.None));
+
+            Assert.Equal(before, File.ReadAllLines(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task DeleteAlsoRemovesTheSessionDirective()
+    {
+        var path = CreateTempSessionsFile(
+            "@echo off", DirectiveForX, "", "mutagen sync terminate --all", "mutagen sync create A B --name=x");
+        try
+        {
+            var service = new SessionEditingService(new FakeMutagenCliClient(), path, new CapturingLogger<SessionEditingService>());
+
+            await service.DeleteAsync("x", CancellationToken.None);
+
+            Assert.Equal(["@echo off", "", "mutagen sync terminate --all"], File.ReadAllLines(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
 }

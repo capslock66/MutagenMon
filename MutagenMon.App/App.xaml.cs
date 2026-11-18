@@ -69,6 +69,11 @@ public partial class App //: Application
     private SessionEditingService? _sessionEditingService;
     private MutagenCliClient? _mutagenCliClient;
     private IReadOnlyList<SessionDefinition> _sessionDefinitions = Array.Empty<SessionDefinition>();
+
+    /// <summary>The per-session `@halted-auto-fix` overrides read from the
+    /// sessions file (FR-64): used to pre-select the Add/Edit window's
+    /// "Recovery" combo (FR-65.1). A session with no entry inherits the global flag.</summary>
+    private IReadOnlyDictionary<string, bool> _haltedAutoFixDirectives = new Dictionary<string, bool>();
     private IReadOnlyList<string> _sessionNames = Array.Empty<string>();
     private MutagenMonOptions? _options;
     private bool _startupIconCreateFailed;
@@ -137,6 +142,7 @@ public partial class App //: Application
             _logger.LogInformation("Loading configuration from {ConfigPath}", configPath);
             var options = LoadConfig(configPath);
             _options = options;
+            EnsureHaltedConfigKeys(configPath);
             _loggerProvider.SetPrimaryLogPath(ResolveLogFilePath(baseDir, options.LogPath));
             _loggerProvider.SetMinLevel(options.MinLogLevel);
             _logger.LogInformation(
@@ -206,6 +212,7 @@ public partial class App //: Application
                 sessionResult.Sessions.Count, string.Join(", ", sessionResult.Sessions.Select(s => s.Name)), startupStopwatch.ElapsedMilliseconds);
             foreach (var duplicate in sessionResult.DuplicateNames)
                 _logger.LogWarning("Duplicate session name in {File}: {Name}", sessionsPath, duplicate);
+            ApplyHaltedAutoFixDirectives(sessionResult);
 
             _logger.LogInformation("Building application host");
             var builder = Host.CreateApplicationBuilder();
@@ -375,6 +382,7 @@ public partial class App //: Application
 
         _options = newOptions;
         _sessionDefinitions = newSessionResult.Sessions;
+        ApplyHaltedAutoFixDirectives(newSessionResult);
         _sessionNames = newSessionNames;
         _monitorService = newMonitorService;
         _conflictResolutionService = newConflictResolutionService;
@@ -612,6 +620,7 @@ public partial class App //: Application
         }
 
         var model = SessionCommandLineParser.Parse(definition.RawCreateCommand);
+        model.HaltedAutoFix = _haltedAutoFixDirectives.TryGetValue(name, out var sourceFlag) ? sourceFlag : null;
         model.Name = "";
         var window = new SessionEditWindow(model, _sessionNames, _options?.SshServers ?? new List<SshServerEntry>(), _logger) { Owner = _statusWindow, Title = $"MutagenMon: Duplicate session {name}" };
         window.SaveRequested += async (_, _) =>
@@ -724,14 +733,16 @@ public partial class App //: Application
         }
 
         var model = SessionCommandLineParser.Parse(definition.RawCreateCommand);
+        model.HaltedAutoFix = _haltedAutoFixDirectives.TryGetValue(name, out var currentFlag) ? currentFlag : null;
         var window = new SessionEditWindow(model, _sessionNames, _options?.SshServers ?? new List<SshServerEntry>(), _logger) { Owner = _statusWindow };
+        var outcome = SessionEditOutcome.Recreated;
         window.SaveRequested += async (_, _) =>
         {
             window.SetBusy(true);
             try
             {
-                await _sessionEditingService.EditAsync(window.OriginalName!, window.Result!, CancellationToken.None);
-                _logger.LogInformation("Session edited: {OldName} -> {NewName}", window.OriginalName, window.Result!.Name);
+                outcome = await _sessionEditingService.EditAsync(window.OriginalName!, window.Result!, CancellationToken.None);
+                _logger.LogInformation("Session edited: {OldName} -> {NewName} ({Outcome})", window.OriginalName, window.Result!.Name, outcome);
                 window.CompleteSave();
             }
             catch (Exception ex)
@@ -744,8 +755,57 @@ public partial class App //: Application
             }
         };
 
-        if (window.ShowDialog() == true)
+        if (window.ShowDialog() != true)
+            return;
+
+        // FR-65.3: an Edit that only changed the `@halted-auto-fix` directive left the session running, so
+        // nothing is restarted: only the cached directives are re-read.
+        if (outcome == SessionEditOutcome.DirectiveOnly)
+            RefreshHaltedAutoFixDirectives();
+        else
             ReloadConfig();
+    }
+
+    /// <summary>FR-63.1: adds the missing halted-session keys to the config
+    /// file. The in-memory options already hold the same defaults, so no
+    /// reload is needed; a file that cannot be written only costs a warning.</summary>
+    private void EnsureHaltedConfigKeys(string configPath)
+    {
+        try
+        {
+            var added = ConfigLoader.EnsureHaltedKeys(configPath);
+            if (added.Count > 0)
+                _logger?.LogInformation("Added the missing halted-session key(s) to {ConfigPath}: {Keys}", configPath, string.Join(", ", added));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            _logger?.LogWarning(ex, "Could not add the missing halted-session key(s) to {ConfigPath}; the built-in defaults apply", configPath);
+        }
+    }
+
+    /// <summary>Keeps the directives of a freshly parsed sessions file and
+    /// logs the ones that were ignored (FR-64.4).</summary>
+    private void ApplyHaltedAutoFixDirectives(SessionDefinitionLoadResult result)
+    {
+        _haltedAutoFixDirectives = result.HaltedAutoFixDirectives;
+        foreach (var warning in result.DirectiveWarnings)
+            _logger?.LogWarning("{Warning}", warning);
+    }
+
+    private void RefreshHaltedAutoFixDirectives()
+    {
+        if (_options is null)
+            return;
+
+        try
+        {
+            var sessionsPath = Path.Combine(AppContext.BaseDirectory, _options.MutagenSessionsBatFile.Replace('/', Path.DirectorySeparatorChar));
+            ApplyHaltedAutoFixDirectives(SessionDefinitionLoader.ParseFile(sessionsPath));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger?.LogWarning(ex, "Could not re-read the @halted-auto-fix directives after an Edit");
+        }
     }
 
     /// <summary>Handles a row's Delete icon (FR-17.3/FR-17.4). If removing

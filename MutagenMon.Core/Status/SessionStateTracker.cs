@@ -21,6 +21,16 @@ public sealed class SessionStateTracker
     private const string ScanningPrefix = "Scanning files";
     private const string ReadyPrefix = "Watching for changes";
 
+    /// <summary>Start of the status of every Mutagen safety halt (root
+    /// emptying, root deletion, root type change) — FR-57.1. Only this prefix
+    /// is relied on: the wording after it is not verified for every halt.</summary>
+    public const string HaltedPrefix = "Halted";
+
+    /// <summary>FR-57.1: true when <paramref name="status"/> starts with
+    /// <see cref="HaltedPrefix"/>, case-insensitively.</summary>
+    public static bool IsHalted(string? status) =>
+        status is not null && status.StartsWith(HaltedPrefix, StringComparison.OrdinalIgnoreCase);
+
     private readonly Dictionary<string, Entry> _entries = new();
 
     /// <summary>Feeds one session's latest poll result in and returns its
@@ -61,6 +71,12 @@ public sealed class SessionStateTracker
         {
             entry.ConsecutiveMisses = 0;
             entry.Code = SessionStatusCode.Scanning;
+        }
+        else if (IsHalted(status))
+        {
+            // FR-57.1: a halted session is Problems whatever its previous code was.
+            entry.ConsecutiveMisses = 0;
+            entry.Code = SessionStatusCode.Problems;
         }
         // else: unrecognized status string — Code and ConsecutiveMisses are left
         // untouched, exactly like the legacy if/elif chain falling all the way

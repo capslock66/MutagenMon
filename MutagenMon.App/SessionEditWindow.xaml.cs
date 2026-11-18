@@ -88,6 +88,14 @@ public partial class SessionEditWindow : Window
         SetEnumItems<StageMode>(StageModeSessionCombo, includeBlank: false);
         SetEnumItems<StageMode>(StageModeAlphaCombo, includeBlank: true);
         SetEnumItems<StageMode>(StageModeBetaCombo, includeBlank: true);
+
+        // FR-65.1: null = no directive line, i.e. the session inherits the global flag.
+        HaltedAutoFixCombo.ItemsSource = new List<ComboOption>
+        {
+            new() { Value = null, Display = "Inherit global setting" },
+            new() { Value = true, Display = "Enabled" },
+            new() { Value = false, Display = "Disabled" },
+        };
     }
 
     private void LoadFrom(SessionCommandLine model)
@@ -139,6 +147,8 @@ public partial class SessionEditWindow : Window
         MaxStagingFileSizeBox.Text = model.MaxStagingFileSize ?? "";
         MaxEntryCountBox.Text = model.MaxEntryCount?.ToString() ?? "";
 
+        SelectValue(HaltedAutoFixCombo, model.HaltedAutoFix);
+
         _unknownFlags.Clear();
         _unknownFlags.AddRange(model.UnknownFlags.Select(f => new UnknownFlagItem { Text = f.Text, Keep = f.Keep }));
         UnknownFlagsList.ItemsSource = _unknownFlags;
@@ -178,6 +188,7 @@ public partial class SessionEditWindow : Window
         MaxStagingFileSize = TextOrNull(MaxStagingFileSizeBox),
         MaxEntryCount = LongOrNull(MaxEntryCountBox),
         UnknownFlags = _unknownFlags.Select(f => new UnknownFlag(f.Text, f.Keep)).ToList(),
+        HaltedAutoFix = ((ComboOption)HaltedAutoFixCombo.SelectedItem).Value as bool?,
     };
 
     private void OnValidationFieldChanged(object sender, RoutedEventArgs e) => UpdateSaveEnabled();

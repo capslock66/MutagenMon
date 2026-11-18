@@ -491,7 +491,8 @@ public partial class StatusWindow : Window
                 conflictCount,
                 status?.Alpha?.Url ?? "(unknown)",
                 status?.Beta?.Url ?? "(unknown)",
-                lastChanged));
+                lastChanged,
+                SessionStateTracker.IsHalted(status?.Status)));
         }
 
         return rows;

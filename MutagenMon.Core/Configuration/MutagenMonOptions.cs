@@ -132,6 +132,21 @@ public sealed class MutagenMonOptions
     /// session window's "Browse SSH server…" flow (FR-18.5) — see
     /// <see cref="SshServerEntry"/>.</summary>
     public List<SshServerEntry> SshServers { get; set; } = new();
+
+    /// <summary>FR-57.5/FR-63: text identifying the Mutagen "root emptying"
+    /// halt, compared case-insensitively against the start of a session's
+    /// status. Added to the config file at startup when absent
+    /// (<see cref="ConfigLoader.EnsureHaltedKeys"/>).</summary>
+    public string HaltedOneSidedRootEmptying { get; set; } = "Halted due to one-sided root emptying";
+
+    /// <summary>FR-61/FR-63: global default for the automatic resolution of a
+    /// root-emptying halt; a per-session `@halted-auto-fix` directive
+    /// overrides it (FR-64).</summary>
+    public bool HaltedOneSidedRootEmptyingAutoFix { get; set; }
+
+    /// <summary>FR-61.3/FR-63: minimum delay between two automatic
+    /// resolutions on the same session (in seconds).</summary>
+    public int HaltedOneSidedRootEmptyingCooldownSeconds { get; set; } = 60;
 }
 
 public sealed class StatusMaxLagOptions

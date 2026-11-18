@@ -203,6 +203,10 @@ public partial class MutagenMonitorConfigEditorView : UserControl
         SessionMaxDuplicateBox.Text = options.SessionMaxDuplicate.ToString();
         MutagenProfileGraceSecondsBox.Text = options.MutagenProfileGraceSeconds.ToString();
 
+        HaltedOneSidedRootEmptyingBox.Text = options.HaltedOneSidedRootEmptying;
+        HaltedAutoFixCheck.IsChecked = options.HaltedOneSidedRootEmptyingAutoFix;
+        HaltedCooldownSecondsBox.Text = options.HaltedOneSidedRootEmptyingCooldownSeconds.ToString();
+
         StatusMaxLagInfoBox.Text = options.StatusMaxLag.InfoSeconds.ToString();
         StatusMaxLagWarningBox.Text = options.StatusMaxLag.WarningSeconds.ToString();
         StatusMaxLagErrorBox.Text = options.StatusMaxLag.ErrorSeconds.ToString();
@@ -347,6 +351,10 @@ public partial class MutagenMonitorConfigEditorView : UserControl
             SessionMaxDuplicate = ParseInt(SessionMaxDuplicateBox, "Max 'duplicate' polls", errors),
             MutagenProfileGraceSeconds = ParseInt(MutagenProfileGraceSecondsBox, "Profile update grace", errors),
             AutoResolveHistoryAgeSeconds = ParseInt(AutoResolveHistoryAgeSecondsBox, "Auto-resolve history age", errors),
+            // Trimmed: a leading space (copy-paste) would never match the start of a status.
+            HaltedOneSidedRootEmptying = HaltedOneSidedRootEmptyingBox.Text.Trim(),
+            HaltedOneSidedRootEmptyingAutoFix = HaltedAutoFixCheck.IsChecked == true,
+            HaltedOneSidedRootEmptyingCooldownSeconds = ParseInt(HaltedCooldownSecondsBox, "Auto-fix cooldown", errors),
             StatusMaxLag = new StatusMaxLagOptions
             {
                 InfoSeconds = ParseInt(StatusMaxLagInfoBox, "Status max lag: Info", errors),
@@ -357,6 +365,12 @@ public partial class MutagenMonitorConfigEditorView : UserControl
             AutoResolve = _autoResolveRules.Select(r => new AutoResolveRule { FilePath = r.FilePath, Resolve = r.Resolve }).ToList(),
             SshServers = _sshServers.Select(s => new SshServerEntry { Host = s.Host }).ToList(),
         };
+
+        // An empty text would match the start of every status, so it must not be accepted.
+        if (string.IsNullOrWhiteSpace(options.HaltedOneSidedRootEmptying))
+            errors.Add("'Halted status text (root emptying)' must not be empty.");
+        if (options.HaltedOneSidedRootEmptyingCooldownSeconds < 0)
+            errors.Add("'Auto-fix cooldown' must be greater than or equal to 0.");
 
         for (var i = 0; i < options.AutoResolve.Count; i++)
         {

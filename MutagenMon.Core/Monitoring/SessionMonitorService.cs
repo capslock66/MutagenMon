@@ -53,6 +53,9 @@ public sealed partial class SessionMonitorService : BackgroundService
     private readonly ILogger<SessionMonitorService> _logger;
     private (SessionStatusCode Worst, bool Enabled, bool ProfileUpdated)? _lastLoggedPollState;
 
+    // Sessions currently reporting a Mutagen safety halt, so each halt is logged once (FR-57), not on every poll.
+    private readonly HashSet<string> _haltedSessions = new();
+
     /// <summary>Current monitoring-enabled state (FR-7.2). Read each poll to
     /// decide whether to actively terminate sessions.</summary>
     public bool IsEnabled => _enabled;
@@ -147,6 +150,8 @@ public sealed partial class SessionMonitorService : BackgroundService
                         name, staging.FilesCompleted, staging.FilesTotal, staging.BytesTransferred, staging.PercentComplete,
                         staging.CurrentFileName is null ? "" : $" — current file: {staging.CurrentFileName} ({staging.CurrentFileBytesTransferred}/{staging.CurrentFileTotalBytes})");
 
+                LogHaltTransition(name, status);
+
                 var code = _tracker.Update(name, status);
                 sessionCodes[name] = code;
                 if (code < worst)
@@ -192,6 +197,25 @@ public sealed partial class SessionMonitorService : BackgroundService
             _logger.LogWarning(ex, "Mutagen status poll failed; keeping the last published snapshot and retrying next cycle");
         }
     }
+
+    /// <summary>FR-57: logs, once per halt episode, that a session entered a
+    /// Mutagen safety halt, and again when it left it. A halted session is not
+    /// one of FR-13's three restart causes, so nothing else is done here.</summary>
+    private void LogHaltTransition(string name, ParsedSessionStatus? status)
+    {
+        if (status is { } halted && SessionStateTracker.IsHalted(halted.Status))
+        {
+            if (_haltedSessions.Add(name))
+                _logger.LogWarning(
+                    "Session '{Name}' is halted by Mutagen: {Status} (alpha: {AlphaContents}, beta: {BetaContents})",
+                    name, halted.Status, DescribeContents(halted.Alpha?.Contents), DescribeContents(halted.Beta?.Contents));
+        }
+        else if (_haltedSessions.Remove(name))
+            _logger.LogInformation("Session '{Name}' is no longer halted", name);
+    }
+
+    private static string DescribeContents(EndpointContents? contents) =>
+        contents is null ? "unknown" : $"{contents.Directories} directories, {contents.Files} files, {contents.SymbolicLinks} symbolic links";
 
     /// <summary>Implements the automatic-restart pass (FR-13). For each
     /// known session, re-derives which (if any) of the
@@ -321,6 +345,7 @@ public sealed partial class SessionMonitorService : BackgroundService
         var side = 0;
         var pendingAlphaName = "";
         var pendingAlphaState = "";
+        ContentsBuilder? contents = null;
 
         foreach (var rawLine in cleaned.Split('\n'))
         {
@@ -336,6 +361,9 @@ public sealed partial class SessionMonitorService : BackgroundService
                 b.Touched = true;
                 b.HasConflicts = false;
                 b.HasProblems = false;
+                b.AlphaContents = null;
+                b.BetaContents = null;
+                contents = null;
                 if (!conflicts.ContainsKey(currentName))
                     conflicts[currentName] = new List<ConflictRecord>();
                 continue;
@@ -345,6 +373,12 @@ public sealed partial class SessionMonitorService : BackgroundService
                 continue; // stray line before any "Name:" seen
 
             var current = GetOrCreate(builders, currentName);
+
+            // FR-58.1: the count lines ("1 directory", "4 files (0 B)", "0 symbolic links") that follow an endpoint's
+            // "Synchronizable contents:" header; any other line ends the block.
+            if (contents is not null && TryParseContentsLine(line, contents))
+                continue;
+            contents = null;
 
             if (line.StartsWith("Identifier: ", StringComparison.Ordinal))
                 current.Id = line[12..];
@@ -370,6 +404,14 @@ public sealed partial class SessionMonitorService : BackgroundService
                 current.HasConflicts = true;
             else if (line.StartsWith("Problems:", StringComparison.Ordinal))
                 current.HasProblems = true;
+            else if (line.StartsWith("Synchronizable contents:", StringComparison.Ordinal))
+            {
+                contents = new ContentsBuilder();
+                if (side == 1)
+                    current.AlphaContents = contents;
+                else if (side == 2)
+                    current.BetaContents = contents;
+            }
             // mutagen pads these prefixes to align the two columns
             // ("(alpha) x" vs "(beta)  x"), so the path is trimmed rather than
             // sliced at a fixed offset; the state is what sits inside the
@@ -427,6 +469,31 @@ public sealed partial class SessionMonitorService : BackgroundService
 
     [GeneratedRegex(@"Labels:.*?\n")]
     private static partial Regex LabelsLineRegex();
+
+    // Matches one count line of a "Synchronizable contents:" block, e.g. "1 directory", "4 files (0 B)" or
+    // "0 symbolic links". Groups: 1 = the count, 2 = the beginning of the unit ("director", "file" or "symbolic link");
+    // only that beginning is significant, so singular/plural wording and a trailing size are tolerated — access via
+    // match.Groups[n].Value.
+    [GeneratedRegex(@"^(\d+)\s+(director|file|symbolic link)", RegexOptions.IgnoreCase)]
+    private static partial Regex ContentsLineRegex();
+
+    /// <summary>Adds one count line to <paramref name="target"/>; false when
+    /// the line is not a count line (it then ends the contents block).</summary>
+    private static bool TryParseContentsLine(string line, ContentsBuilder target)
+    {
+        var match = ContentsLineRegex().Match(line);
+        if (!match.Success || !int.TryParse(match.Groups[1].Value, out var count))
+            return false;
+
+        var unit = match.Groups[2].Value.ToLowerInvariant();
+        if (unit == "director")
+            target.Directories = count;
+        else if (unit == "file")
+            target.Files = count;
+        else
+            target.SymbolicLinks = count;
+        return true;
+    }
 
     private static ParseBuilder GetOrCreate(Dictionary<string, ParseBuilder> dict, string name)
     {
@@ -531,8 +598,30 @@ public sealed partial class SessionMonitorService : BackgroundService
         public SessionEndpoint? Alpha;
         public SessionEndpoint? Beta;
         public StagingProgress? Staging;
+        public ContentsBuilder? AlphaContents;
+        public ContentsBuilder? BetaContents;
 
         public ParsedSessionStatus ToParsedStatus(string name) =>
-            new(name, Id, Status, IsDuplicate, HasProblems, HasConflicts, Alpha, Beta, Staging);
+            new(
+                name, Id, Status, IsDuplicate, HasProblems, HasConflicts,
+                Alpha is null ? null : Alpha with { Contents = AlphaContents?.ToContents() },
+                Beta is null ? null : Beta with { Contents = BetaContents?.ToContents() },
+                Staging);
+    }
+
+    /// <summary>Counts of one endpoint's "Synchronizable contents:" block,
+    /// filled line by line while parsing. A count that was never seen stays
+    /// null, and an incomplete block yields no contents at all (FR-58.2:
+    /// "undetermined", never a false "empty").</summary>
+    private sealed class ContentsBuilder
+    {
+        public int? Directories;
+        public int? Files;
+        public int? SymbolicLinks;
+
+        public EndpointContents? ToContents() =>
+            Directories is { } directories && Files is { } files && SymbolicLinks is { } links
+                ? new EndpointContents(directories, files, links)
+                : null;
     }
 }

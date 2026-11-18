@@ -261,6 +261,19 @@
                 </ScrollViewer>
             </TabItem>
 
+            <!-- FR-65.1: per-session `@halted-auto-fix` directive (FR-64). -->
+            <TabItem Header="Recovery">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
+                        <Label Content="Auto-fix of a halted session (root emptying)"
+                               ToolTip="Overrides the global setting of the Mutagen monitor configuration for this session." />
+                        <ComboBox x:Name="HaltedAutoFixCombo" Margin="0,2" />
+                        <TextBlock TextWrapping="Wrap" Margin="0,8,0,0" Opacity="0.7"
+                                   Text="Applies when Mutagen halts the session because one side was emptied: the content of the other side is purged, then the session is reset. 'Inherit' uses the global setting. Saving a change of this field alone does not restart the session." />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
             <TabItem x:Name="UnknownFlagsTab" Visibility="Collapsed">
                 <TabItem.Header>
                     <TextBlock Text="Unknown flags" Foreground="Red" FontWeight="Bold" />

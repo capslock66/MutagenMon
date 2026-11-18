@@ -84,4 +84,10 @@ public sealed class SessionCommandLine
     /// above (FR-27.2/FR-27.3) — always non-null, empty when the line was
     /// fully understood.</summary>
     public List<UnknownFlag> UnknownFlags { get; set; } = new();
+
+    /// <summary>FR-64/FR-65: the per-session `@halted-auto-fix` override —
+    /// null means "inherit the global flag". NOT part of the rendered
+    /// `mutagen sync create` line: it lives in a separate directive line of
+    /// `mutagen-create.bat`, written by <see cref="SessionEditingService"/>.</summary>
+    public bool? HaltedAutoFix { get; set; }
 }
