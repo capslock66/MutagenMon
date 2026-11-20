@@ -9,7 +9,7 @@ rem can fail to find a label in a script with LF-only line endings.
 
 cd /d "%~dp0"
 
-set "MM_SRC=c:\sources\mutagenMon\MutagenMon.App\bin\Release\net10.0-windows"
+set "MM_SRC=%~dp0MutagenMon.App\bin\Release\net10.0-windows"
 set "MM_PROD=\\prod-build\DATA\install\Mutagen-mon"
 set "MM_DST=c:\tools\Mutagen-Mon"
 

@@ -8,7 +8,7 @@ rem No label / goto on purpose: git stores .bat files with LF endings (.gitattri
 rem can fail to find a label in a script with LF-only line endings.
 cd /d "%~dp0"
 
-set "MM_SRC=c:\sources\mutagenMon\MutagenMon.App\bin\Release\net10.0-windows"
+set "MM_SRC=%~dp0MutagenMon.App\bin\Release\net10.0-windows"
 set "MM_DST=c:\tools\Mutagen-Mon"
 
 echo build in release mode
