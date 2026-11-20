@@ -342,6 +342,8 @@ public partial class ScriptsView : UserControl
         {
             ScriptNameBox.Text = name;
             ScriptText.Text = text;
+            // A "Not found" shown for the previous script would be misleading.
+            ScriptFindBar.ClearResult();
         }
         finally
         {
@@ -698,6 +700,58 @@ public partial class ScriptsView : UserControl
 
         var target = siblings.IndexOf(selectedKey) + offset;
         return target >= 0 && target < siblings.Count;
+    }
+
+    /// <summary>Ctrl+F, F3 / Shift+F3 and Esc drive the search bar.</summary>
+    private void OnViewPreviewKeyDown(object sender, KeyEventArgs e) => ScriptFindBar.HandleKey(e, ScriptText.SelectedText);
+
+    private void OnScriptFindClosed(object? sender, EventArgs e) => ScriptText.Focus();
+
+    /// <summary>Selects the next (or previous) occurrence in the script text, wrapping around at the ends.
+    /// The selection stays visible while the focus is in the search bar.</summary>
+    private void OnScriptFindRequested(object? sender, FindRequest request)
+    {
+        var text = ScriptText.Text;
+        var selectionStart = ScriptText.SelectionStart;
+        int index;
+        if (request.Forward)
+        {
+            var start = request.IncludeCurrent ? selectionStart : selectionStart + ScriptText.SelectionLength;
+            index = text.IndexOf(request.Text, Math.Min(start, text.Length), request.Comparison);
+            if (index < 0)
+                index = text.IndexOf(request.Text, request.Comparison);
+        }
+        else
+        {
+            // LastIndexOf needs the whole match to end at or before startIndex.
+            index = selectionStart > 0 && text.Length > 0
+                ? text.LastIndexOf(request.Text, Math.Min(text.Length - 1, selectionStart - 1 + request.Text.Length - 1), request.Comparison)
+                : -1;
+            if (index < 0 && text.Length > 0)
+                index = text.LastIndexOf(request.Text, request.Comparison);
+        }
+
+        ScriptFindBar.ReportResult(index >= 0);
+        if (index < 0)
+        {
+            // Do not leave the previous match highlighted next to "Not found".
+            if (request.IncludeCurrent)
+                ScriptText.Select(selectionStart, 0);
+            return;
+        }
+
+        ScriptText.Select(index, request.Text.Length);
+        // The selection is only reliably highlighted while the editor has the focus: moving to a match with
+        // Next / Previous / F3 / Enter gives it the focus (F3 and Shift+F3 keep working from there, Ctrl+F goes
+        // back to the search box). Incremental search while typing must keep the focus in the box.
+        if (!request.IncludeCurrent)
+            ScriptText.Focus();
+        ScriptText.ScrollToLine(ScriptText.GetLineIndexFromCharacterIndex(index));
+        ScriptText.UpdateLayout();
+        // No word wrap: bring the match into the horizontal viewport too.
+        var rect = ScriptText.GetRectFromCharacterIndex(index);
+        if (rect.Left < 0 || rect.Left > ScriptText.ViewportWidth - 40)
+            ScriptText.ScrollToHorizontalOffset(Math.Max(0, ScriptText.HorizontalOffset + rect.Left - ScriptText.ViewportWidth / 2));
     }
 
     /// <summary>Same as clicking Run (F5 shortcut): does nothing when Run

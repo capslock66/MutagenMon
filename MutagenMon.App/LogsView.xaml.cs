@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Extensions.Logging;
@@ -175,6 +176,45 @@ public partial class LogsView : UserControl
             DetailText.Text = "";
         }
     }
+
+    /// <summary>Ctrl+F, F3 / Shift+F3 and Esc drive the search bar.</summary>
+    private void OnViewPreviewKeyDown(object sender, KeyEventArgs e) => LogFindBar.HandleKey(e, DetailText.SelectedText);
+
+    private void OnLogFindClosed(object? sender, EventArgs e) => LogGrid.Focus();
+
+    /// <summary>Selects the next (or previous) entry whose message, level or category contains the text,
+    /// wrapping around at the ends. Selecting a row also pins the view (FR-46), see
+    /// <see cref="OnLogGridSelectionChanged"/>.</summary>
+    private void OnLogFindRequested(object? sender, FindRequest request)
+    {
+        var count = _entries.Count;
+        var selected = LogGrid.SelectedIndex;
+        var step = request.Forward ? 1 : -1;
+        var start = selected switch
+        {
+            < 0 => request.Forward ? 0 : count - 1,
+            _ => request.IncludeCurrent ? selected : selected + step
+        };
+
+        for (var i = 0; i < count; i++)
+        {
+            var index = (((start + i * step) % count) + count) % count;
+            if (!EntryMatches(_entries[index], request))
+                continue;
+
+            LogFindBar.ReportResult(true);
+            LogGrid.SelectedIndex = index;
+            LogGrid.ScrollIntoView(_entries[index]);
+            return;
+        }
+
+        LogFindBar.ReportResult(false);
+    }
+
+    private static bool EntryMatches(LogEntry entry, FindRequest request) =>
+        entry.Message.Contains(request.Text, request.Comparison)
+        || entry.Level.ToString().Contains(request.Text, request.Comparison)
+        || entry.Category.Contains(request.Text, request.Comparison);
 
     /// <summary>FR-45: deliberately throws, unhandled, so it reaches
     /// App.xaml.cs's <c>OnDispatcherUnhandledException</c> — the same path a

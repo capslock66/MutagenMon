@@ -1,8 +1,11 @@
 <UserControl x:Class="MutagenMon.App.LogsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:MutagenMon.App"
+             PreviewKeyDown="OnViewPreviewKeyDown">
     <Grid Margin="8">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" MinHeight="80" />
@@ -27,8 +30,12 @@
                       Checked="OnHideCategoryColumnChanged" Unchecked="OnHideCategoryColumnChanged" />
         </StackPanel>
 
+        <!-- Ctrl+F / F3: search in the logged entries. -->
+        <local:FindBar x:Name="LogFindBar" Grid.Row="2" HorizontalAlignment="Left"
+                       FindRequested="OnLogFindRequested" Closed="OnLogFindClosed" />
+
         <!-- FR-43: master grid. -->
-        <DataGrid x:Name="LogGrid" Grid.Row="2"
+        <DataGrid x:Name="LogGrid" Grid.Row="3"
                   AutoGenerateColumns="False" IsReadOnly="True"
                   CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
                   CanUserSortColumns="False"
@@ -59,12 +66,12 @@
             </DataGrid.Columns>
         </DataGrid>
 
-        <GridSplitter Grid.Row="3" Height="5" HorizontalAlignment="Stretch"
+        <GridSplitter Grid.Row="4" Height="5" HorizontalAlignment="Stretch"
                        ResizeBehavior="PreviousAndNext" Background="LightGray" />
 
         <!-- FR-43: detail panel for the selected row — word-wrapped, scrollable,
              2 lines tall by default (resizable via the splitter above). -->
-        <TextBox x:Name="DetailText" Grid.Row="4"
+        <TextBox x:Name="DetailText" Grid.Row="5"
                  IsReadOnly="True" TextWrapping="Wrap"
                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                  FontFamily="Consolas" />
