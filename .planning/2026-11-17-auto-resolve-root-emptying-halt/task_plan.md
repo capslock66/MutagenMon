@@ -4,10 +4,10 @@
 mutagenMon recognises any Mutagen `Halted…` session status, and can resolve the "root emptying" halt (opt-in, per session): it reads from `mutagen sync list` which side was emptied, purges the content of the other side, then runs `mutagen sync reset` (which restarts the session itself; no `resume` needed), without any waiting.
 
 ## Next Step
-Phase 4: resolution (endpoint operations, purge, reset, manual action, then automatic mode). Do not start without an explicit request.
+Phase 5: validation (run the manual tests on Windows, final build and test run, last review). Do not start without an explicit request.
 
 ## Current Phase
-Phase 4
+Phase 5
 
 ## Phases
 
@@ -26,7 +26,7 @@ Phase 4
 - [x] 2.4 Add an FR for the manual action "Accept deletion" (purge the side that was not emptied + reset, no resume): an icon in the grid's actions column, shown only for a session halted by root emptying (not for root deletion / root type change), with a confirmation dialog (session, purged side URL, file count)- [ ] Add an FR for the automatic resolution behind a flag (default off): session directive else global flag, two-way-safe only, not while monitoring is disabled, both directions, no waiting, cooldown and 3-failure limit
 - [x] 2.5 Add an FR for the halt notifications (effective flag false: notify the problem; fix succeeded: silent; fix failed: notify), including once-per-halt de-duplication (same idea as ConflictNotificationTracker)
 - [x] 2.6 Add the new config keys to requirements/06-configuration-reference.md: `HaltedOneSidedRootEmptying` (text), `HaltedOneSidedRootEmptyingAutoFix` (bool, false), `HaltedOneSidedRootEmptyingCooldownSeconds` (int, 60)
-- [x] 2.7 Specify the startup auto-add of missing keys (requirements/06 and 09) and the new fields in the monitor config editor (text key in "Paths", flag and cooldown)
+- [x] 2.7 Specify the startup auto-add of missing keys (requirements/06 and 09) and the new fields in the monitor config editor (the three keys in the "Halted sessions" section)
 - [x] 2.8 Specify the per-session directive (syntax, placement, fallback, tri-state values, rename/delete handling, orphan handling) and the session editor field (new "Recovery" tab, tri-state) in requirements/07, as new FRs
 - **Status:** complete
 
@@ -44,15 +44,15 @@ Phase 4
 - **Status:** complete
 
 ### Phase 4: Resolution (manual action, then automatic)
-- [ ] 4.1 Endpoint operations abstraction with two implementations: local folder and POSIX SSH server (purge of the root content, root refusal, root path resolution); non-POSIX SSH servers (e.g. Windows OpenSSH) and non-SSH transports are excluded from the auto-fix (to confirm)
-- [ ] 4.2 Root path resolution on an SSH side (relative to the SSH home, `cd -P` + `pwd`) and path guard (refuse only the filesystem root `/` and an empty path; a one-level folder such as `/media` is allowed; for a local Windows folder a drive root such as `C:\` is refused, by analogy, to confirm)
-- [ ] 4.3 Purge of the root content only, never the root itself (SSH: `find <root> -mindepth 1 -xdev -delete` via existing Ssh/ShellQuoting helpers; local: delete the root's children)
-- [ ] 4.4 Identify the emptied side from the parsed counts (only the root directory, 0 files, 0 symbolic links, while the other side has content); do nothing and log if it cannot be determined
-- [ ] 4.5 Sequence: purge the side that was NOT emptied -> `mutagen sync reset` immediately (no `resume`, no waiting), stop at the first failure; check afterwards that the session left the halted status
-- [ ] 4.6 Manual action: icon in the actions column only for a root-emptying halt, red row, confirmation (session, purged side URL, file count)
-- [ ] 4.7 Automatic mode behind the flag: detection by the configured text, two-way-safe only, not while monitoring is disabled, cooldown (60 s default) and stop after 3 consecutive failures, log; notifications per the notification FR (silent on success)
-- [ ] 4.8 Unit tests with mocks/subclass seams (SSH, CLI client, local filesystem)
-- **Status:** pending
+- [x] 4.1 Endpoint operations abstraction with two implementations: local folder and POSIX SSH server (purge of the root content, root refusal, root path resolution); non-POSIX SSH servers (e.g. Windows OpenSSH) and non-SSH transports are excluded from the auto-fix (to confirm)
+- [x] 4.2 Root path resolution on an SSH side (relative to the SSH home, `cd -P` + `pwd`) and path guard (refuse only the filesystem root `/` and an empty path; a one-level folder such as `/media` is allowed; for a local Windows folder a drive root such as `C:\` is refused, by analogy, to confirm)
+- [x] 4.3 Purge of the root content only, never the root itself (SSH: `find <root> -mindepth 1 -xdev -delete` via existing Ssh/ShellQuoting helpers; local: delete the root's children)
+- [x] 4.4 Identify the emptied side from the parsed counts (only the root directory, 0 files, 0 symbolic links, while the other side has content); do nothing and log if it cannot be determined
+- [x] 4.5 Sequence: purge the side that was NOT emptied -> `mutagen sync reset` immediately (no `resume`, no waiting), stop at the first failure; check afterwards that the session left the halted status
+- [x] 4.6 Manual action: icon in the actions column only for a root-emptying halt, red row, confirmation (session, purged side URL, file count)
+- [x] 4.7 Automatic mode behind the flag: detection by the configured text, two-way-safe only, not while monitoring is disabled, cooldown (60 s default) and stop after 3 consecutive failures, log; notifications per the notification FR (silent on success)
+- [x] 4.8 Unit tests with mocks/subclass seams (SSH, CLI client, local filesystem)
+- **Status:** complete
 
 ### Phase 5: Validation & delivery
 - [ ] 5.1 Test the sequence on a throwaway session (like `Temp`) before enabling it on real sessions, in both directions (alpha emptied, beta emptied)
@@ -72,7 +72,7 @@ Phase 4
 | Name the action "purge" (not "flush") | `mutagen sync flush` is an unrelated Mutagen command |
 | The emptied side is authoritative; the content of the other side is destroyed | The emptied side is the one the user changed (clear then refill); the other side is the stale copy |
 | The purged side can be a local folder or a POSIX SSH server, on alpha or on beta | Both directions are handled (see below), and the endpoints can be local or SSH for any user. Two implementations justify an abstraction. Non-POSIX SSH servers and non-SSH transports are excluded from the auto-fix (proposal, to confirm) |
-| Config key `HaltedOneSidedRootEmptying` (string) holds the text to search; shown in the monitor config editor, section "Paths" | User decision 2026-11-18 |
+| Config key `HaltedOneSidedRootEmptying` (string) holds the text to search; shown in the monitor config editor, section "Halted sessions" (first moved from "Paths" on 2026-11-20) | User decision 2026-11-18, revised 2026-11-20 |
 | Missing keys are added automatically to config_mutagenmon.json at startup (text key, global flag default `false`, cooldown default `60` seconds); the in-memory default already applies when a key is absent, the write only makes the key visible | User decision 2026-11-18; must keep the `#` comments (reuse the ConfigLoader.SaveWindowSize approach, which edits the text instead of re-serializing) |
 | Per-session flag: option A, a directive comment line in mutagen-create.bat, syntax `rem sync --name=<session> : @halted-auto-fix: <true|false>` | User decision 2026-11-18. `rem ` lines are already skipped by SessionDefinitionLoader.TryExtractName, so a directive can never be mistaken for a session line and the .bat stays valid for cmd |
 | Directive block is grouped just above the blank line preceding `mutagen sync terminate --all`, with exactly one blank line between the block and that line | User decision 2026-11-18. Fallback when the anchor is missing: before the first session line, else end of file. The reader accepts a directive anywhere in the file (hand edits) |

@@ -70,6 +70,22 @@ public sealed class NotificationDispatcher
         _queue.Enqueue(new NotificationMessage(sessionName, $"Restarting duplicate: {status}"));
     }
 
+    /// <summary>FR-62.1/FR-11.5: a session is halted by a Mutagen safety check
+    /// and nothing will resolve it automatically. Not configurable: no
+    /// toggle gates this one.</summary>
+    public void NotifyHalted(string sessionName, string status)
+    {
+        _queue.Enqueue(new NotificationMessage("Session halted", $"{sessionName}: {status}"));
+    }
+
+    /// <summary>FR-62.3/FR-11.5: the automatic fix of a halted session failed
+    /// three times in a row and is not tried again for this halt. Not
+    /// configurable.</summary>
+    public void NotifyAutoFixFailed(string sessionName, string lastError)
+    {
+        _queue.Enqueue(new NotificationMessage("Automatic fix failed", $"{sessionName}: {lastError}"));
+    }
+
     /// <summary>FR-13.3/FR-11.3: a session restarted because it stayed stuck
     /// "connecting" past <c>SessionMaxErrors</c>. Gated by
     /// <c>NotifyRestartConnection</c> (default disabled).</summary>

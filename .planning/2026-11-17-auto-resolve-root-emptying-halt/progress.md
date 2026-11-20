@@ -3,7 +3,7 @@
 ## Session: 2026-11-17
 
 ### Current Status
-- **Phase:** 4 - Resolution (phases 2 and 3 complete; phase 4 not started, waiting for the user's explicit request)
+- **Phase:** 5 - Validation (phases 2 to 4 complete; phase 5 not started, waiting for the user's explicit request)
 - **Started:** 2026-11-17
 
 ### Actions Taken
@@ -20,6 +20,10 @@
 - Accepted, not changed: a malformed uppercase `REM ... @halted-auto-fix` line can still be read as a session (pre-existing case-sensitive `rem ` check); removing the last directive leaves the blank line the writer added; an Edit with no change may regroup hand-placed directives; the shipped config file lacks the 3 new keys (added at startup); only the plain `mutagen sync terminate --all` form is an anchor.
 - Spec amendments made while implementing (requirements/12): FR-57.3 colours, FR-63.2 empty text refused, FR-65.1 Duplicate copies the source flag, FR-65.3 unchanged-command comparison after parse + render.
 
+- Phase 4 done (2026-11-20): new MutagenMon.Core/Recovery (HaltedSessionAnalyzer, EndpointPurger, HaltedRecoveryService, HaltedAutoFixCoordinator), `MutagenCliClient.ResetSessionAsync`, halt notifications, `SessionDefinition.HaltedAutoFix`, red-row "Accept deletion" icon and action in the status window, monitor wiring and reload handling; 8 user tests added (UT-60.1 to UT-60.5, UT-61.1 to UT-61.3, UT-62.1, all 📋 ⬜).
+- Review loop (phase 4), 3 passes. Pass 1: 2 blocking (a directive-only Edit never reached the running coordinator; the manual action purged from a snapshot read before the confirmation) + 4 important (cooldown lost between episodes; ssh not killed on timeout and a timeout of 0; local purge on the UI thread with an ineffective timeout; single-flight lost across a reload), fixed. Pass 2: 3 important (killing ssh does not stop the remote `find` -> `-tt`; a recovery started from a listing taken before the previous recovery finished -> `PollStartedUtc` + last-completed time; manual recoveries not awaited by a reload -> `StopAsync`), fixed. Pass 3: no blocking finding, 1 important (`Trim()` on the `pwd -P` output could point to a neighbouring folder -> `TrimEnd('\r')`), fixed together with the trivial minors; these last fixes were not re-reviewed (3-pass limit reached).
+- Left as is, reported: `-tt` is not validated against the Windows OpenSSH client (to test; `RedirectStandardInput = true` is the first thing to try if it hangs); a microsecond TOCTOU between `CheckUnchanged` and `RecoverAsync`; a manual recovery interrupted by a reload only shows a warning; no `-o BatchMode=yes`; no visual feedback during a manual recovery; a mount point under an SSH root makes the purge partial; pausing monitoring terminates a halted session while its automatic run is in flight; a halted session raises one "monitoring is paused" notification during a reload.
+
 ### Test Results
 | Test | Expected | Actual | Status |
 |------|----------|--------|--------|
@@ -27,6 +31,9 @@
 | `dotnet test MutagenMon.Core.Tests` after phase 3 | All pass | 625 passed, 0 failed, 4 skipped (Windows only) | pass |
 | `dotnet build` MutagenMon.Core and MutagenMon.App after phase 3 | 0 error, 0 warning | 0 error, 0 warning | pass |
 | UT-57.1, UT-63.1, UT-63.2, UT-64.1, UT-65.1 (manual, Windows) | As written in requirements/UserTests.md | Not run (the WPF UI cannot run on this machine) | pending |
+| `dotnet test MutagenMon.Core.Tests` after phase 4 | All pass | 724 passed, 0 failed, 4 skipped (Windows only) | pass |
+| `dotnet build` MutagenMon.Core and MutagenMon.App after phase 4 | 0 error, 0 warning | 0 error, 0 warning | pass |
+| UT-60.1 to UT-60.5, UT-61.1 to UT-61.3, UT-62.1 (manual, Windows, real SSH server) | As written in requirements/UserTests.md | Not run | pending |
 
 ### Errors
 | Error | Resolution |

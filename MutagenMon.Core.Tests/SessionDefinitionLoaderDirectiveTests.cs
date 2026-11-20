@@ -92,6 +92,23 @@ public class SessionDefinitionLoaderDirectiveTests
     }
 
     [Fact]
+    public void TheDirectiveValueIsCarriedByTheSessionDefinition()
+    {
+        var result = SessionDefinitionLoader.ParseLines(new[]
+        {
+            "rem sync --name=a : @halted-auto-fix: true",
+            "rem sync --name=b : @halted-auto-fix: false",
+            "mutagen sync create --name=a X Y",
+            "mutagen sync create --name=b X Y",
+            "mutagen sync create --name=c X Y",
+        });
+
+        Assert.True(result.Sessions.Single(s => s.Name == "a").HaltedAutoFix);
+        Assert.False(result.Sessions.Single(s => s.Name == "b").HaltedAutoFix);
+        Assert.Null(result.Sessions.Single(s => s.Name == "c").HaltedAutoFix);
+    }
+
+    [Fact]
     public void ASessionWithoutADirectiveHasNoEntry()
     {
         var result = SessionDefinitionLoader.ParseLines(new[] { "mutagen sync create --name=a X Y" });

@@ -6,6 +6,7 @@ using MutagenMon.Core.Monitoring;
 using MutagenMon.Core.Mutagen;
 using MutagenMon.Core.Notifications;
 using MutagenMon.Core.ProfileWatch;
+using MutagenMon.Core.Recovery;
 using MutagenMon.Core.Resolution;
 using MutagenMon.Core.Sessions;
 using MutagenMon.Core.Status;
@@ -127,7 +128,8 @@ public class SessionMonitorServiceTests
         bool notifyConflicts = true, bool notifyAutoresolve = true,
         bool startEnabled = true, bool notifyRestartConnection = false,
         int sessionMaxNoSession = 200, int sessionMaxDuplicate = 10000, int sessionMaxErrors = 30000,
-        CapturingLogger<SessionMonitorService>? logger = null)
+        CapturingLogger<SessionMonitorService>? logger = null,
+        bool haltedAutoFix = false, HaltedRecoveryService? haltedRecovery = null)
     {
         var options = Options.Create(new MutagenMonOptions
         {
@@ -141,13 +143,15 @@ public class SessionMonitorServiceTests
             SessionMaxNoSession = sessionMaxNoSession,
             SessionMaxDuplicate = sessionMaxDuplicate,
             SessionMaxErrors = sessionMaxErrors,
+            HaltedOneSidedRootEmptyingAutoFix = haltedAutoFix,
         });
         var conflictResolutionService = new ConflictResolutionService(
             conflictFileClient ?? new RecordingConflictFileClient(), NullLogger<ConflictResolutionService>.Instance);
         return new SessionMonitorService(
             cli, store, options, sessions, new FileTimestampProvider(), conflictResolutionService,
             notificationQueue ?? new NotificationQueue(),
-            (ILogger<SessionMonitorService>?)logger ?? NullLogger<SessionMonitorService>.Instance);
+            (ILogger<SessionMonitorService>?)logger ?? NullLogger<SessionMonitorService>.Instance,
+            haltedRecovery);
     }
 
     [Fact]
@@ -651,7 +655,11 @@ public class SessionMonitorServiceTests
 
         Assert.Empty(cli.TerminatedSessions);
         Assert.Empty(cli.CreatedSessions);
-        Assert.Empty(queue.DrainAll());
+
+        // FR-62.1: the only notification is the one "halted" notice of the episode (the automatic fix is off by default).
+        var notice = Assert.Single(queue.DrainAll());
+        Assert.Equal("Session halted", notice.Title);
+        Assert.Contains("alpha-sync", notice.Body);
     }
 
     [Fact]
@@ -672,6 +680,108 @@ public class SessionMonitorServiceTests
         Assert.Single(logger.Messages, m => m.Contains("is halted by Mutagen"));
         Assert.Contains(logger.Messages, m => m.Contains("alpha: 1 directories, 0 files, 0 symbolic links"));
         Assert.Single(logger.Messages, m => m.Contains("is no longer halted"));
+    }
+
+    // A recovery that only counts its calls: no purge, no `mutagen` process (NFR-11).
+    private sealed class CountingRecovery()
+        : HaltedRecoveryService(
+            new FakeMutagenCliClient(), new EndpointPurger(Options.Create(new MutagenMonOptions()), NullLogger<EndpointPurger>.Instance),
+            Options.Create(new MutagenMonOptions()), NullLogger<HaltedRecoveryService>.Instance)
+    {
+        public readonly List<string> Sessions = new();
+
+        public override Task<RecoveryResult> RecoverAsync(string sessionName, ParsedSessionStatus? status, CancellationToken cancellationToken)
+        {
+            Sessions.Add(sessionName);
+            return Task.FromResult(new RecoveryResult(true, "done", "ok"));
+        }
+    }
+
+    [Fact]
+    public async Task AHaltedSessionIsFixedAutomaticallyWhenTheGlobalFlagIsOn()
+    {
+        var cli = new FakeMutagenCliClient();
+        cli.Enqueue(HaltedSession("alpha-sync"));
+        var queue = new NotificationQueue();
+        var recovery = new CountingRecovery();
+        var sessions = new[] { new SessionDefinition("alpha-sync", "mutagen sync create --name=alpha-sync ...") };
+        var service = BuildService(cli, new SessionStateStore(), sessions, notificationQueue: queue, haltedAutoFix: true, haltedRecovery: recovery);
+
+        await service.PollOnceAsync(CancellationToken.None);
+        await service.WhenHaltedRecoveryIdleAsync();
+
+        Assert.Equal(["alpha-sync"], recovery.Sessions);
+        Assert.Empty(queue.DrainAll()); // FR-62.2: a fix that works is silent
+    }
+
+    [Fact]
+    public async Task TheSessionDirectiveTurnsTheFixOnEvenWhenTheGlobalFlagIsOff()
+    {
+        var cli = new FakeMutagenCliClient();
+        cli.Enqueue(HaltedSession("alpha-sync"));
+        var recovery = new CountingRecovery();
+        var sessions = new[] { new SessionDefinition("alpha-sync", "mutagen sync create --name=alpha-sync ...", HaltedAutoFix: true) };
+        var service = BuildService(cli, new SessionStateStore(), sessions, haltedAutoFix: false, haltedRecovery: recovery);
+
+        await service.PollOnceAsync(CancellationToken.None);
+        await service.WhenHaltedRecoveryIdleAsync();
+
+        Assert.Equal(["alpha-sync"], recovery.Sessions);
+    }
+
+    [Fact]
+    public async Task AnEditedDirectiveAppliesToTheRunningMonitorWithoutARestart()
+    {
+        var cli = new FakeMutagenCliClient();
+        cli.Enqueue(HaltedSession("alpha-sync"));
+        var queue = new NotificationQueue();
+        var recovery = new CountingRecovery();
+        var sessions = new[] { new SessionDefinition("alpha-sync", "mutagen sync create --name=alpha-sync ...") };
+        var service = BuildService(cli, new SessionStateStore(), sessions, notificationQueue: queue, haltedAutoFix: true, haltedRecovery: recovery);
+
+        // The user switched the session to "Disabled" in the Edit window after the monitor was built (FR-65.3).
+        service.UpdateHaltedAutoFixOverrides(new Dictionary<string, bool> { ["alpha-sync"] = false });
+        await service.PollOnceAsync(CancellationToken.None);
+        await service.WhenHaltedRecoveryIdleAsync();
+
+        Assert.Empty(recovery.Sessions);
+        Assert.Contains(queue.DrainAll(), m => m.Title == "Session halted");
+    }
+
+    [Fact]
+    public async Task NoAutomaticFixRunsWhileMonitoringIsDisabled()
+    {
+        var cli = new FakeMutagenCliClient();
+        cli.Enqueue(HaltedSession("alpha-sync"));
+        var queue = new NotificationQueue();
+        var recovery = new CountingRecovery();
+        var sessions = new[] { new SessionDefinition("alpha-sync", "mutagen sync create --name=alpha-sync ...") };
+        var service = BuildService(
+            cli, new SessionStateStore(), sessions, notificationQueue: queue, startEnabled: false, haltedAutoFix: true, haltedRecovery: recovery);
+
+        await service.PollOnceAsync(CancellationToken.None);
+        await service.WhenHaltedRecoveryIdleAsync();
+
+        Assert.Empty(recovery.Sessions);
+        Assert.Contains(queue.DrainAll(), m => m.Title == "Session halted");
+    }
+
+    [Fact]
+    public async Task TheSnapshotCarriesTheTimeTheListingBegan()
+    {
+        var cli = new FakeMutagenCliClient();
+        cli.Enqueue(ReadySession("alpha-sync", "id-a"));
+        var store = new SessionStateStore();
+        var sessions = new[] { new SessionDefinition("alpha-sync", "mutagen sync create --name=alpha-sync ...") };
+        var service = BuildService(cli, store, sessions);
+
+        var before = DateTimeOffset.UtcNow;
+        await service.PollOnceAsync(CancellationToken.None);
+        var after = DateTimeOffset.UtcNow;
+
+        var snapshot = store.Get();
+        Assert.InRange(snapshot.PollStartedUtc, before, after);
+        Assert.True(snapshot.PollStartedUtc <= snapshot.LastSuccessfulPollUtc); // taken before the listing was parsed
     }
 
     [Fact]

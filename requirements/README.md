@@ -50,8 +50,8 @@ This folder documents the required behavior of MutagenMon.
    automatic resolution (purge of the other side, then `mutagen sync
    reset`) for the "one-sided root emptying" halt, notifications, the
    configuration keys and the per-session `@halted-auto-fix` directive in
-   `mutagen-create.bat`. Specified (FR-57 through FR-65), not yet
-   implemented.
+   `mutagen-create.bat`. Implemented (FR-57 through FR-65); its manual
+   tests are written and still to be run.
 11. [UserTests.md](UserTests.md) — manual, click-by-click acceptance test
    script for verifying each requirement against the running application,
    kept in step with implementation progress.

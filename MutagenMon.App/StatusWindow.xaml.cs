@@ -11,6 +11,7 @@ using System.Windows.Threading;
 using Microsoft.Extensions.Logging;
 using MutagenMon.Core.Monitoring;
 using MutagenMon.Core.Mutagen;
+using MutagenMon.Core.Recovery;
 using MutagenMon.Core.Scripts;
 using MutagenMon.Core.Status;
 
@@ -70,6 +71,17 @@ public partial class StatusWindow : Window
     /// <summary>Raised when the user clicks a row's Delete icon (FR-17.3),
     /// with that session's name.</summary>
     public event EventHandler<string>? DeleteSessionRequested;
+
+    /// <summary>FR-60.1: raised with a session's name when its "Accept
+    /// deletion" icon is clicked. Only a row halted by a root emptying shows it.</summary>
+    public event EventHandler<string>? AcceptDeletionRequested;
+
+    // The configured HaltedOneSidedRootEmptying text (FR-57.5): which halted rows get the "Accept deletion" icon.
+    private string _haltedRootEmptyingText = "";
+
+    /// <summary>Sets the text identifying a root-emptying halt; called at
+    /// creation and after each configuration reload.</summary>
+    public void SetHaltedRootEmptyingText(string text) => _haltedRootEmptyingText = text;
 
     /// <summary>Bound once to <c>SessionsGrid.ItemsSource</c> and updated
     /// in place on every refresh (<see cref="SyncRows"/>) rather than
@@ -237,7 +249,8 @@ public partial class StatusWindow : Window
     public void UpdateContent(MonitorSnapshot snapshot, IReadOnlyList<string> sessionNames, bool reloadInProgress)
     {
         var rows = BuildSessionRows(
-            sessionNames, snapshot.SessionStatuses, snapshot.LastChangedUtc, snapshot.SessionCodes, snapshot.Conflicts, snapshot.Enabled);
+            sessionNames, snapshot.SessionStatuses, snapshot.LastChangedUtc, snapshot.SessionCodes, snapshot.Conflicts, snapshot.Enabled,
+            _haltedRootEmptyingText);
         _isSyncingRows = true;
         try
         {
@@ -400,6 +413,14 @@ public partial class StatusWindow : Window
         DeleteSessionRequested?.Invoke(this, row.Name);
     }
 
+    private void OnAcceptDeletionClick(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).DataContext is not SessionSummaryRow row)
+            return;
+        _logger.LogInformation("User action: status window Accept deletion clicked ({Name})", row.Name);
+        AcceptDeletionRequested?.Invoke(this, row.Name);
+    }
+
     private void OnToggleMonitoringClick(object sender, RoutedEventArgs e)
     {
         _logger.LogInformation("User action: status window Stop/Start sessions clicked");
@@ -471,7 +492,8 @@ public partial class StatusWindow : Window
         IReadOnlyDictionary<string, DateTimeOffset?> lastChangedUtc,
         IReadOnlyDictionary<string, SessionStatusCode> sessionCodes,
         IReadOnlyDictionary<string, IReadOnlyList<ConflictRecord>> conflicts,
-        bool enabled)
+        bool enabled,
+        string haltedRootEmptyingText)
     {
         var rows = new List<SessionSummaryRow>();
         foreach (var name in sessionNames)
@@ -492,7 +514,8 @@ public partial class StatusWindow : Window
                 status?.Alpha?.Url ?? "(unknown)",
                 status?.Beta?.Url ?? "(unknown)",
                 lastChanged,
-                SessionStateTracker.IsHalted(status?.Status)));
+                SessionStateTracker.IsHalted(status?.Status),
+                HaltedSessionAnalyzer.Analyze(status, haltedRootEmptyingText).IsRootEmptying));
         }
 
         return rows;

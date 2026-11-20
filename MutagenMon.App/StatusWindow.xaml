@@ -119,6 +119,22 @@
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal">
+                                            <!-- FR-60.1: "Accept deletion", only on a row halted by a root emptying. -->
+                                            <Button Click="OnAcceptDeletionClick" ToolTip="Accept deletion"
+                                                    Margin="0,0,4,0"
+                                                    Padding="2" Background="Transparent" BorderThickness="0">
+                                                <Button.Style>
+                                                    <Style TargetType="Button">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsRootEmptyingHalt}" Value="True">
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                                <iconPacks:PackIconMaterial Kind="DeleteSweepOutline" Width="14" Height="14" />
+                                            </Button>
                                             <Button Click="OnViewSyncStatusClick" ToolTip="View sync status"
                                                     Padding="2" Background="Transparent" BorderThickness="0">
                                                 <iconPacks:PackIconMaterial Kind="EyeOutline" Width="14" Height="14" />

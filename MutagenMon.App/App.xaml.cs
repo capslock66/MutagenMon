@@ -13,6 +13,7 @@ using MutagenMon.Core.Monitoring;
 using MutagenMon.Core.Mutagen;
 using MutagenMon.Core.Notifications;
 using MutagenMon.Core.ProfileWatch;
+using MutagenMon.Core.Recovery;
 using MutagenMon.Core.Resolution;
 using MutagenMon.Core.Scripts;
 using MutagenMon.Core.Sessions;
@@ -68,6 +69,10 @@ public partial class App //: Application
     private ILogger<ConflictResolutionController>? _conflictResolutionControllerLogger;
     private SessionEditingService? _sessionEditingService;
     private MutagenCliClient? _mutagenCliClient;
+
+    /// <summary>The recovery of a halted session (FR-59): used by the "Accept
+    /// deletion" action (FR-60) and, through the monitor, by the automatic fix (FR-61).</summary>
+    private HaltedRecoveryService? _haltedRecoveryService;
     private IReadOnlyList<SessionDefinition> _sessionDefinitions = Array.Empty<SessionDefinition>();
 
     /// <summary>The per-session `@halted-auto-fix` overrides read from the
@@ -228,6 +233,8 @@ public partial class App //: Application
             builder.Services.AddHostedService(sp => sp.GetRequiredService<SessionMonitorService>());
             builder.Services.AddSingleton<ConflictFileClient>();
             builder.Services.AddSingleton<ConflictResolutionService>();
+            builder.Services.AddSingleton<EndpointPurger>();
+            builder.Services.AddSingleton<HaltedRecoveryService>();
             builder.Services.AddSingleton(sp => new SessionEditingService(
                 sp.GetRequiredService<MutagenCliClient>(), sessionsPath, sp.GetRequiredService<ILogger<SessionEditingService>>()));
 
@@ -247,6 +254,7 @@ public partial class App //: Application
             _conflictResolutionService = _host.Services.GetRequiredService<ConflictResolutionService>();
             _sessionEditingService = _host.Services.GetRequiredService<SessionEditingService>();
             _mutagenCliClient = _host.Services.GetRequiredService<MutagenCliClient>();
+            _haltedRecoveryService = _host.Services.GetRequiredService<HaltedRecoveryService>();
             _conflictResolutionControllerLogger = _host.Services.GetRequiredService<ILogger<ConflictResolutionController>>();
             _notificationQueue = _host.Services.GetRequiredService<NotificationQueue>();
 
@@ -366,18 +374,30 @@ public partial class App //: Application
         {
             await _monitorService.StopAsync(CancellationToken.None);
             _monitorService.Dispose();
+
+            // Dispose cancels the automatic fixes still running: wait until they have really stopped, so a recovery of
+            // the old monitor cannot overlap one of the new services (FR-59.2: one recovery per session at a time).
+            await _monitorService.WhenHaltedRecoveryIdleAsync();
         }
+
+        // A manual recovery may be running too (it is not tied to the monitor): stop it and wait for it as well.
+        if (_haltedRecoveryService is not null)
+            await _haltedRecoveryService.StopAsync();
 
         var newSessionNames = newSessionResult.Sessions.Select(s => s.Name).ToArray();
         var optionsWrapper = Options.Create(newOptions);
         MutagenCliClient newCliClient = new MutagenCliClient(optionsWrapper, _host!.Services.GetRequiredService<ILogger<MutagenCliClient>>());
         ConflictFileClient newConflictFileClient = new ConflictFileClient(optionsWrapper, _host.Services.GetRequiredService<ILogger<ConflictFileClient>>());
         var newConflictResolutionService = new ConflictResolutionService(newConflictFileClient, _host.Services.GetRequiredService<ILogger<ConflictResolutionService>>());
+        var newPurger = new EndpointPurger(optionsWrapper, _host.Services.GetRequiredService<ILogger<EndpointPurger>>());
+        var newHaltedRecovery = new HaltedRecoveryService(
+            newCliClient, newPurger, optionsWrapper, _host.Services.GetRequiredService<ILogger<HaltedRecoveryService>>());
         var newMonitorService = new SessionMonitorService(
             newCliClient, _stateStore!, optionsWrapper, newSessionResult.Sessions,
             _host.Services.GetRequiredService<FileTimestampProvider>(),
             newConflictResolutionService, _notificationQueue!,
-            _host.Services.GetRequiredService<ILogger<SessionMonitorService>>());
+            _host.Services.GetRequiredService<ILogger<SessionMonitorService>>(),
+            newHaltedRecovery);
         await newMonitorService.StartAsync(CancellationToken.None);
 
         _options = newOptions;
@@ -389,9 +409,15 @@ public partial class App //: Application
         _sessionEditingService = new SessionEditingService(
             newCliClient, sessionsPath, _host.Services.GetRequiredService<ILogger<SessionEditingService>>());
         _mutagenCliClient = newCliClient;
+        _haltedRecoveryService = newHaltedRecovery;
+
+        // An Edit that only changed a directive may have finished while this reload was awaiting: it updated the old
+        // monitor, so re-read the directives and give them to the new one.
+        RefreshHaltedAutoFixDirectives();
         _trayIconController = BuildAndStartTrayIconController(newOptions, newSessionNames);
         // FR-56.2: the scripts file path may have changed with the new options.
         _statusWindow?.RefreshSessionScripts();
+        _statusWindow?.SetHaltedRootEmptyingText(newOptions.HaltedOneSidedRootEmptying);
 
         _logger?.LogInformation("Reload complete — monitoring resumed with the new configuration");
     }
@@ -488,9 +514,13 @@ public partial class App //: Application
             _statusWindow.ViewSyncStatusRequested += OnViewSyncStatusRequested;
             _statusWindow.EditSessionRequested += OnEditSessionRequested;
             _statusWindow.DeleteSessionRequested += OnDeleteSessionRequested;
+            _statusWindow.AcceptDeletionRequested += OnAcceptDeletionRequested;
             _statusWindow.SizeSettled += OnStatusWindowSizeSettled;
             if (_options is not null)
+            {
                 _statusWindow.RestoreSize(_options.StatusWindowWidth, _options.StatusWindowHeight);
+                _statusWindow.SetHaltedRootEmptyingText(_options.HaltedOneSidedRootEmptying);
+            }
         }
         if (_stateStore is not null)
             _statusWindow.UpdateContent(_stateStore.Get(), _sessionNames, _trayIconController?.IsReloadInProgress ?? false);
@@ -800,7 +830,11 @@ public partial class App //: Application
         try
         {
             var sessionsPath = Path.Combine(AppContext.BaseDirectory, _options.MutagenSessionsBatFile.Replace('/', Path.DirectorySeparatorChar));
-            ApplyHaltedAutoFixDirectives(SessionDefinitionLoader.ParseFile(sessionsPath));
+            var result = SessionDefinitionLoader.ParseFile(sessionsPath);
+            ApplyHaltedAutoFixDirectives(result);
+
+            // FR-65.3: the running monitor must see the new flag too, without any session being restarted.
+            _monitorService?.UpdateHaltedAutoFixOverrides(result.HaltedAutoFixDirectives);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -835,6 +869,93 @@ public partial class App //: Application
                 _statusWindow, $"MutagenMon could not delete session '{name}':\n\n{ex.Message}",
                 "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    /// <summary>Handles a row's "Accept deletion" icon (FR-60): after a
+    /// confirmation that names both sides and the number of files to be
+    /// deleted, runs the recovery of FR-59 — purge the side that was not
+    /// emptied, then reset the session. It does not depend on the auto-fix
+    /// flags or the cooldown: it is an explicit user decision. A success shows
+    /// nothing (the row returns to normal on a later poll); a refusal or a
+    /// failure shows an error dialog (FR-60.4).</summary>
+    private async void OnAcceptDeletionRequested(object? sender, string name)
+    {
+        try
+        {
+            await AcceptDeletionAsync(name);
+        }
+        catch (OperationCanceledException)
+        {
+            // The configuration is being reloaded: the recovery was stopped on purpose, but the user clicked Yes and the
+            // purge may be partial, so say so (FR-60.4).
+            _logger?.LogWarning("Accept deletion of session '{Name}' was cancelled by a reload of the configuration", name);
+            if (_statusWindow is not null)
+                MessageBox.Show(
+                    _statusWindow,
+                    $"The recovery of session '{name}' was interrupted by the reload of the configuration.\n\n"
+                    + "The side to purge may be partly emptied. Check the session and accept the deletion again if it is still halted.",
+                    "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Accept deletion failed unexpectedly for session '{Name}'", name);
+            if (_statusWindow is not null)
+                MessageBox.Show(
+                    _statusWindow, $"MutagenMon could not recover session '{name}':\n\n{ex.Message}",
+                    "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async Task AcceptDeletionAsync(string name)
+    {
+        if (_haltedRecoveryService is null || _stateStore is null || _statusWindow is null || _logger is null)
+            return;
+
+        // The snapshot the poll took when the halt was reported (FR-58.3).
+        _stateStore.Get().SessionStatuses.TryGetValue(name, out var status);
+        var problem = _haltedRecoveryService.CheckRecoverable(status, out var analysis);
+        if (problem is not null)
+        {
+            _logger.LogWarning("Accept deletion refused for '{Name}': {Problem}", name, problem);
+            MessageBox.Show(
+                _statusWindow, $"MutagenMon cannot accept the deletion for session '{name}': {problem}.",
+                "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        var body = $"Session {name}: {analysis.Emptied!.Url} was emptied.\n\n"
+            + $"The content of {analysis.Purged!.Url} ({analysis.PurgedFileCount} file(s)) will be deleted and the session reset.\n\nContinue ?";
+        if (!GenericMessageDialog.ShowConfirm(_statusWindow, _logger, "Mutagen accept deletion", body, okLabel: "Yes", cancelLabel: "No"))
+            return;
+
+        // The dialog above can stay open for a long time: only purge from what the latest poll shows now, and only if
+        // it is still the same halt between the same two sides. Otherwise the session may be synchronising again, and
+        // emptying one of its sides would be propagated as ordinary deletions (FR-60.3).
+        var snapshot = _stateStore.Get();
+        snapshot.SessionStatuses.TryGetValue(name, out var freshStatus);
+        var changed = DateTimeOffset.UtcNow - snapshot.LastSuccessfulPollUtc > TimeSpan.FromSeconds(30)
+            ? "the status of the sessions is not up to date"
+            : _haltedRecoveryService.CheckUnchanged(name, analysis, freshStatus, snapshot.PollStartedUtc);
+        if (changed is not null)
+        {
+            _logger.LogWarning("Accept deletion cancelled for '{Name}': {Reason}", name, changed);
+            MessageBox.Show(
+                _statusWindow, $"Nothing was deleted: {changed}.\n\nCheck the session and try again if it is still halted.",
+                "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var result = await _haltedRecoveryService.RecoverAsync(name, freshStatus, CancellationToken.None);
+        if (result.Success)
+        {
+            _logger.LogInformation("Accept deletion done for session '{Name}'", name);
+            return;
+        }
+
+        _logger.LogError("Accept deletion failed for session '{Name}' at step '{Step}': {Message}", name, result.Step, result.Message);
+        MessageBox.Show(
+            _statusWindow, $"MutagenMon could not recover session '{name}' (step: {result.Step}):\n\n{result.Message}",
+            "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Error);
     }
 
     /// <summary>Handles the "Reload config & restart mutagen" action (FR-7.1):

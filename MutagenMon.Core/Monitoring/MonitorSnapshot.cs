@@ -14,8 +14,11 @@ public sealed record MonitorSnapshot(
     IReadOnlyDictionary<string, ParsedSessionStatus?> SessionStatuses,
     IReadOnlyDictionary<string, IReadOnlyList<ConflictRecord>> Conflicts,
     IReadOnlyDictionary<string, DateTimeOffset?> LastChangedUtc,
-    IReadOnlyDictionary<string, SessionStatusCode> SessionCodes)
+    IReadOnlyDictionary<string, SessionStatusCode> SessionCodes,
+    DateTimeOffset PollStartedUtc = default)
 {
+    // PollStartedUtc: when the poll began, BEFORE `mutagen sync list` ran. LastSuccessfulPollUtc is taken after the
+    // listing was parsed, so a listing can predate an event that finished in between (the end of a recovery, FR-60.3).
     public static MonitorSnapshot Initial(DateTimeOffset nowUtc, bool enabled) => new(
         SessionStatusCode.Unknown,
         enabled,

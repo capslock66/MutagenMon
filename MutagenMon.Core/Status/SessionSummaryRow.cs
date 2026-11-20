@@ -13,9 +13,11 @@ public sealed record SessionSummaryRow(
     string AlphaUrl,
     string BetaUrl,
     DateTimeOffset? LastChangedUtc,
-    bool IsHalted = false)
+    bool IsHalted = false,
+    bool IsRootEmptyingHalt = false)
 {
     // IsHalted: the session reports a Mutagen safety halt (FR-57.3); the grid draws such a row in red.
+    // IsRootEmptyingHalt: that halt is a root emptying, the only one with the "Accept deletion" action (FR-60.1).
 
     /// <summary>The Conflict column: the number of unresolved
     /// (non-autoresolved) conflicts, blank when there are none.</summary>

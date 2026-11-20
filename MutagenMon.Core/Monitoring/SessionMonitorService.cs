@@ -6,6 +6,7 @@ using MutagenMon.Core.Configuration;
 using MutagenMon.Core.Mutagen;
 using MutagenMon.Core.Notifications;
 using MutagenMon.Core.ProfileWatch;
+using MutagenMon.Core.Recovery;
 using MutagenMon.Core.Resolution;
 using MutagenMon.Core.Sessions;
 using MutagenMon.Core.Status;
@@ -56,6 +57,9 @@ public sealed partial class SessionMonitorService : BackgroundService
     // Sessions currently reporting a Mutagen safety halt, so each halt is logged once (FR-57), not on every poll.
     private readonly HashSet<string> _haltedSessions = new();
 
+    // FR-61/FR-62: automatic fix of root-emptying halts and the halt notifications.
+    private readonly HaltedAutoFixCoordinator _haltedAutoFix;
+
     /// <summary>Current monitoring-enabled state (FR-7.2). Read each poll to
     /// decide whether to actively terminate sessions.</summary>
     public bool IsEnabled => _enabled;
@@ -80,7 +84,8 @@ public sealed partial class SessionMonitorService : BackgroundService
         FileTimestampProvider timestampProvider,
         ConflictResolutionService conflictResolutionService,
         NotificationQueue notificationQueue,
-        ILogger<SessionMonitorService> logger)
+        ILogger<SessionMonitorService> logger,
+        HaltedRecoveryService? haltedRecovery = null)
     {
         _cliClient = cliClient;
         _stateStore = stateStore;
@@ -105,7 +110,24 @@ public sealed partial class SessionMonitorService : BackgroundService
             _logger.LogInformation("Auto-resolved conflict {Session}:{File} via rule '{Rule}'", e.SessionName, e.FileName, e.Rule);
             _notificationDispatcher.NotifyAutoResolved(e.SessionName, e.FileName, e.Rule);
         };
+        _haltedAutoFix = new HaltedAutoFixCoordinator(opts, sessions, haltedRecovery, _notificationDispatcher, logger);
     }
+
+    /// <summary>Stops the automatic fixes still running (the monitor is being
+    /// stopped or reloaded) before the base class disposes.</summary>
+    public override void Dispose()
+    {
+        _haltedAutoFix.Dispose();
+        base.Dispose();
+    }
+
+    /// <summary>Completes when every automatic halt fix started so far has finished (tests, orderly shutdown).</summary>
+    public Task WhenHaltedRecoveryIdleAsync() => _haltedAutoFix.WhenIdleAsync();
+
+    /// <summary>FR-65.3: applies new per-session `@halted-auto-fix` overrides
+    /// from the next poll, without restarting any session — used after an
+    /// Edit that only changed a directive.</summary>
+    public void UpdateHaltedAutoFixOverrides(IReadOnlyDictionary<string, bool> overrides) => _haltedAutoFix.SetOverrides(overrides);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -124,6 +146,8 @@ public sealed partial class SessionMonitorService : BackgroundService
     {
         try
         {
+            // Taken before the listing runs: the listing cannot be newer than this instant (FR-60.3, FR-61.1).
+            var pollStartedUtc = DateTimeOffset.UtcNow;
             var raw = await _cliClient.GetSyncListRawAsync(cancellationToken);
 
             // log the mutagen sync list output. Uncomment if needed for debugging.
@@ -185,7 +209,10 @@ public sealed partial class SessionMonitorService : BackgroundService
                 parsed.SessionStatuses,
                 conflicts,
                 _profileWatcher.LastSeenMtimeUtc,
-                sessionCodes));
+                sessionCodes,
+                pollStartedUtc));
+
+            _haltedAutoFix.Evaluate(parsed.SessionStatuses, _enabled, pollStartedUtc);
 
             if (_enabled)
                 await RestartUnhealthySessionsAsync(parsed.SessionStatuses, parsed.RawLog, cancellationToken);

@@ -43,7 +43,10 @@ public static partial class SessionDefinitionLoader
         }
 
         var directives = ParseHaltedAutoFixDirectives(allLines, sessions.Keys.ToHashSet(StringComparer.Ordinal), out var warnings);
-        return new SessionDefinitionLoadResult(sessions.Values.ToArray(), duplicates, directives, warnings);
+        var definitions = sessions.Values
+            .Select(s_ => directives.TryGetValue(s_.Name, out var flag) ? s_ with { HaltedAutoFix = flag } : s_)
+            .ToArray();
+        return new SessionDefinitionLoadResult(definitions, duplicates, directives, warnings);
     }
 
     public static SessionDefinitionLoadResult ParseFile(string path) => ParseLines(File.ReadAllLines(path));

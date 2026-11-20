@@ -1,7 +1,9 @@
 namespace MutagenMon.Core.Sessions;
 
-/// <summary>One monitored mutagen session, as declared in the sessions file (FR-1.1).</summary>
-public sealed record SessionDefinition(string Name, string RawCreateCommand);
+/// <summary>One monitored mutagen session, as declared in the sessions file (FR-1.1).
+/// <paramref name="HaltedAutoFix"/> is the session's own `@halted-auto-fix`
+/// override (FR-64), null when it inherits the global flag.</summary>
+public sealed record SessionDefinition(string Name, string RawCreateCommand, bool? HaltedAutoFix = null);
 
 /// <summary>
 /// DuplicateNames lets the caller decide how to surface FR-1.2's warning

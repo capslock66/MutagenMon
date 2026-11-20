@@ -5,9 +5,11 @@ This document specifies how MutagenMon handles a session that Mutagen has
 particular how it resolves the most common case, **"Halted due to
 one-sided root emptying"**, manually or automatically.
 
-**Status: specified, not implemented.** Implementation is tracked by the
-plan `.planning/2026-11-17-auto-resolve-root-emptying-halt/` (phases 3 to
-5). Continues the FR numbering from
+**Status: implemented** (phases 3 and 4 of the plan
+`.planning/2026-11-17-auto-resolve-root-emptying-halt/`: recognition,
+configuration and directive, then the recovery, the manual action, the
+automatic fix and the notifications). The manual tests (UT-57.x, UT-6x.x in
+[UserTests.md](UserTests.md)) are written and still to be run. Continues the FR numbering from
 [11-scripts-tab-requirements.md](11-scripts-tab-requirements.md)'s FR-56,
 as FR-57 through FR-65.
 
@@ -134,10 +136,17 @@ steps, in this order, stopping at the first failure:
 3. **Purge P's content.** Delete everything *inside* P's root, never the
    root itself.
    - SSH (POSIX servers only): `find <root> -mindepth 1 -xdev -delete`,
-     with the path quoted by `ShellQuoting`.
-   - Local folder: delete every child; symbolic links and junctions are
-     removed as links and never traversed.
-   - The step is bounded by a timeout (`ScriptTimeoutSeconds`, FR-51.4).
+     with the path quoted by `ShellQuoting`. ssh is run with a forced
+     terminal (`-tt`), so that killing the local ssh process (timeout,
+     cancellation) hangs the remote `find` up instead of leaving it deleting
+     in the background.
+   - Local folder: delete every child, entry by entry, on a background
+     thread (never the UI thread); symbolic links and junctions are removed
+     as links and never traversed, and a root that is itself a link is
+     resolved first, so the root guard applies to the real folder.
+   - The step is bounded by a timeout (`ScriptTimeoutSeconds`, FR-51.4; a
+     value of 0 or less means no timeout). On timeout or cancellation the
+     deletion stops (ssh process killed, local loop interrupted).
 4. **Reset.** Run `mutagen sync reset <name>` immediately. The purge MUST
    come before the reset, because the reset restarts the synchronisation at
    once. No `resume` is issued, and there is no waiting and no inspection of
@@ -171,7 +180,14 @@ steps, in this order, stopping at the first failure:
   with **Yes** and **No** (**No** changes nothing).
 - FR-60.3: **Yes** runs the recovery of FR-59 immediately. The action does
   not depend on the auto-fix flags, on the cooldown or on the sync mode:
-  it is an explicit user decision.
+  it is an explicit user decision. Because the dialog can stay open for a
+  long time, **Yes** first re-reads the latest poll and refuses (no deletion,
+  a warning dialog gives the reason) when the status is more than 30 seconds
+  old, when its listing began before the end of the last recovery of this
+  session (see FR-61.1), when the session no longer shows a recoverable
+  root-emptying halt, or
+  when the emptied side or the side to purge is no longer the one that was
+  shown: a session that synchronises again would propagate the deletions.
 - FR-60.4: If E is undetermined (FR-58.2) or P is not supported (FR-59.1),
   the dialog MUST NOT be offered; an error dialog states the reason
   instead. A failure during the recovery shows an error dialog with the
@@ -191,12 +207,17 @@ steps, in this order, stopping at the first failure:
      FR-18/FR-19; absent `-m` means `two-way-safe`);
   4. E is determined (FR-58.2) and P is supported (FR-59.1);
   5. the cooldown has elapsed (FR-61.3) and fewer than 3 consecutive
-     attempts failed (FR-61.4).
+     attempts failed (FR-61.4);
+  6. the status listing did not begin before the end of the last recovery of
+     the session, whoever ran it (it could show the very halt that recovery
+     just resolved).
 - FR-61.2: There is no waiting before the run and no home-directory
   restriction: the only refused root is the filesystem root (FR-59, step 2).
 - FR-61.3: **Cooldown.** Key `HaltedOneSidedRootEmptyingCooldownSeconds`
   (default `60`): minimum delay between the starts of two automatic runs on
-  the same session.
+  the same session. It also holds across halt episodes: a session that halts
+  again right after a fix waits for the cooldown before the next run, so a
+  purge + reset loop cannot start.
 - FR-61.4: **Failures.** An automatic run *fails* if a step errors out or if
   the halt is still (or again) reported once the cooldown has elapsed, with
   no poll free of `Halted` in between. After **3 consecutive failures** no
@@ -244,10 +265,10 @@ Three keys are added to
   startup continues: the in-memory default applies, with the same value.
 - FR-63.2: In the "Mutagen monitor Configuration" tab
   ([09-mutagen-monitor-config-editor-requirements.md](09-mutagen-monitor-config-editor-requirements.md)):
-  - `HaltedOneSidedRootEmptying` is a text box in the **Paths** section;
-  - a new **Halted sessions** section holds `HaltedOneSidedRootEmptyingAutoFix`
-    (checkbox) and `HaltedOneSidedRootEmptyingCooldownSeconds` (numeric
-    text box);
+  - a new **Halted sessions** section holds the three keys:
+    `HaltedOneSidedRootEmptying` (text box, first), then
+    `HaltedOneSidedRootEmptyingAutoFix` (checkbox) and
+    `HaltedOneSidedRootEmptyingCooldownSeconds` (numeric text box);
   - each field has a tooltip from the table of 06; "Check" (FR-36.1) also
     requires the cooldown to be a whole number greater than or equal to 0
     and the status text not to be empty (an empty text would match the
