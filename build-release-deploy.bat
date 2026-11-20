@@ -1,13 +1,24 @@
 @echo off
+setlocal
+rem Builds MutagenMon in Release mode, copies it to the prod-build share, then restarts the local copy
+rem in c:\tools\Mutagen-Mon.
+rem Only the files of the output folder and its Assets folder are copied: the config and mutagen
+rem folders hold each developer's own settings and must not be overwritten.
+rem No label / goto on purpose: git stores .bat files with LF endings (.gitattributes), and cmd.exe
+rem can fail to find a label in a script with LF-only line endings.
 
 cd /d "%~dp0"
+
+set "MM_SRC=c:\sources\mutagenMon\MutagenMon.App\bin\Release\net10.0-windows"
+set "MM_PROD=\\prod-build\DATA\install\Mutagen-mon"
+set "MM_DST=c:\tools\Mutagen-Mon"
 
 echo build in release mode
 echo ---------------------
 dotnet build MutagenMon.App\MutagenMon.App.csproj -c Release
 if errorlevel 1 (
     echo.
-    echo BUILD FAILED
+    echo ERROR: BUILD FAILED
     pause
     exit /b 1
 )
@@ -15,7 +26,20 @@ if errorlevel 1 (
 
 echo Copy to prod-build
 echo ---------------------
-copy c:\sources\mutagenMon\MutagenMon.App\bin\Release\net10.0-windows\*.* \\prod-build\DATA\install\Mutagen-mon
+copy /Y "%MM_SRC%\*.*" "%MM_PROD%\"
+if errorlevel 1 (
+    echo.
+    echo ERROR: COPY OF THE FILES TO %MM_PROD% FAILED
+    pause
+    exit /b 1
+)
+xcopy "%MM_SRC%\Assets" "%MM_PROD%\Assets" /E /I /Y /Q
+if errorlevel 1 (
+    echo.
+    echo ERROR: COPY OF THE ASSETS TO %MM_PROD%\Assets FAILED
+    pause
+    exit /b 1
+)
 
 
 echo kill MutagenMon.exe
@@ -24,14 +48,27 @@ taskkill /IM MutagenMon.exe /F >nul 2>&1
 timeout /t 3
 
 
-echo copy to c:\tools\Mutagen-Mon
+echo copy to %MM_DST%
 echo ---------------------
-copy c:\sources\mutagenMon\MutagenMon.App\bin\Release\net10.0-windows\*.* c:\tools\Mutagen-Mon\
+copy /Y "%MM_SRC%\*.*" "%MM_DST%\"
+if errorlevel 1 (
+    echo.
+    echo ERROR: COPY OF THE FILES TO %MM_DST% FAILED. MutagenMon was stopped and not restarted.
+    pause
+    exit /b 1
+)
+xcopy "%MM_SRC%\Assets" "%MM_DST%\Assets" /E /I /Y /Q
+if errorlevel 1 (
+    echo.
+    echo ERROR: COPY OF THE ASSETS TO %MM_DST%\Assets FAILED. MutagenMon was stopped and not restarted.
+    pause
+    exit /b 1
+)
 
 
-echo restart c:\tools\Mutagen-Mon\MutagenMon.exe
+echo restart %MM_DST%\MutagenMon.exe
 echo ---------------------
-start "" "c:\tools\Mutagen-Mon\MutagenMon.exe"
+start "" "%MM_DST%\MutagenMon.exe"
 
 
 echo press any to quit
