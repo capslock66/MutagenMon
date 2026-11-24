@@ -2336,6 +2336,91 @@ sync; the exact wording is not known in advance).
 * Point it to a missing file and click the link: a message states the file
   does not exist; nothing else happens.
 
+## FR-66 — Update detection
+
+Specified in [13-update-detection-requirements.md](13-update-detection-requirements.md).
+
+Prerequisites: an installation of MutagenMon (e.g. `C:\tools\Mutagen-Mon`) and
+a deploy folder holding a copy of the same build (e.g. `C:\MutagenMonTest\deploy`,
+made with `xcopy /E` of the installation, without its `config` and `mutagen`
+folders). To simulate a newer build without rebuilding, set the modification
+time of `deploy\MutagenMon.exe` in the future (PowerShell:
+`(Get-Item deploy\MutagenMon.exe).LastWriteTime = Get-Date`, run after the
+installation's own exe is older) — or simply run `build-release-deploy.bat`.
+The check runs at startup and every 2 hours, so the tests below restart
+MutagenMon, or use "Reload config & restart", to trigger it at once.
+
+**UT-66.1 — The key is added to the config file (FR-66.1)** 📋
+
+* Close MutagenMon, remove the `DeployPath` and `NotifyUpdateAvailable` lines
+  from `config\config_mutagenmon.json`, and start MutagenMon.
+* Reopen the file: `"DeployPath": ""` and `"NotifyUpdateAvailable": true` are
+  back, and the `#` comment lines and the other keys are unchanged.
+* Start MutagenMon again: the file is not rewritten (same content).
+
+**UT-66.2 — Editor fields (FR-35.6, FR-66.1)** 📋
+
+* Open the "Mutagen monitor Configuration" tab. The Paths tab has a "Deploy
+  path" box with a "..." folder browser; the Logging & notifications tab has
+  "Notify on update available" (checked by default).
+* Enter the deploy folder with the browser, Save, then "Reload config &
+  restart": the file holds the path (backslashes escaped) and the box shows it
+  after the reload.
+* Empty the box and Save: accepted (Check reports no error).
+
+**UT-66.3 — No update, no button (FR-66.2, FR-66.3, FR-66.4)** 📋
+
+* With `DeployPath` empty: no button, no dialog, nothing in the log about updates.
+* With `DeployPath` pointing to a folder whose `MutagenMon.exe` is the same age
+  as the running one, to a missing folder, to an unreachable share, or to a
+  folder without `MutagenMon.exe`: the status window toolbar shows no "Update
+  available" button and no dialog appears.
+
+**UT-66.4 — The button and the notification (FR-66.2, FR-66.5, FR-66.6)** 📋
+
+* Make `deploy\MutagenMon.exe` newer than the installed one, set `DeployPath`,
+  then "Reload config & restart".
+* A notification "Update available" appears. Open the status window: an
+  "Update available" button is the last button of the bottom toolbar, right of
+  "Exit mutagen monitor".
+* Reload again: the button is still there and no second notification appears.
+* Set `NotifyUpdateAvailable` to false, make the deployed exe newer again and
+  reload: the button shows but there is no notification.
+* Make the deployed exe older than the installed one and reload: the button
+  disappears.
+* During a reload, the button is disabled like the other toolbar buttons.
+
+**UT-66.5 — Cancel (FR-66.7)** 📋
+
+* With the button shown, click it: a dialog gives the deployed and running
+  timestamps and says MutagenMon will close and restart.
+* Click "Cancel": MutagenMon keeps running, nothing is copied, the button stays.
+
+**UT-66.6 — The update replaces the files while running (FR-66.7)** 📋
+
+* Put a visible change in the deploy folder (e.g. build a version with a
+  different tooltip, or just add a `marker.txt` next to the exe and touch the
+  exe). Keep a mutagen session running.
+* Click "Update available" then "Update". MutagenMon closes, and within a few
+  seconds starts again. `marker.txt` is now in the installation folder, the
+  installed `MutagenMon.exe` has the deployed modification time, the button is
+  gone, and the `config` and `mutagen` folders of the installation are unchanged.
+* `%TEMP%\MutagenMon-update.log` reports the copy, and the script
+  `%TEMP%\MutagenMon-update-<pid>.cmd` is gone.
+* The mutagen sessions kept synchronizing during the update.
+
+**UT-66.7 — Unsaved script edits (FR-66.7 step 1)** 📋
+
+* In the Scripts tab, edit a script without saving, then click "Update
+  available" and "Update". The edit is saved before MutagenMon closes and is
+  present after the restart.
+
+**UT-66.8 — Copy failure keeps the installed version (FR-66.7 step 2)** 📋
+
+* Make the deploy folder read-protected after the button appeared (or rename
+  it), then update. MutagenMon restarts on the installed version, and the log
+  states the copy failed.
+
 ## Appendix — known, accepted gaps (do not report as bugs)
 
 These are documented, intentional limitations of the current phase, not

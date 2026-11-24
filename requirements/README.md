@@ -52,7 +52,13 @@ This folder documents the required behavior of MutagenMon.
    configuration keys and the per-session `@halted-auto-fix` directive in
    `mutagen-create.bat`. Implemented (FR-57 through FR-65); its manual
    tests are written and still to be run.
-11. [UserTests.md](UserTests.md) — manual, click-by-click acceptance test
+11. [13-update-detection-requirements.md](13-update-detection-requirements.md) —
+   requirements for detecting a newer deployed build (check every 2 hours
+   against a configured deploy path), the "Update available" toolbar button
+   and the in-place update through a helper script that copies the files
+   once the application has exited. Implemented (FR-66); its manual tests
+   are written and still to be run.
+12. [UserTests.md](UserTests.md) — manual, click-by-click acceptance test
    script for verifying each requirement against the running application,
    kept in step with implementation progress.
 

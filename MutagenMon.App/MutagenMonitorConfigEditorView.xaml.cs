@@ -188,10 +188,12 @@ public partial class MutagenMonitorConfigEditorView : UserControl
         NotifyAutoresolveCheck.IsChecked = options.NotifyAutoresolve;
         NotifyMutagenProfileUpdateCheck.IsChecked = options.NotifyMutagenProfileUpdate;
         ShowGenerateExceptionCheck.IsChecked = options.ShowGenerateException;
+        NotifyUpdateAvailableCheck.IsChecked = options.NotifyUpdateAvailable;
 
         MutagenPathBox.Text = options.MutagenPath;
         MutagenSessionsBatFileBox.Text = options.MutagenSessionsBatFile;
         ScriptsFileBox.Text = options.ScriptsFile;
+        DeployPathBox.Text = options.DeployPath;
         MutagenProfileDirBox.Text = options.MutagenProfileDir;
         MergePathBox.Text = options.MergePath;
         ScpPathBox.Text = options.ScpPath;
@@ -338,9 +340,11 @@ public partial class MutagenMonitorConfigEditorView : UserControl
             NotifyAutoresolve = NotifyAutoresolveCheck.IsChecked == true,
             NotifyMutagenProfileUpdate = NotifyMutagenProfileUpdateCheck.IsChecked == true,
             ShowGenerateException = ShowGenerateExceptionCheck.IsChecked == true,
+            NotifyUpdateAvailable = NotifyUpdateAvailableCheck.IsChecked == true,
             MutagenPath = MutagenPathBox.Text,
             MutagenSessionsBatFile = MutagenSessionsBatFileBox.Text,
             ScriptsFile = ScriptsFileBox.Text,
+            DeployPath = DeployPathBox.Text.Trim(),
             MutagenProfileDir = MutagenProfileDirBox.Text,
             MergePath = MergePathBox.Text,
             ScpPath = ScpPathBox.Text,

@@ -51,6 +51,8 @@ stated otherwise, and all "period"/"age" values are in the unit given.
 | `HaltedOneSidedRootEmptying` | string | `"Halted due to one-sided root emptying"` | — | Text identifying the Mutagen root-emptying halt: compared case-insensitively against the start of a session's status. Only this halt is resolved (manually or automatically); other `Halted…` statuses are only displayed and notified. Shown in the monitor configuration editor, section Halted sessions. Added to the file at startup when absent. | FR-57.5, FR-63 |
 | `HaltedOneSidedRootEmptyingAutoFix` | boolean | `false` | — | Global default for the automatic resolution of a root-emptying halt (purge of the non-emptied side, then `mutagen sync reset`). A per-session `@halted-auto-fix` directive in `mutagen-create.bat` overrides it. Added to the file at startup when absent. | FR-61, FR-63, FR-64 |
 | `HaltedOneSidedRootEmptyingCooldownSeconds` | integer | `60` | seconds | Minimum delay between the starts of two automatic resolutions on the same session. Added to the file at startup when absent. | FR-61.3, FR-63 |
+| `DeployPath` | string (path) | `""` | — | Folder holding the deployed MutagenMon build. Checked at startup, after a reload and every 2 hours for a `MutagenMon.exe` newer than the running one; empty disables update detection. Added to the file at startup when absent. | FR-66.1, FR-66.2 |
+| `NotifyUpdateAvailable` | boolean | `true` | — | Enables the notification raised the first time a given newer build is detected. Added to the file at startup when absent. | FR-66.5 |
 
 ## Notes for the rewrite
 

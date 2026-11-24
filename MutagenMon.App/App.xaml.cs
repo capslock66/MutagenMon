@@ -18,6 +18,7 @@ using MutagenMon.Core.Resolution;
 using MutagenMon.Core.Scripts;
 using MutagenMon.Core.Sessions;
 using MutagenMon.Core.Status;
+using MutagenMon.Core.Updates;
 
 namespace MutagenMon.App;
 
@@ -84,6 +85,15 @@ public partial class App //: Application
     private bool _startupIconCreateFailed;
     private NotificationQueue? _notificationQueue;
 
+    /// <summary>FR-66.2: how often the deploy folder is checked for a newer build.</summary>
+    private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromHours(2);
+    private DispatcherTimer? _updateTimer;
+    private UpdateCheckResult _updateResult = UpdateCheckResult.None;
+    private DateTime? _lastNotifiedUpdateUtc;
+    private bool _updateCheckRunning;
+    private bool _updateCheckPending;
+    private string? _lastUpdateFailureReason;
+
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -148,6 +158,7 @@ public partial class App //: Application
             var options = LoadConfig(configPath);
             _options = options;
             EnsureHaltedConfigKeys(configPath);
+            EnsureUpdateConfigKeys(configPath);
             _loggerProvider.SetPrimaryLogPath(ResolveLogFilePath(baseDir, options.LogPath));
             _loggerProvider.SetMinLevel(options.MinLogLevel);
             _logger.LogInformation(
@@ -261,6 +272,8 @@ public partial class App //: Application
             startupStopwatch.Restart();
             _trayIconController = BuildAndStartTrayIconController(options, _sessionNames);
             _logger.LogInformation("MutagenMon startup complete — tray icon is live (controller started in {ElapsedMs} ms)", startupStopwatch.ElapsedMilliseconds);
+
+            StartUpdateDetection();
 
             // FR-15.3: off-by-default opt-out of "no window shown at startup".
             if (options.ShowMainScreenAtStartup)
@@ -418,6 +431,8 @@ public partial class App //: Application
         // FR-56.2: the scripts file path may have changed with the new options.
         _statusWindow?.RefreshSessionScripts();
         _statusWindow?.RefreshSessionsFileLink();
+        // FR-66.2: the deploy path may have changed with the new options.
+        _ = CheckForUpdateAsync();
         _statusWindow?.SetHaltedRootEmptyingText(newOptions.HaltedOneSidedRootEmptying);
 
         _logger?.LogInformation("Reload complete — monitoring resumed with the new configuration");
@@ -515,6 +530,7 @@ public partial class App //: Application
             _statusWindow.ReloadConfigRequested += OnStatusWindowReloadConfigRequested;
             _statusWindow.ToggleMonitoringRequested += OnStatusWindowToggleMonitoringRequested;
             _statusWindow.ExitRequested += OnStatusWindowExitRequested;
+            _statusWindow.UpdateRequested += OnStatusWindowUpdateRequested;
             _statusWindow.AddSessionRequested += OnAddSessionRequested;
             _statusWindow.DuplicateSessionRequested += OnDuplicateSessionRequested;
             _statusWindow.ViewSyncStatusRequested += OnViewSyncStatusRequested;
@@ -530,6 +546,7 @@ public partial class App //: Application
         }
         if (_stateStore is not null)
             _statusWindow.UpdateContent(_stateStore.Get(), _sessionNames, _trayIconController?.IsReloadInProgress ?? false);
+        _statusWindow.SetUpdateAvailable(_updateResult.IsAvailable);
         _statusWindow.Show();
         _statusWindow.Activate();
     }
@@ -800,6 +817,182 @@ public partial class App //: Application
             RefreshHaltedAutoFixDirectives();
         else
             ReloadConfig();
+    }
+
+    /// <summary>FR-66.1: adds the missing update-detection keys to the config
+    /// file; the in-memory options already hold the same defaults. A file that
+    /// cannot be written only costs a warning.</summary>
+    private void EnsureUpdateConfigKeys(string configPath)
+    {
+        try
+        {
+            var added = ConfigLoader.EnsureUpdateKeys(configPath);
+            if (added.Count > 0)
+                _logger?.LogInformation("Added the missing update-detection key(s) to {ConfigPath}: {Keys}", configPath, string.Join(", ", added));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            _logger?.LogWarning(ex, "Could not add the missing update-detection key(s) to {ConfigPath}; the built-in defaults apply", configPath);
+        }
+    }
+
+    /// <summary>FR-66.2: checks once now, then every <see cref="UpdateCheckInterval"/>.</summary>
+    private void StartUpdateDetection()
+    {
+        _updateTimer = new DispatcherTimer { Interval = UpdateCheckInterval };
+        _updateTimer.Tick += async (_, _) => await CheckForUpdateAsync();
+        _updateTimer.Start();
+        _ = CheckForUpdateAsync();
+    }
+
+    /// <summary>FR-66.2/FR-66.3: compares the deployed executable with the running one off the UI thread (the
+    /// deploy folder may be a slow network share), then shows or hides the toolbar button. Never raises: an
+    /// unreachable folder only means "no update known".</summary>
+    private async Task CheckForUpdateAsync()
+    {
+        var options = _options;
+        if (options is null)
+            return;
+
+        // A check already running (slow share) may be for an older DeployPath: run another one right after it.
+        if (_updateCheckRunning)
+        {
+            _updateCheckPending = true;
+            return;
+        }
+
+        _updateCheckRunning = true;
+        try
+        {
+            var deployPath = options.DeployPath;
+            var runningExe = Environment.ProcessPath;
+            var result = await Task.Run(() => UpdateChecker.Check(deployPath, runningExe, AppContext.BaseDirectory));
+            // A reload that changed the options while this check ran makes the result obsolete: the re-run replaces it.
+            if (!ReferenceEquals(options, _options))
+                return;
+
+            _updateResult = result;
+            _statusWindow?.SetUpdateAvailable(result.IsAvailable);
+            LogUpdateCheckFailure(result.FailureReason);
+            if (!result.IsAvailable)
+                return;
+
+            _logger?.LogInformation(
+                "Update available: {DeployedExe} ({DeployedUtc:u}) is newer than the running executable ({CurrentUtc:u})",
+                result.DeployedExePath, result.DeployedWriteTimeUtc, result.CurrentWriteTimeUtc);
+
+            // FR-66.5: one notification per deployed build, not one per check.
+            if (options.NotifyUpdateAvailable && _lastNotifiedUpdateUtc != result.DeployedWriteTimeUtc)
+            {
+                _lastNotifiedUpdateUtc = result.DeployedWriteTimeUtc;
+                _notificationQueue?.Enqueue(new NotificationMessage("Update available", "A newer MutagenMon is available. Open the status window to update."));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "The update check failed");
+        }
+        finally
+        {
+            _updateCheckRunning = false;
+            if (_updateCheckPending)
+            {
+                _updateCheckPending = false;
+                _ = CheckForUpdateAsync();
+            }
+        }
+    }
+
+    /// <summary>FR-66.3: logs why a check could not compare the builds, once per distinct reason so that the 2-hour
+    /// checks do not repeat the same line.</summary>
+    private void LogUpdateCheckFailure(string? reason)
+    {
+        if (reason == _lastUpdateFailureReason)
+            return;
+
+        _lastUpdateFailureReason = reason;
+        if (reason is not null)
+            _logger?.LogWarning("Update check: no comparison possible, {Reason}", reason);
+    }
+
+    private async void OnStatusWindowUpdateRequested(object? sender, EventArgs e) => await UpdateAsync();
+
+    /// <summary>FR-66.6/FR-66.7: confirms, writes the helper script that waits for this process to exit, copies the
+    /// deployed files over the installation and starts MutagenMon again, launches it, then shuts down like Exit.</summary>
+    private async Task UpdateAsync()
+    {
+        var update = _updateResult;
+        var owner = _statusWindow;
+        if (!update.IsAvailable || update.DeployedExePath is null || owner is null || _options is null)
+            return;
+
+        var confirmed = GenericMessageDialog.ShowConfirm(
+            owner,
+            _logger!,
+            "MutagenMon — confirm update",
+            $"A newer version of MutagenMon is available:\n\nDeployed: {update.DeployedWriteTimeUtc?.ToLocalTime():g}\nRunning:  {update.CurrentWriteTimeUtc?.ToLocalTime():g}\n\n" +
+            "MutagenMon will close, update its files and restart.\nBackground synchronization will continue.",
+            okLabel: "Update",
+            cancelLabel: "Cancel");
+        if (!confirmed)
+        {
+            _logger?.LogInformation("User action: update cancelled at confirmation");
+            return;
+        }
+
+        // Same rule as the exit (FR-47.5): the edits of the scripts are kept when they cannot be saved.
+        if (!owner.TrySaveScripts())
+        {
+            _logger?.LogWarning("Update cancelled: the scripts with unsaved changes could not be saved");
+            return;
+        }
+
+        try
+        {
+            StartUpdateScript(Path.GetDirectoryName(update.DeployedExePath)!);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException
+                                       or System.ComponentModel.Win32Exception or ArgumentException)
+        {
+            _logger?.LogError(ex, "The update script could not be started");
+            DeleteUpdateScript();
+            GenericMessageDialog.ShowInfo(owner, _logger!, "MutagenMon — update failed", $"The update could not be started:\n{ex.Message}");
+            return;
+        }
+
+        _logger?.LogInformation("Update script started; shutting down so that it can replace the files");
+        await ShutdownAsync();
+    }
+
+    private static string UpdateScriptPath => Path.Combine(Path.GetTempPath(), $"MutagenMon-update-{Environment.ProcessId}.cmd");
+
+    private static void DeleteUpdateScript()
+    {
+        try
+        {
+            File.Delete(UpdateScriptPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Best effort: a leftover script in the temp folder is harmless.
+        }
+    }
+
+    private void StartUpdateScript(string deployDir)
+    {
+        var exePath = Environment.ProcessPath ?? throw new InvalidOperationException("The path of the running executable is unknown.");
+        var installDir = AppContext.BaseDirectory;
+        var tempDir = Path.GetTempPath();
+        var scriptPath = UpdateScriptPath;
+        var logPath = Path.Combine(tempDir, "MutagenMon-update.log");
+
+        File.WriteAllText(scriptPath, UpdateScriptBuilder.Build(Environment.ProcessId, deployDir, installDir, exePath, logPath));
+        Process.Start(new ProcessStartInfo("cmd.exe", $"/d /s /c \"\"{scriptPath}\"\"")
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            WindowStyle = ProcessWindowStyle.Hidden,
+        });
     }
 
     /// <summary>FR-63.1: adds the missing halted-session keys to the config
@@ -1099,6 +1292,14 @@ public partial class App //: Application
         }
 
         _logger?.LogInformation("User action: exit requested; shutting down");
+        await ShutdownAsync();
+    }
+
+    /// <summary>Hides the UI, stops the monitor host and ends the process — the part of the exit that follows
+    /// the confirmation, shared with the update (FR-66.7).</summary>
+    private async Task ShutdownAsync()
+    {
+        _updateTimer?.Stop();
         _statusWindow?.Hide();
         _trayIconController?.Stop();
         if (_host is not null)

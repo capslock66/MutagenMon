@@ -147,6 +147,16 @@ public sealed class MutagenMonOptions
     /// <summary>FR-61.3/FR-63: minimum delay between two automatic
     /// resolutions on the same session (in seconds).</summary>
     public int HaltedOneSidedRootEmptyingCooldownSeconds { get; set; } = 60;
+
+    /// <summary>FR-66.1: folder holding the deployed MutagenMon build,
+    /// checked every 2 hours for a newer <c>MutagenMon.exe</c>. Empty (the
+    /// default) disables update detection. Added to the config file at
+    /// startup when absent (<see cref="ConfigLoader.EnsureUpdateKeys"/>).</summary>
+    public string DeployPath { get; set; } = "";
+
+    /// <summary>FR-66.5: enables the desktop notification raised the first
+    /// time a given newer build is detected in <see cref="DeployPath"/>.</summary>
+    public bool NotifyUpdateAvailable { get; set; } = true;
 }
 
 public sealed class StatusMaxLagOptions

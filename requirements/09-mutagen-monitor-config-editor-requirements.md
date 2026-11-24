@@ -69,6 +69,12 @@ FR-16 revision note for the shared bottom toolbar this tab's "Reload config
   `HaltedOneSidedRootEmptyingAutoFix` and
   `HaltedOneSidedRootEmptyingCooldownSeconds` all sit in a new **Halted
   sessions** section. The cooldown joins the numeric fields checked by FR-36.1.
+- FR-35.6: The keys added by
+  [13-update-detection-requirements.md](13-update-detection-requirements.md)
+  FR-66 follow the same rule: `DeployPath` is a text box with a folder
+  browser in the **Paths** tab (trimmed on Save; empty is valid and disables
+  update detection) and `NotifyUpdateAvailable` is a check box in the
+  **Logging & notifications** tab.
 
 ## FR-36 — Validation ("Check")
 

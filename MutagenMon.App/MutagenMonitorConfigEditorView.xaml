@@ -156,6 +156,15 @@
                                 <ColumnDefinition Width="220" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Notify on update available"
+                                   ToolTip="Shows a notification the first time a newer MutagenMon build is found in the deploy path." />
+                            <CheckBox x:Name="NotifyUpdateAvailableCheck" Grid.Column="1" VerticalAlignment="Center" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
                             <Label Grid.Column="0" Content="Show 'Generate exception' button"
                                    ToolTip="Shows a 'Generate exception' button in the Logs tab's toolbar, which throws a deliberate unhandled exception to test error handling." />
                             <CheckBox x:Name="ShowGenerateExceptionCheck" Grid.Column="1" VerticalAlignment="Center" />
@@ -214,6 +223,18 @@
                             <TextBox x:Name="MutagenProfileDirBox" Grid.Column="1" />
                             <Button Grid.Column="2" Content="..." Margin="4,0,0,0" Padding="8,0" ToolTip="Browse for a folder"
                                     Tag="{Binding ElementName=MutagenProfileDirBox}" Click="OnBrowseFolderClick" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Deploy path"
+                                   ToolTip="Folder holding the deployed MutagenMon build, checked every 2 hours for a newer MutagenMon.exe. Leave empty to disable update detection." />
+                            <TextBox x:Name="DeployPathBox" Grid.Column="1" />
+                            <Button Grid.Column="2" Content="..." Margin="4,0,0,0" Padding="8,0" ToolTip="Browse for a folder"
+                                    Tag="{Binding ElementName=DeployPathBox}" Click="OnBrowseFolderClick" />
                         </Grid>
                         <Grid Style="{StaticResource FieldRow}">
                             <Grid.ColumnDefinitions>

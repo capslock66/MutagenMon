@@ -206,7 +206,7 @@
         </TabControl>
 
         <!-- Toolbar shared by every tab, below the TabControl: Reload
-             config & restart, left of Exit mutagen monitor. -->
+             config & restart, left of Exit mutagen monitor; Update available (FR-66.6) at the far right. -->
         <Grid Grid.Row="1" Margin="0,12,0,0">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                 <Button x:Name="ReloadConfigButton"
@@ -217,6 +217,14 @@
                     </StackPanel>
                 </Button>
                 <Button x:Name="ExitButton" Content="Exit mutagen monitor" Width="130" Margin="8,0,0,0" Click="OnExitClick" />
+                <!-- FR-66.6: shown only while a newer MutagenMon.exe is in the deploy folder. -->
+                <Button x:Name="UpdateButton" Margin="8,0,0,0" Padding="8,4" Visibility="Collapsed"
+                        Click="OnUpdateClick" ToolTip="A newer version of MutagenMon is available in the deploy folder">
+                    <StackPanel Orientation="Horizontal">
+                        <iconPacks:PackIconMaterial Kind="Update" Width="16" Height="16" VerticalAlignment="Center" />
+                        <TextBlock Text="Update available" Margin="6,0,0,0" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </Grid>
     </Grid>

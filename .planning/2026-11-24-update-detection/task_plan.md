@@ -4,10 +4,10 @@
 MutagenMon checks every 2 hours whether `MutagenMon.exe` in a configured deploy folder is newer than the running one, shows an "Update" button in the status window toolbar (right of "Exit mutagen monitor"), and on confirmation replaces itself while running and restarts.
 
 ## Next Step
-Phase 2 (requirements documents) once the user asks to start it.
+Phase 5: manual tests UT-66.x on Windows, then commit on request.
 
 ## Current Phase
-Phase 1
+Phase 5
 
 ## Phases
 
@@ -18,31 +18,31 @@ Phase 1
 - **Status:** in_progress
 
 ### Phase 2: Requirements documents
-- [ ] New `requirements/13-update-detection-requirements.md` (FR-66.x), indexed in `requirements/README.md`
-- [ ] `requirements/06-configuration-reference.md`: add `DeployPath` row
-- [ ] `requirements/09-mutagen-monitor-config-editor-requirements.md`: add field to editor
-- [ ] `requirements/UserTests.md`: UT-66.x (per project rule: every implementation updates UserTests)
-- **Status:** pending
+- [x] New `requirements/13-update-detection-requirements.md` (FR-66.x), indexed in `requirements/README.md`
+- [x] `requirements/06-configuration-reference.md`: add `DeployPath` row
+- [x] `requirements/09-mutagen-monitor-config-editor-requirements.md`: add field to editor
+- [x] `requirements/UserTests.md`: UT-66.x (per project rule: every implementation updates UserTests)
+- **Status:** complete
 
 ### Phase 3: Core (MutagenMon.Core)
-- [ ] `MutagenMonOptions.DeployPath` (default `""`) and `NotifyUpdateAvailable` (default true); both added at startup when absent
-- [ ] `ConfigLoader`: add `DeployPath` at startup when absent (extend the `EnsureHaltedKeys` mechanism or a generic `EnsureMissingKeys`)
-- [ ] `UpdateChecker`: compare deployed exe vs running exe (last-write time, fallback file version); unit tests
-- **Status:** pending
+- [x] `MutagenMonOptions.DeployPath` (default `""`) and `NotifyUpdateAvailable` (default true); both added at startup when absent
+- [x] `ConfigLoader`: add `DeployPath` at startup when absent (extend the `EnsureHaltedKeys` mechanism or a generic `EnsureMissingKeys`)
+- [x] `UpdateChecker`: compare deployed exe vs running exe (last-write time, fallback file version); unit tests
+- **Status:** complete
 
 ### Phase 4: App (MutagenMon.App)
-- [ ] 2 h `DispatcherTimer` (+ one check at startup) in `App.xaml.cs`; skip when `DeployPath` empty or folder unreachable (log only, no popup)
-- [ ] `UpdateButton` in `StatusWindow.xaml` right of `ExitButton`, hidden unless an update is available
-- [ ] Confirmation dialog (existing `GenericMessageDialog`)
-- [ ] Config editor field "Deploy path" in `MutagenMonitorConfigEditorView`
-- [ ] Update mechanism (see findings.md): helper that waits for exit, copies, restarts
-- **Status:** pending
+- [x] 2 h `DispatcherTimer` (+ one check at startup) in `App.xaml.cs`; skip when `DeployPath` empty or folder unreachable (log only, no popup)
+- [x] `UpdateButton` in `StatusWindow.xaml` right of `ExitButton`, hidden unless an update is available
+- [x] Confirmation dialog (existing `GenericMessageDialog`)
+- [x] Config editor field "Deploy path" in `MutagenMonitorConfigEditorView`
+- [x] Update mechanism (see findings.md): helper that waits for exit, copies, restarts
+- **Status:** complete
 
 ### Phase 5: Verification
-- [ ] Build per project (`dotnet build -m:1` on each .csproj) and run Core tests
-- [ ] Review loop with `eortc-dotnet-code-reviewer`
+- [x] Build per project (`dotnet build -m:1` on each .csproj) and run Core tests
+- [x] Review loop with `eortc-dotnet-code-reviewer`
 - [ ] Manual tests UT-66.x on Windows
-- **Status:** pending
+- **Status:** in_progress
 
 ## Decisions Made
 | Decision | Rationale |

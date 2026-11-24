@@ -47,6 +47,10 @@ public partial class StatusWindow : Window
     /// which owns the host lifetime.</summary>
     public event EventHandler? ExitRequested;
 
+    /// <summary>Raised when the user clicks "Update available" (FR-66.6) —
+    /// handled by App.xaml.cs, which confirms and runs the update.</summary>
+    public event EventHandler? UpdateRequested;
+
     /// <summary>Raised once the user has stopped resizing the window, with
     /// its new size — handled by App.xaml.cs, which saves it to the
     /// configuration file.</summary>
@@ -327,6 +331,7 @@ public partial class StatusWindow : Window
         ReloadConfigButton.IsEnabled = !reloadInProgress;
         ToggleMonitoringButton.IsEnabled = !reloadInProgress;
         ExitButton.IsEnabled = !reloadInProgress;
+        UpdateButton.IsEnabled = !reloadInProgress;
     }
 
     /// <summary>Updates <paramref name="target"/> to match
@@ -496,6 +501,16 @@ public partial class StatusWindow : Window
 
         Activate();
         return ScriptsViewControl.TrySaveAll();
+    }
+
+    /// <summary>FR-66.6: shows or hides the "Update available" toolbar button.</summary>
+    public void SetUpdateAvailable(bool available) =>
+        UpdateButton.Visibility = available ? Visibility.Visible : Visibility.Collapsed;
+
+    private void OnUpdateClick(object sender, RoutedEventArgs e)
+    {
+        _logger.LogInformation("User action: status window Update available clicked");
+        UpdateRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnExitClick(object sender, RoutedEventArgs e)

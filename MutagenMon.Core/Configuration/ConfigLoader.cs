@@ -115,10 +115,39 @@ public static class ConfigLoader
             (nameof(MutagenMonOptions.HaltedOneSidedRootEmptyingCooldownSeconds),
                 defaults.HaltedOneSidedRootEmptyingCooldownSeconds.ToString(CultureInfo.InvariantCulture)),
         ];
+        return ApplyMissingKeys(text, keys, out addedKeys);
+    }
 
+    /// <summary>FR-66.1: adds to the file, with their default value, the
+    /// update-detection keys (<c>DeployPath</c>, <c>NotifyUpdateAvailable</c>)
+    /// that are absent from it, and returns the names of the keys it added
+    /// (empty when the file already had them all, in which case it is not
+    /// rewritten). Same text-editing approach as
+    /// <see cref="EnsureHaltedKeys"/>.</summary>
+    public static IReadOnlyList<string> EnsureUpdateKeys(string path)
+    {
+        var updated = ApplyMissingUpdateKeys(File.ReadAllText(path), out var added);
+        if (added.Count > 0)
+            File.WriteAllText(path, updated);
+        return added;
+    }
+
+    internal static string ApplyMissingUpdateKeys(string text, out IReadOnlyList<string> addedKeys)
+    {
+        var defaults = new MutagenMonOptions();
+        (string Key, string JsonValue)[] keys =
+        [
+            (nameof(MutagenMonOptions.DeployPath), JsonSerializer.Serialize(defaults.DeployPath)),
+            (nameof(MutagenMonOptions.NotifyUpdateAvailable), defaults.NotifyUpdateAvailable ? "true" : "false"),
+        ];
+        return ApplyMissingKeys(text, keys, out addedKeys);
+    }
+
+    private static string ApplyMissingKeys(string text, (string Key, string JsonValue)[] keys, out IReadOnlyList<string> addedKeys)
+    {
         var added = new List<string>();
         // Each insertion goes right after the opening brace, which reverses the order of the added keys: walking the
-        // list backwards leaves them in the order declared above.
+        // list backwards leaves them in the order declared by the caller.
         for (var i = keys.Length - 1; i >= 0; i--)
         {
             if (KeyExists(text, keys[i].Key))
