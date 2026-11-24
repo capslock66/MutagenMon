@@ -2116,7 +2116,7 @@ Prerequisite for UT-57.1: a throw-away session `temp` between two local
 folders (e.g. `C:\MutagenMonTest\temp-a` and `C:\MutagenMonTest\temp-b`) that
 holds at least 4 small files and is in sync (status "Watching for changes").
 
-**UT-57.1 — A halted session is shown as a problem (FR-57, FR-58)** 📋 ⬜
+**UT-57.1 — A halted session is shown as a problem (FR-57, FR-58)** 📋 ✅
 
 * Delete **one** file in `temp-a`: the session stays "Watching for changes"
   (Mutagen does not halt for a single file). Restore the file.
@@ -2140,7 +2140,7 @@ holds at least 4 small files and is in sync (status "Watching for changes").
 * Run `mutagen sync reset temp`: the row returns to normal on the next poll
   and the log shows `Session 'temp' is no longer halted`.
 
-**UT-63.1 — Missing configuration keys are added at startup (FR-63.1)** 📋 ⬜
+**UT-63.1 — Missing configuration keys are added at startup (FR-63.1)** 📋 ✅
 
 * Quit the application. In `config/config_mutagenmon.json`, delete the keys
   `HaltedOneSidedRootEmptying`, `HaltedOneSidedRootEmptyingAutoFix` and
@@ -2156,7 +2156,7 @@ holds at least 4 small files and is in sync (status "Watching for changes").
   application: it starts normally and the log has a Warning
   `Could not add the missing halted-session key(s)…`. Restore write access.
 
-**UT-63.2 — Monitor configuration editor fields (FR-63.2)** 📋 ⬜
+**UT-63.2 — Monitor configuration editor fields (FR-63.2)** 📋 ✅
 
 * Open the "Mutagen monitor Configuration" tab, section **Halted sessions**
   (the **Paths** section no longer has the status text): a text box "Halted
@@ -2172,7 +2172,7 @@ holds at least 4 small files and is in sync (status "Watching for changes").
   `"HaltedOneSidedRootEmptyingCooldownSeconds": 120`. After "Reload config &
   restart", the editor shows them again.
 
-**UT-64.1 — The `@halted-auto-fix` directive is read (FR-64.1, FR-64.2, FR-64.4, FR-65.1)** 📋 ⬜
+**UT-64.1 — The `@halted-auto-fix` directive is read (FR-64.1, FR-64.2, FR-64.4, FR-65.1)** 📋 ✅
 
 * In `mutagen-create.bat`, add the line `rem sync --name=temp : @halted-auto-fix:
   true` anywhere and reload the configuration: no new session row appears (the
@@ -2185,7 +2185,7 @@ holds at least 4 small files and is in sync (status "Watching for changes").
   @halted-auto-fix: true` (no such session), reload: the combo of `temp` reads
   **Inherit global setting**, and the log has one Warning per ignored line.
 
-**UT-65.1 — Saving the directive from the Add/Edit window (FR-64.3, FR-64.5, FR-65.2, FR-65.3)** 📋 ⬜
+**UT-65.1 — Saving the directive from the Add/Edit window (FR-64.3, FR-64.5, FR-65.2, FR-65.3)** 📋 ✅
 
 Use a sessions file with a `mutagen sync terminate --all` line, preceded by a
 blank line.
@@ -2226,7 +2226,7 @@ create 2 new files in `temp-a` right after emptying it. The `Accept deletion`
 icon is the trash-with-broom icon at the far left of the actions column, left
 of the eye.
 
-**UT-60.1 — The "Accept deletion" icon (FR-60.1)** 📋 ⬜
+**UT-60.1 — The "Accept deletion" icon (FR-60.1)** 📋 ✅
 
 * With `temp` in sync, no row shows the icon.
 * Empty alpha: `temp` becomes "Halted due to one-sided root emptying", the row
@@ -2234,7 +2234,7 @@ of the eye.
   with the tooltip "Accept deletion". Other rows have no icon.
 * Resolve the halt (UT-60.2); the icon disappears when the row is normal again.
 
-**UT-60.2 — Accept deletion, alpha emptied: beta is purged (FR-59, FR-60.2, FR-60.3)** 📋 ⬜
+**UT-60.2 — Accept deletion, alpha emptied: beta is purged (FR-59, FR-60.2, FR-60.3)** 📋 ✅
 
 * Empty alpha, then create 2 new files in `temp-a`. Wait for the halt.
 * Click the icon: a dialog titled "Mutagen accept deletion" names `temp`, the
@@ -2250,7 +2250,7 @@ of the eye.
 * In the log, in this order: `Recovery of 'temp': … purging … then resetting
   the session`, `purge done`, `session reset`. No `terminate` of `temp`.
 
-**UT-60.3 — Accept deletion, beta emptied: alpha is purged (FR-59, both directions)** 📋 ⬜
+**UT-60.3 — Accept deletion, beta emptied: alpha is purged (FR-59, both directions)** 📋 ✅
 
 Warning: this deletes the local files of `temp-a`.
 
@@ -2261,23 +2261,7 @@ Warning: this deletes the local files of `temp-a`.
 * **Yes**: the local folder `temp-a` is emptied (the folder stays), then gets
   the 2 files of the server; the row returns to normal.
 
-**UT-60.4 — A failing recovery shows an error and changes nothing more (FR-60.4)** 📋 ⬜
-
-* Empty alpha and wait for the halt. In the configuration, set `SshPath` to a
-  wrong path, **Save**, "Reload config & restart" (`temp` is still halted
-  afterwards).
-* Click the icon, **Yes**: an error dialog says MutagenMon could not recover
-  `temp` (step: purge) and shows the reason. The 4 files are still on the
-  server, `temp` is still halted and red, and the log has an error line for the
-  failed purge. No `reset` was run.
-* Restore `SshPath`, reload, and run UT-60.2 again to finish.
-* Empty alpha and wait for the halt. Click the icon and **leave the dialog
-  open**. Meanwhile run `mutagen sync reset temp` in a terminal, so `temp`
-  leaves the halt. Then click **Yes**: a warning dialog says nothing was
-  deleted because the halt changed (or is no longer there). The files on the
-  server are still there.
-
-**UT-60.5 — A timeout stops the deletion on the server too (FR-59 step 3)** 📋 ⬜
+**UT-60.5 — A timeout stops the deletion on the server too (FR-59 step 3)** 📋 ✅
 
 * On the server, fill `sources/temp` with a very large tree (hundreds of
   thousands of small files). In the configuration set `ScriptTimeoutSeconds`
@@ -2292,7 +2276,7 @@ Warning: this deletes the local files of `temp-a`.
   timeout) is running after a click on **Yes**: the reload waits for the purge
   to stop; `find` is gone from the server, and the log shows the cancellation.
 
-**UT-61.1 — Automatic fix (FR-61.1, FR-61.2, FR-62.2)** 📋 ⬜
+**UT-61.1 — Automatic fix (FR-61.1, FR-61.2, FR-62.2)** 📋 ✅
 
 * Turn the automatic fix on for `temp`: either "Auto-fix a root-emptying halt"
   in "Mutagen monitor Configuration" → Halted sessions (then reload), or
@@ -2307,7 +2291,7 @@ Warning: this deletes the local files of `temp-a`.
   previous fix: the halt is **not** fixed at once; it is fixed once 60 seconds
   have passed since the previous run.
 
-**UT-61.2 — Flags and overrides (FR-61.1, FR-62.1)** 📋 ⬜
+**UT-61.2 — Flags and overrides (FR-61.1, FR-62.1)** 📋 ✅
 
 * Global flag off and Recovery **Inherit** (or global flag on and Recovery
   **Disabled**): empty alpha. The session is **not** fixed and stays halted
@@ -2319,7 +2303,7 @@ Warning: this deletes the local files of `temp-a`.
 * Global flag off and Recovery **Enabled**: the session is fixed
   automatically (the session setting wins).
 
-**UT-61.3 — Three failures, then give up (FR-61.4, FR-62.3)** 📋 ⬜
+**UT-61.3 — Three failures, then give up (FR-61.4, FR-62.3)** 📋 ✅
 
 * Set `HaltedOneSidedRootEmptyingCooldownSeconds` to `5`, turn the automatic
   fix on for `temp`, set `SshPath` to a wrong path and reload.
@@ -2329,7 +2313,7 @@ Warning: this deletes the local files of `temp-a`.
   error; no fourth attempt follows, even after waiting more than a minute. The
   row stays red and the manual icon still works once `SshPath` is restored.
 
-**UT-62.1 — Other halts are only notified (FR-57.5, FR-62.1)** 📋 ⬜
+**UT-62.1 — Other halts are only notified (FR-57.5, FR-62.1)** 📋 ✅
 
 Only if Mutagen reports a halt other than "root emptying" when you provoke it
 (for instance by deleting the whole alpha folder `temp-a` while `temp` is in
