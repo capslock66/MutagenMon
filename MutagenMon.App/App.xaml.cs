@@ -417,6 +417,7 @@ public partial class App //: Application
         _trayIconController = BuildAndStartTrayIconController(newOptions, newSessionNames);
         // FR-56.2: the scripts file path may have changed with the new options.
         _statusWindow?.RefreshSessionScripts();
+        _statusWindow?.RefreshSessionsFileLink();
         _statusWindow?.SetHaltedRootEmptyingText(newOptions.HaltedOneSidedRootEmptying);
 
         _logger?.LogInformation("Reload complete — monitoring resumed with the new configuration");
@@ -457,6 +458,11 @@ public partial class App //: Application
         window.Left = workArea.Left + (workArea.Width - width) / 2;
         window.Top = workArea.Top + (workArea.Height - height) / 2;
     }
+
+    /// <summary>Sessions file path (<c>MutagenSessionsBatFile</c>) from the
+    /// current options, relative to the application directory.</summary>
+    private string ResolveSessionsPath() =>
+        Path.Combine(AppContext.BaseDirectory, _options!.MutagenSessionsBatFile.Replace('/', Path.DirectorySeparatorChar));
 
     /// <summary>Scripts file path from the current options, relative to the
     /// application directory like <c>MutagenSessionsBatFile</c> (FR-49).</summary>
@@ -504,7 +510,7 @@ public partial class App //: Application
         if (_statusWindow is null)
         {
             _statusWindow = new StatusWindow(_logger!, _iconCache!, _loggerProvider!, _options?.ShowGenerateException ?? false,
-                ResolveScriptsPath, CreateScriptRunner, FirstSshServerHost);
+                ResolveScriptsPath, ResolveSessionsPath, CreateScriptRunner, FirstSshServerHost);
             _statusWindow.ResolveConflictsRequested += OnResolveConflictsRequested;
             _statusWindow.ReloadConfigRequested += OnStatusWindowReloadConfigRequested;
             _statusWindow.ToggleMonitoringRequested += OnStatusWindowToggleMonitoringRequested;

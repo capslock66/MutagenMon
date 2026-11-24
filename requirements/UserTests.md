@@ -2324,6 +2324,18 @@ sync; the exact wording is not known in advance).
   session and the status text, once. Nothing is purged. Recreate the folder
   and reset the session by hand to continue.
 
+**UT-16.6 — Sessions file link opens the file in an editor, never runs it
+(FR-16.6)** 📋 ⬜
+
+* Open the status view, "Sync" tab. Above the toolbar, a hyperlink shows the
+  full path of the sessions file (`MutagenSessionsBatFile`).
+* Click it. The file opens in a text editor; no console window appears and no
+  `mutagen` command runs.
+* Change `MutagenSessionsBatFile` in the configuration, then "Reload config &
+  restart": the link text shows the new path.
+* Point it to a missing file and click the link: a message states the file
+  does not exist; nothing else happens.
+
 ## Appendix — known, accepted gaps (do not report as bugs)
 
 These are documented, intentional limitations of the current phase, not

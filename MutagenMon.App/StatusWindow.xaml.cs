@@ -1,10 +1,12 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -104,6 +106,7 @@ public partial class StatusWindow : Window
     /// <summary>Runs the scripts of every tab, so only one script runs at a time (FR-51.1, FR-56.6).</summary>
     private readonly ScriptRunCoordinator _scriptRunCoordinator;
     private readonly Func<string> _scriptsPathProvider;
+    private readonly Func<string> _sessionsPathProvider;
     /// <summary>"MutagenMon" and its version: the title when no script runs.</summary>
     private readonly string _baseTitle;
     /// <summary>Waits for a resize to stop before <see cref="SizeSettled"/>:
@@ -111,8 +114,52 @@ public partial class StatusWindow : Window
     /// second, which must not become as many writes of the config file.</summary>
     private readonly DispatcherTimer _sizeSettledTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
 
+    /// <summary>Shows the current sessions file path (<c>MutagenSessionsBatFile</c>)
+    /// in the Sync tab link. Called at construction and after a config reload.</summary>
+    public void RefreshSessionsFileLink()
+    {
+        var path = _sessionsPathProvider();
+
+        if (OpenSessionsFileLink.Inlines.FirstInline is Run run && run.Text == path)
+            return;
+
+        OpenSessionsFileLink.Inlines.Clear();
+        OpenSessionsFileLink.Inlines.Add(path);
+    }
+
+    private void OnOpenSessionsFileLinkClick(object sender, RoutedEventArgs e)
+    {
+        _logger.LogInformation("User action: sessions file link clicked");
+        var path = _sessionsPathProvider();
+
+        if (!File.Exists(path))
+        {
+            MessageBox.Show(this, "The sessions file does not exist.", "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            try
+            {
+                // The default verb of a .bat is "open", which would run it: force "edit".
+                Process.Start(new ProcessStartInfo(path) { UseShellExecute = true, Verb = "edit" });
+            }
+            catch (Win32Exception)
+            {
+                // No "edit" verb registered for this extension: never fall back to "open".
+                Process.Start(new ProcessStartInfo("notepad.exe") { ArgumentList = { path }, UseShellExecute = false });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to open sessions file '{Path}'", path);
+            MessageBox.Show(this, $"MutagenMon could not open the sessions file:\n\n{ex.Message}", "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     public StatusWindow(ILogger logger, IconImageCache iconCache, FileLoggerProvider loggerProvider, bool showGenerateException,
-        Func<string> scriptsPathProvider, Func<ScriptRunner> scriptRunnerFactory, Func<string?> defaultScriptHostProvider)
+        Func<string> scriptsPathProvider, Func<string> sessionsPathProvider, Func<ScriptRunner> scriptRunnerFactory, Func<string?> defaultScriptHostProvider)
     {
         InitializeComponent();
         _sizeSettledTimer.Tick += (_, _) => RaiseSizeSettled();
@@ -134,6 +181,8 @@ public partial class StatusWindow : Window
         MutagenMonitorConfigEditorViewControl.Initialize(logger);
         LogsViewControl.Initialize(logger, loggerProvider, showGenerateException);
         _scriptsPathProvider = scriptsPathProvider;
+        _sessionsPathProvider = sessionsPathProvider;
+        RefreshSessionsFileLink();
         _scriptRunCoordinator = new ScriptRunCoordinator(logger, scriptRunnerFactory, Dispatcher);
         // FR-56.6: a run starting or ending on any tab changes whether Run is offered here.
         _scriptRunCoordinator.RunningChanged += (_, _) => UpdateRunSessionScriptButton();

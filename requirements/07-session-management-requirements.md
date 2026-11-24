@@ -82,6 +82,14 @@ the design discussion that produced this document.
   of the Sync toolbar, after "Resolve conflicts", to make room for the
   script combo and Run button — see
   [11-scripts-tab-requirements.md](11-scripts-tab-requirements.md) FR-56.1.)*
+- FR-16.6: The Sync tab MUST show, in its first row above the toolbar, a
+  hyperlink whose text is the sessions file path (`MutagenSessionsBatFile`,
+  relative to the application directory). Clicking it MUST open the file in
+  the default editor using the shell verb **"edit"**, and MUST NEVER run it
+  (the default verb of a `.bat` is "open", which would execute it). If no
+  "edit" verb is registered, the file MUST open in `notepad.exe`, never
+  through "open". A missing file gives an information message and nothing
+  else. The link text MUST follow a configuration reload.
 
 ## FR-17 — Grid row actions (Edit / Delete)
 

@@ -22,12 +22,18 @@
                 <Grid Margin="8">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
+                    <!-- Link to the sessions file (mutagen-create.bat), opened with the "edit" verb (never run, it is a .bat). -->
+                    <TextBlock Grid.Row="0" Margin="0,0,0,8">
+                        <Hyperlink x:Name="OpenSessionsFileLink" Click="OnOpenSessionsFileLinkClick" ToolTip="Open in the default editor" />
+                    </TextBlock>
+
                     <!-- FR-16 / FR-56.1: toolbar above the grid — Add, Duplicate, session script + Run; Resolve conflicts and Stop/Start sessions on the right. -->
-                    <Grid Grid.Row="0" Margin="0,0,0,8">
+                    <Grid Grid.Row="1" Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
@@ -87,7 +93,7 @@
                     </StackPanel>
                     </Grid>
 
-                    <DataGrid x:Name="SessionsGrid" Grid.Row="1"
+                    <DataGrid x:Name="SessionsGrid" Grid.Row="2"
                               AutoGenerateColumns="False" IsReadOnly="True"
                               CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
                               GridLinesVisibility="Horizontal" HeadersVisibility="Column"
@@ -171,7 +177,7 @@
                         </DataGrid.Columns>
                     </DataGrid>
 
-                    <Grid Grid.Row="2" Margin="0,12,0,0">
+                    <Grid Grid.Row="3" Margin="0,12,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
