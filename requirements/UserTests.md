@@ -2325,7 +2325,7 @@ sync; the exact wording is not known in advance).
   and reset the session by hand to continue.
 
 **UT-16.6 — Sessions file link opens the file in an editor, never runs it
-(FR-16.6)** 📋 ⬜
+(FR-16.6)** 📋 ✅
 
 * Open the status view, "Sync" tab. Above the toolbar, a hyperlink shows the
   full path of the sessions file (`MutagenSessionsBatFile`).
