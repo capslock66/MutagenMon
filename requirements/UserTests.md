@@ -2430,6 +2430,17 @@ MutagenMon, or use "Reload config & restart", to trigger it at once.
   it), then update. MutagenMon restarts on the installed version, and the log
   states the copy failed.
 
+**UT-66.9 — Next scheduled check in the log (FR-66.2a)** 📋 ✅
+
+* Start MutagenMon with `DeployPath` set: the log has a line "Next scheduled
+  update check at <date time>", about 2 hours after the start.
+* With the deployed exe not newer than the installed one, reload the config,
+  then click "Check for new version": a line is logged after
+  each check and the announced time does not change.
+* After the 2-hour check has run, the next announced time is about 2 hours
+  later again.
+* With `DeployPath` empty: no such line.
+
 ## Appendix — known, accepted gaps (do not report as bugs)
 
 These are documented, intentional limitations of the current phase, not

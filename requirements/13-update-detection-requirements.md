@@ -3,10 +3,8 @@
 This document specifies how MutagenMon detects that a newer build has been
 deployed and lets the user update the running installation in place.
 
-**Status: implemented** (plan
-`.planning/2026-11-24-update-detection/`). Its manual tests (UT-66.x in
-[UserTests.md](UserTests.md)) are written; the steps added for the "Check for new
-version" button (UT-66.3, UT-66.4) still have to be replayed. Continues the
+**Status: implemented and tested** (manual tests UT-66.x in
+[UserTests.md](UserTests.md)). Continues the
 FR numbering from [12-halted-sessions-requirements.md](12-halted-sessions-requirements.md)'s
 FR-65, as FR-66.
 
@@ -36,6 +34,10 @@ feature lets an installation notice the new build and update itself.
   every 2 hours. An update is available when
   `<DeployPath>\MutagenMon.exe` has a later last-write time (UTC) than the
   running executable. Environment variables in `DeployPath` are expanded.
+- FR-66.2a: After each check, when `DeployPath` is not empty, an information
+  line in the log gives the local time of the next scheduled check ("Next
+  scheduled update check at yyyy-MM-dd HH:mm:ss"). A check started by a
+  reload or by the user does not move that time.
 - FR-66.3: The check never blocks the UI (the folder may be a network
   share) and never raises: an empty, missing or unreachable folder, or a
   missing `MutagenMon.exe`, means "no update known" with no dialog. The
@@ -59,8 +61,9 @@ feature lets an installation notice the new build and update itself.
   for new version" until an update is available, then "Update available".
   Like the other toolbar buttons it is disabled during a config reload, and
   it is also disabled while its own check runs. An update requested while a
-  reload is running (for instance by a check that ends during it) is not
-  started: it is logged and the button keeps reading "Update available".
+  reload or an update check is running (for instance by a check that ends
+  during a reload) is not started: it is logged and the button keeps its
+  label.
   Clicking "Check for new version" runs the check of FR-66.2 now: when a
   newer build is found, the confirmation dialog of FR-66.7 opens directly
   (the notification of FR-66.5 also applies the first time that build is

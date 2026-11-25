@@ -88,6 +88,7 @@ public partial class App //: Application
     /// <summary>FR-66.2: how often the deploy folder is checked for a newer build.</summary>
     private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromHours(2);
     private DispatcherTimer? _updateTimer;
+    private DateTime _nextScheduledUpdateCheck;
     private UpdateCheckResult _updateResult = UpdateCheckResult.None;
     private DateTime? _lastNotifiedUpdateUtc;
     private bool _updateCheckRunning;
@@ -859,7 +860,12 @@ public partial class App //: Application
     private void StartUpdateDetection()
     {
         _updateTimer = new DispatcherTimer { Interval = UpdateCheckInterval };
-        _updateTimer.Tick += async (_, _) => await CheckForUpdateAsync();
+        _updateTimer.Tick += async (_, _) =>
+        {
+            _nextScheduledUpdateCheck = (DateTime.UtcNow + UpdateCheckInterval).ToLocalTime();
+            await CheckForUpdateAsync();
+        };
+        _nextScheduledUpdateCheck = (DateTime.UtcNow + UpdateCheckInterval).ToLocalTime();
         _updateTimer.Start();
         _ = CheckForUpdateAsync();
     }
@@ -897,6 +903,8 @@ public partial class App //: Application
             _statusWindow?.SetUpdateFeatureEnabled(!string.IsNullOrWhiteSpace(deployPath));
             _statusWindow?.SetUpdateAvailable(result.IsAvailable);
             LogUpdateCheckFailure(result.FailureReason);
+            if (!string.IsNullOrWhiteSpace(deployPath))
+                _logger?.LogInformation("Next scheduled update check at {NextCheck:yyyy-MM-dd HH:mm:ss}", _nextScheduledUpdateCheck);
             if (!result.IsAvailable)
                 return;
 
@@ -1002,9 +1010,9 @@ public partial class App //: Application
         if (!update.IsAvailable || update.DeployedExePath is null || owner is null || _options is null)
             return;
 
-        if (IsReloadRunning())
+        if (IsUpdateBlocked())
         {
-            _logger?.LogInformation("Update postponed: a configuration reload is in progress");
+            _logger?.LogInformation("Update postponed: a configuration reload or an update check is in progress");
             return;
         }
 
@@ -1023,9 +1031,9 @@ public partial class App //: Application
         }
 
         // A reload may have started while the modal dialog was open.
-        if (IsReloadRunning())
+        if (IsUpdateBlocked())
         {
-            _logger?.LogInformation("Update postponed: a configuration reload is in progress");
+            _logger?.LogInformation("Update postponed: a configuration reload or an update check is in progress");
             return;
         }
 
@@ -1056,6 +1064,10 @@ public partial class App //: Application
     /// <summary>True from the reload request until the new monitor stack runs: shutting down meanwhile would race it.</summary>
     private bool IsReloadRunning() => _reloadRebuildRunning || _trayIconController?.IsReloadInProgress == true;
 
+    /// <summary>A reload, or a check that may still replace the result (e.g. a new DeployPath), makes the
+    /// current update result unreliable: the update must wait.</summary>
+    private bool IsUpdateBlocked() => IsReloadRunning() || _updateCheckRunning || _updateCheckPending;
+
     private static string UpdateScriptPath => Path.Combine(Path.GetTempPath(), $"MutagenMon-update-{Environment.ProcessId}.cmd");
 
     private static void DeleteUpdateScript()
@@ -1079,7 +1091,7 @@ public partial class App //: Application
         var logPath = Path.Combine(tempDir, "MutagenMon-update.log");
 
         File.WriteAllText(scriptPath, UpdateScriptBuilder.Build(Environment.ProcessId, deployDir, installDir, exePath, logPath));
-        Process.Start(new ProcessStartInfo("cmd.exe", $"/d /s /c \"\"{scriptPath}\"\"")
+        using var scriptProcess = Process.Start(new ProcessStartInfo("cmd.exe", $"/d /s /c \"\"{scriptPath}\"\"")
         {
             UseShellExecute = false,
             CreateNoWindow = true,
