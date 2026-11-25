@@ -92,6 +92,9 @@ public partial class App //: Application
     private DateTime? _lastNotifiedUpdateUtc;
     private bool _updateCheckRunning;
     private bool _updateCheckPending;
+    private bool _reloadRebuildRunning;
+    // Completed while no check (nor its queued re-run) is in progress; the manual check waits on it.
+    private TaskCompletionSource _updateCheckIdle = CreateCompletedSource();
     private string? _lastUpdateFailureReason;
 
     protected override async void OnStartup(StartupEventArgs e)
@@ -350,6 +353,20 @@ public partial class App //: Application
     /// itself are the only things reused as-is.</summary>
     private async void OnReloadReady()
     {
+        // TrayIconController.IsReloadInProgress is already false here, while the monitor stack is still rebuilt below.
+        _reloadRebuildRunning = true;
+        try
+        {
+            await RebuildAfterReloadAsync();
+        }
+        finally
+        {
+            _reloadRebuildRunning = false;
+        }
+    }
+
+    private async Task RebuildAfterReloadAsync()
+    {
         _logger?.LogInformation("Every configured session has stopped; reloading configuration in place");
         var baseDir = AppContext.BaseDirectory;
         MutagenMonOptions newOptions;
@@ -531,6 +548,7 @@ public partial class App //: Application
             _statusWindow.ToggleMonitoringRequested += OnStatusWindowToggleMonitoringRequested;
             _statusWindow.ExitRequested += OnStatusWindowExitRequested;
             _statusWindow.UpdateRequested += OnStatusWindowUpdateRequested;
+            _statusWindow.CheckUpdateRequested += OnStatusWindowCheckUpdateRequested;
             _statusWindow.AddSessionRequested += OnAddSessionRequested;
             _statusWindow.DuplicateSessionRequested += OnDuplicateSessionRequested;
             _statusWindow.ViewSyncStatusRequested += OnViewSyncStatusRequested;
@@ -546,6 +564,7 @@ public partial class App //: Application
         }
         if (_stateStore is not null)
             _statusWindow.UpdateContent(_stateStore.Get(), _sessionNames, _trayIconController?.IsReloadInProgress ?? false);
+        _statusWindow.SetUpdateFeatureEnabled(!string.IsNullOrWhiteSpace(_options?.DeployPath));
         _statusWindow.SetUpdateAvailable(_updateResult.IsAvailable);
         _statusWindow.Show();
         _statusWindow.Activate();
@@ -846,7 +865,8 @@ public partial class App //: Application
     }
 
     /// <summary>FR-66.2/FR-66.3: compares the deployed executable with the running one off the UI thread (the
-    /// deploy folder may be a slow network share), then shows or hides the toolbar button. Never raises: an
+    /// deploy folder may be a slow network share), then switches the toolbar button between "Check for new version"
+    /// and "Update available". Never raises: an
     /// unreachable folder only means "no update known".</summary>
     private async Task CheckForUpdateAsync()
     {
@@ -862,6 +882,8 @@ public partial class App //: Application
         }
 
         _updateCheckRunning = true;
+        if (_updateCheckIdle.Task.IsCompleted)
+            _updateCheckIdle = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         try
         {
             var deployPath = options.DeployPath;
@@ -872,6 +894,7 @@ public partial class App //: Application
                 return;
 
             _updateResult = result;
+            _statusWindow?.SetUpdateFeatureEnabled(!string.IsNullOrWhiteSpace(deployPath));
             _statusWindow?.SetUpdateAvailable(result.IsAvailable);
             LogUpdateCheckFailure(result.FailureReason);
             if (!result.IsAvailable)
@@ -891,6 +914,11 @@ public partial class App //: Application
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "The update check failed");
+            if (ReferenceEquals(options, _options))
+            {
+                _updateResult = UpdateCheckResult.None with { FailureReason = ex.Message };
+                _statusWindow?.SetUpdateAvailable(false);
+            }
         }
         finally
         {
@@ -900,7 +928,16 @@ public partial class App //: Application
                 _updateCheckPending = false;
                 _ = CheckForUpdateAsync();
             }
+            else
+                _updateCheckIdle.TrySetResult();
         }
+    }
+
+    private static TaskCompletionSource CreateCompletedSource()
+    {
+        var source = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        source.SetResult();
+        return source;
     }
 
     /// <summary>FR-66.3: logs why a check could not compare the builds, once per distinct reason so that the 2-hour
@@ -917,6 +954,45 @@ public partial class App //: Application
 
     private async void OnStatusWindowUpdateRequested(object? sender, EventArgs e) => await UpdateAsync();
 
+    /// <summary>FR-66.6: the user asked for a check now. When a newer build is found the confirmation of the update
+    /// opens directly (the button turns into "Update available" in case it is cancelled); otherwise a message says
+    /// that MutagenMon is up to date, or why no comparison was possible.</summary>
+    private async void OnStatusWindowCheckUpdateRequested(object? sender, EventArgs e)
+    {
+        var owner = _statusWindow;
+        if (owner is null)
+            return;
+
+        owner.SetUpdateCheckInProgress(true);
+        try
+        {
+            await CheckForUpdateAsync();
+            // A check already running (or a re-run queued by a reload) answers for this click: wait for the last one.
+            await _updateCheckIdle.Task;
+        }
+        finally
+        {
+            owner.SetUpdateCheckInProgress(false);
+        }
+
+        var result = _updateResult;
+        if (result.IsAvailable)
+        {
+            // Straight to the confirmation of FR-66.7: the user asked for the new version.
+            await UpdateAsync();
+            return;
+        }
+
+        // A reload emptied DeployPath while the check ran: the feature is off and the button is hidden.
+        if (string.IsNullOrWhiteSpace(_options?.DeployPath))
+            return;
+
+        var message = result.FailureReason is null
+            ? "MutagenMon is up to date."
+            : $"No comparison was possible: {result.FailureReason}";
+        GenericMessageDialog.ShowInfo(owner, _logger!, "MutagenMon — check for new version", message);
+    }
+
     /// <summary>FR-66.6/FR-66.7: confirms, writes the helper script that waits for this process to exit, copies the
     /// deployed files over the installation and starts MutagenMon again, launches it, then shuts down like Exit.</summary>
     private async Task UpdateAsync()
@@ -925,6 +1001,12 @@ public partial class App //: Application
         var owner = _statusWindow;
         if (!update.IsAvailable || update.DeployedExePath is null || owner is null || _options is null)
             return;
+
+        if (IsReloadRunning())
+        {
+            _logger?.LogInformation("Update postponed: a configuration reload is in progress");
+            return;
+        }
 
         var confirmed = GenericMessageDialog.ShowConfirm(
             owner,
@@ -937,6 +1019,13 @@ public partial class App //: Application
         if (!confirmed)
         {
             _logger?.LogInformation("User action: update cancelled at confirmation");
+            return;
+        }
+
+        // A reload may have started while the modal dialog was open.
+        if (IsReloadRunning())
+        {
+            _logger?.LogInformation("Update postponed: a configuration reload is in progress");
             return;
         }
 
@@ -963,6 +1052,9 @@ public partial class App //: Application
         _logger?.LogInformation("Update script started; shutting down so that it can replace the files");
         await ShutdownAsync();
     }
+
+    /// <summary>True from the reload request until the new monitor stack runs: shutting down meanwhile would race it.</summary>
+    private bool IsReloadRunning() => _reloadRebuildRunning || _trayIconController?.IsReloadInProgress == true;
 
     private static string UpdateScriptPath => Path.Combine(Path.GetTempPath(), $"MutagenMon-update-{Environment.ProcessId}.cmd");
 

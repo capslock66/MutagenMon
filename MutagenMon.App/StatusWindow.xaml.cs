@@ -10,6 +10,7 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using MahApps.Metro.IconPacks;
 using Microsoft.Extensions.Logging;
 using MutagenMon.Core.Monitoring;
 using MutagenMon.Core.Mutagen;
@@ -51,6 +52,10 @@ public partial class StatusWindow : Window
     /// handled by App.xaml.cs, which confirms and runs the update.</summary>
     public event EventHandler? UpdateRequested;
 
+    /// <summary>Raised when the user clicks "Check for new version" (FR-66.6) —
+    /// handled by App.xaml.cs, which runs the check and reports its outcome.</summary>
+    public event EventHandler? CheckUpdateRequested;
+
     /// <summary>Raised once the user has stopped resizing the window, with
     /// its new size — handled by App.xaml.cs, which saves it to the
     /// configuration file.</summary>
@@ -88,6 +93,10 @@ public partial class StatusWindow : Window
     /// <summary>Sets the text identifying a root-emptying halt; called at
     /// creation and after each configuration reload.</summary>
     public void SetHaltedRootEmptyingText(string text) => _haltedRootEmptyingText = text;
+
+    private bool _updateAvailable;
+    private bool _updateCheckInProgress;
+    private bool _reloadInProgress;
 
     /// <summary>Bound once to <c>SessionsGrid.ItemsSource</c> and updated
     /// in place on every refresh (<see cref="SyncRows"/>) rather than
@@ -331,7 +340,8 @@ public partial class StatusWindow : Window
         ReloadConfigButton.IsEnabled = !reloadInProgress;
         ToggleMonitoringButton.IsEnabled = !reloadInProgress;
         ExitButton.IsEnabled = !reloadInProgress;
-        UpdateButton.IsEnabled = !reloadInProgress;
+        _reloadInProgress = reloadInProgress;
+        UpdateButton.IsEnabled = !reloadInProgress && !_updateCheckInProgress;
     }
 
     /// <summary>Updates <paramref name="target"/> to match
@@ -503,14 +513,40 @@ public partial class StatusWindow : Window
         return ScriptsViewControl.TrySaveAll();
     }
 
-    /// <summary>FR-66.6: shows or hides the "Update available" toolbar button.</summary>
-    public void SetUpdateAvailable(bool available) =>
-        UpdateButton.Visibility = available ? Visibility.Visible : Visibility.Collapsed;
+    /// <summary>FR-66.6: the update button reads "Update available" when a newer build was found, otherwise
+    /// "Check for new version".</summary>
+    public void SetUpdateAvailable(bool available)
+    {
+        _updateAvailable = available;
+        UpdateButtonText.Text = available ? "Update available" : "Check for new version";
+        UpdateButtonIcon.Kind = available ? PackIconMaterialKind.Update : PackIconMaterialKind.Refresh;
+        UpdateButton.ToolTip = available
+            ? "A newer version of MutagenMon is available in the deploy folder"
+            : "Check the deploy folder for a newer version of MutagenMon";
+    }
+
+    /// <summary>FR-66.2/FR-66.6: the update button is hidden while no deploy path is configured.</summary>
+    public void SetUpdateFeatureEnabled(bool enabled) =>
+        UpdateButton.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>FR-66.6: disables the update button while a manual check runs.</summary>
+    public void SetUpdateCheckInProgress(bool inProgress)
+    {
+        _updateCheckInProgress = inProgress;
+        UpdateButton.IsEnabled = !inProgress && !_reloadInProgress;
+    }
 
     private void OnUpdateClick(object sender, RoutedEventArgs e)
     {
-        _logger.LogInformation("User action: status window Update available clicked");
-        UpdateRequested?.Invoke(this, EventArgs.Empty);
+        if (_updateAvailable)
+        {
+            _logger.LogInformation("User action: status window Update available clicked");
+            UpdateRequested?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
+        _logger.LogInformation("User action: status window Check for new version clicked");
+        CheckUpdateRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnExitClick(object sender, RoutedEventArgs e)

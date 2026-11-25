@@ -31,7 +31,7 @@ public static class UpdateScriptBuilder
             "echo %date% %time% update started > \"%MM_LOG%\"",
             "set /a tries=0",
             ":wait",
-            $"tasklist /FI \"PID eq {processId}\" /NH | find \"{processId}\" >nul",
+            $"tasklist /FI \"PID eq {processId}\" /NH | \"%SystemRoot%\\System32\\find.exe\" \"{processId}\" >nul",
             "if errorlevel 1 goto copy",
             "set /a tries+=1",
             "if %tries% geq 60 goto timeout",

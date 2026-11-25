@@ -74,6 +74,7 @@ public class UpdateCheckerTests : IDisposable
         Assert.Contains("not found", UpdateChecker.Check(Path.Combine(_root, "nowhere"), running, _root).FailureReason);
         Assert.Contains(UpdateChecker.ExeName, UpdateChecker.Check(Path.Combine(_root, "deploy"), running, _root).FailureReason);
         Assert.Null(UpdateChecker.Check("", running, _root).FailureReason);
+        Assert.Contains("running executable", UpdateChecker.Check(Path.Combine(_root, "deploy"), null, _root).FailureReason);
     }
 
     [Fact]

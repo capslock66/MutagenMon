@@ -205,8 +205,8 @@
             </TabItem>
         </TabControl>
 
-        <!-- Toolbar shared by every tab, below the TabControl: Reload
-             config & restart, left of Exit mutagen monitor; Update available (FR-66.6) at the far right. -->
+        <!-- Toolbar shared by every tab, below the TabControl: Reload config & restart and the update button
+             (FR-66.6) on the left; Exit mutagen monitor at the far right. -->
         <Grid Grid.Row="1" Margin="0,12,0,0">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                 <Button x:Name="ReloadConfigButton"
@@ -216,16 +216,16 @@
                         <TextBlock Text="Reload config &amp; restart" Margin="6,0,0,0" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
-                <Button x:Name="ExitButton" Content="Exit mutagen monitor" Width="130" Margin="8,0,0,0" Click="OnExitClick" />
-                <!-- FR-66.6: shown only while a newer MutagenMon.exe is in the deploy folder. -->
-                <Button x:Name="UpdateButton" Margin="8,0,0,0" Padding="8,4" Visibility="Collapsed"
-                        Click="OnUpdateClick" ToolTip="A newer version of MutagenMon is available in the deploy folder">
+                <!-- FR-66.6: visible while DeployPath is not empty. "Check for new version" until a newer MutagenMon.exe is found in the
+                     deploy folder, then "Update available". -->
+                <Button x:Name="UpdateButton" Margin="8,0,0,0" Padding="8,4" Click="OnUpdateClick">
                     <StackPanel Orientation="Horizontal">
-                        <iconPacks:PackIconMaterial Kind="Update" Width="16" Height="16" VerticalAlignment="Center" />
-                        <TextBlock Text="Update available" Margin="6,0,0,0" VerticalAlignment="Center" />
+                        <iconPacks:PackIconMaterial x:Name="UpdateButtonIcon" Kind="Refresh" Width="16" Height="16" VerticalAlignment="Center" />
+                        <TextBlock x:Name="UpdateButtonText" Text="Check for new version" Margin="6,0,0,0" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
             </StackPanel>
+            <Button x:Name="ExitButton" Content="Exit mutagen monitor" Width="130" HorizontalAlignment="Right" Click="OnExitClick" />
         </Grid>
     </Grid>
 </Window>

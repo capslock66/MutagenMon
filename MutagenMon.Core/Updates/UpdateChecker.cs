@@ -29,8 +29,11 @@ public static class UpdateChecker
     /// <param name="baseDirectory">Folder a relative <paramref name="deployPath"/> is resolved against (the application folder, like the other configured paths).</param>
     public static UpdateCheckResult Check(string? deployPath, string? runningExePath, string baseDirectory)
     {
-        if (string.IsNullOrWhiteSpace(deployPath) || string.IsNullOrWhiteSpace(runningExePath))
+        if (string.IsNullOrWhiteSpace(deployPath))
             return UpdateCheckResult.None;
+
+        if (string.IsNullOrWhiteSpace(runningExePath))
+            return UpdateCheckResult.None with { FailureReason = "the path of the running executable is unknown" };
 
         try
         {

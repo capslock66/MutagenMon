@@ -42,33 +42,33 @@ if errorlevel 1 (
 )
 
 
-echo kill MutagenMon.exe
-echo ---------------------
-taskkill /IM MutagenMon.exe /F >nul 2>&1
-timeout /t 3
+rem echo kill MutagenMon.exe
+rem echo ---------------------
+rem taskkill /IM MutagenMon.exe /F >nul 2>&1
+rem timeout /t 3
 
 
-echo copy to %MM_DST%
-echo ---------------------
-copy /Y "%MM_SRC%\*.*" "%MM_DST%\"
-if errorlevel 1 (
-    echo.
-    echo ERROR: COPY OF THE FILES TO %MM_DST% FAILED. MutagenMon was stopped and not restarted.
-    pause
-    exit /b 1
-)
-xcopy "%MM_SRC%\Assets" "%MM_DST%\Assets" /E /I /Y /Q
-if errorlevel 1 (
-    echo.
-    echo ERROR: COPY OF THE ASSETS TO %MM_DST%\Assets FAILED. MutagenMon was stopped and not restarted.
-    pause
-    exit /b 1
-)
+rem echo copy to %MM_DST%
+rem echo ---------------------
+rem copy /Y "%MM_SRC%\*.*" "%MM_DST%\"
+rem if errorlevel 1 (
+rem     echo.
+rem     echo ERROR: COPY OF THE FILES TO %MM_DST% FAILED. MutagenMon was stopped and not restarted.
+rem     pause
+rem     exit /b 1
+rem )
+rem xcopy "%MM_SRC%\Assets" "%MM_DST%\Assets" /E /I /Y /Q
+rem if errorlevel 1 (
+rem     echo.
+rem     echo ERROR: COPY OF THE ASSETS TO %MM_DST%\Assets FAILED. MutagenMon was stopped and not restarted.
+rem     pause
+rem     exit /b 1
+rem )
 
 
-echo restart %MM_DST%\MutagenMon.exe
-echo ---------------------
-start "" "%MM_DST%\MutagenMon.exe"
+rem echo restart %MM_DST%\MutagenMon.exe
+rem echo ---------------------
+rem start "" "%MM_DST%\MutagenMon.exe"
 
 
 echo press any to quit

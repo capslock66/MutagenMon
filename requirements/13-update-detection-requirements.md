@@ -5,7 +5,8 @@ deployed and lets the user update the running installation in place.
 
 **Status: implemented** (plan
 `.planning/2026-11-24-update-detection/`). Its manual tests (UT-66.x in
-[UserTests.md](UserTests.md)) are written and still to be run. Continues the
+[UserTests.md](UserTests.md)) are written; the steps added for the "Check for new
+version" button (UT-66.3, UT-66.4) still have to be replayed. Continues the
 FR numbering from [12-halted-sessions-requirements.md](12-halted-sessions-requirements.md)'s
 FR-65, as FR-66.
 
@@ -44,18 +45,30 @@ feature lets an installation notice the new build and update itself.
   requested while another one is still running (e.g. after a reload that
   changed `DeployPath`) runs as soon as the first one ends.
 - FR-66.4: A check that finds no update (for example after the deployed file
-  was replaced by an older one) hides the button of FR-66.6.
+  was replaced by an older one) turns the button of FR-66.6 back into
+  "Check for new version".
 - FR-66.5: The first time a given deployed build is detected, and when
   `NotifyUpdateAvailable` is `true`, a desktop notification "Update
   available" is shown. The same deployed build is not notified again by the
   following checks. A build detected while `NotifyUpdateAvailable` is `false`
   is still notified once if the option is later switched on.
-- FR-66.6: When an update is available, the shared toolbar at the bottom of
-  the status window shows an "Update available" button immediately right of
-  "Exit mutagen monitor" (the last button of the toolbar). It is hidden
-  otherwise and disabled during a config reload, like the other toolbar
-  buttons.
-- FR-66.7: Clicking it opens a confirmation dialog stating the deployed and
+- FR-66.6: The shared toolbar at the bottom of the status window has
+  "Reload config & restart" and the update button on the left, and "Exit
+  mutagen monitor" at the far right. The update button is visible
+  whenever `DeployPath` is not empty and hidden otherwise. It reads "Check
+  for new version" until an update is available, then "Update available".
+  Like the other toolbar buttons it is disabled during a config reload, and
+  it is also disabled while its own check runs. An update requested while a
+  reload is running (for instance by a check that ends during it) is not
+  started: it is logged and the button keeps reading "Update available".
+  Clicking "Check for new version" runs the check of FR-66.2 now: when a
+  newer build is found, the confirmation dialog of FR-66.7 opens directly
+  (the notification of FR-66.5 also applies the first time that build is
+  seen, and if the user cancels, the button now reads "Update available");
+  otherwise a message says that MutagenMon is up to date, or why no comparison
+  was possible (FR-66.3).
+- FR-66.7: The confirmation dialog (opened by "Update available", or directly
+  by "Check for new version" when it finds a build) states the deployed and
   running timestamps, that MutagenMon will close and restart, and that
   background synchronization continues. On "Cancel" nothing changes. On
   "Update":

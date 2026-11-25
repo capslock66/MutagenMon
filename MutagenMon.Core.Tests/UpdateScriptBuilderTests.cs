@@ -16,6 +16,7 @@ public class UpdateScriptBuilderTests
         var script = UpdateScriptBuilder.Build(4242, Deploy, Install, Exe, @"c:\tmp\update.log");
 
         Assert.Contains("PID eq 4242", script);
+        Assert.Contains(@"/NH | ""%SystemRoot%\System32\find.exe"" ""4242"" >nul", script);
         Assert.Contains(@"robocopy ""\\prod-build\DATA\install\Mutagen-mon"" ""c:\tools\Mutagen-Mon"" *.*", script);
         Assert.Contains(@"""\\prod-build\DATA\install\Mutagen-mon\Assets"" ""c:\tools\Mutagen-Mon\Assets"" /E", script);
         Assert.True(script.IndexOf("robocopy", StringComparison.Ordinal) < script.IndexOf("start \"\"", StringComparison.Ordinal));
