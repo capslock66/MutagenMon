@@ -94,6 +94,8 @@ public partial class StatusWindow : Window
     /// creation and after each configuration reload.</summary>
     public void SetHaltedRootEmptyingText(string text) => _haltedRootEmptyingText = text;
 
+    private static readonly Brush UpdateAvailableBackground = CreateFrozenBrush(Color.FromRgb(0xAD, 0xD8, 0xF2));
+
     private bool _updateAvailable;
     private bool _updateCheckInProgress;
     private bool _reloadInProgress;
@@ -513,13 +515,32 @@ public partial class StatusWindow : Window
         return ScriptsViewControl.TrySaveAll();
     }
 
-    /// <summary>FR-66.6: the update button reads "Update available" when a newer build was found, otherwise
-    /// "Check for new version".</summary>
+    private static Brush CreateFrozenBrush(Color color)
+    {
+        var brush = new SolidColorBrush(color);
+        brush.Freeze();
+        return brush;
+    }
+
+    /// <summary>FR-66.6: the update button reads "Update available" (light blue background, bold text) when a newer
+    /// build was found, otherwise "Check for new version" with the default look.</summary>
     public void SetUpdateAvailable(bool available)
     {
         _updateAvailable = available;
         UpdateButtonText.Text = available ? "Update available" : "Check for new version";
         UpdateButtonIcon.Kind = available ? PackIconMaterialKind.Update : PackIconMaterialKind.Refresh;
+        if (available)
+        {
+            // Light blue background and bold text so the pending update stands out from the neutral buttons.
+            UpdateButton.Background = UpdateAvailableBackground;
+            UpdateButtonText.FontWeight = FontWeights.Bold;
+        }
+        else
+        {
+            UpdateButton.ClearValue(Control.BackgroundProperty);
+            UpdateButtonText.ClearValue(TextBlock.FontWeightProperty);
+        }
+
         UpdateButton.ToolTip = available
             ? "A newer version of MutagenMon is available in the deploy folder"
             : "Check the deploy folder for a newer version of MutagenMon";

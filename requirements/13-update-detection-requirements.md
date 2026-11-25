@@ -58,8 +58,10 @@ feature lets an installation notice the new build and update itself.
   "Reload config & restart" and the update button on the left, and "Exit
   mutagen monitor" at the far right. The update button is visible
   whenever `DeployPath` is not empty and hidden otherwise. It reads "Check
-  for new version" until an update is available, then "Update available".
-  Like the other toolbar buttons it is disabled during a config reload, and
+  for new version" until an update is available, then "Update available",
+  displayed on a light blue background with bold text so that it stands out
+  from the other toolbar buttons (default look again when no update is
+  available). Like the other toolbar buttons it is disabled during a config reload, and
   it is also disabled while its own check runs. An update requested while a
   reload or an update check is running (for instance by a check that ends
   during a reload) is not started: it is logged and the button keeps its

@@ -2386,13 +2386,14 @@ MutagenMon, or use "Reload config & restart", to trigger it at once.
 * Make `deploy\MutagenMon.exe` newer than the installed one, set `DeployPath`,
   then "Reload config & restart".
 * A notification "Update available" appears. Open the status window: an
-  update button reads "Update available" (it was "Check for new version"); it
-  is left of "Exit mutagen monitor", which stays at the far right.
+  update button reads "Update available" (it was "Check for new version") on a
+  light blue background with bold text, clearly standing out from the other
+  buttons; it is left of "Exit mutagen monitor", which stays at the far right.
 * Reload again: the button is still there and no second notification appears.
 * Set `NotifyUpdateAvailable` to false, make the deployed exe newer again and
   reload: the button reads "Update available" but there is no notification.
 * Make the deployed exe older than the installed one and reload: the button
-  goes back to "Check for new version".
+  goes back to "Check for new version" with the default grey, non-bold look.
 * With the button reading "Check for new version", touch the deployed exe and
   click it: the update confirmation dialog opens directly (the "Update
   available" notification may also appear, once per build). Cancel: the button
