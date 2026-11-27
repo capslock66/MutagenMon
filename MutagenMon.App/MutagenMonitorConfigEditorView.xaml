@@ -120,6 +120,15 @@
                                 <ColumnDefinition Width="220" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="Log retention (days)"
+                                   ToolTip="Entries older than this many days are deleted from &lt;LogPath&gt;/mutagenMon.log at startup and then once a day. Default 30." />
+                            <TextBox x:Name="LogRetentionDaysBox" Grid.Column="1" />
+                        </Grid>
+                        <Grid Style="{StaticResource FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
                             <Label Grid.Column="0" Content="Notify on restart-while-connecting"
                                    ToolTip="Enables the desktop notification when a session is restarted because it was stuck in 'connecting'." />
                             <CheckBox x:Name="NotifyRestartConnectionCheck" Grid.Column="1" VerticalAlignment="Center" />

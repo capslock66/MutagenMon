@@ -496,6 +496,23 @@ scale and are folded into the "≈" approximations there).
 - FR-14.4 (rewrite only, no legacy equivalent): Every user-initiated action
   on the tray context menu or on a button in any window/dialog MUST be
   logged, with a message starting with `"User action: "`.
+- FR-14.5 (rewrite only, no legacy equivalent): The log MUST NOT grow
+  forever. At startup, and then once every 24 hours while the application
+  runs, every entry of `<LogPath>/mutagenMon.log` dated more than
+  `LogRetentionDays` calendar days ago (local time) MUST be deleted. The
+  setting defaults to 30 days when absent from the configuration file, a
+  value of zero or less is treated as 30 (never "keep nothing"), and it is
+  editable in the configuration editor ("Logging & notifications" tab,
+  where only values from 1 to 36500 are accepted; larger configured values
+  are capped to 36500). A configuration reload re-applies
+  the value and purges immediately. An entry is a timestamped line plus the
+  lines that follow it without a timestamp (an exception's stack trace), so
+  those are removed or kept together. When something was removed, an
+  `Information` line `Log purge: removed N line(s) older than D day(s)` is
+  logged. The file is rewritten through a temporary
+  `mutagenMon.log.purge.tmp` swapped in at the end; when it cannot be
+  rewritten (e.g. held open by another program) it is left unchanged and a
+  `Warning` line `Log purge failed: ...` is logged, the next run retrying.
 
 ### Rewrite implementation note (deliberate simplification)
 

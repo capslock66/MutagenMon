@@ -27,6 +27,12 @@ public sealed class MutagenMonOptions
     /// high a level.</summary>
     public LogLevel MinLogLevel { get; set; } = LogLevel.Trace;
 
+    /// <summary>Number of days of entries kept in log/mutagenMon.log: at
+    /// startup and then once a day, older entries are deleted (FR-14.5).
+    /// Absent from the config file → 30; a value of zero or less is treated
+    /// as 30 as well, never as "keep nothing".</summary>
+    public int LogRetentionDays { get; set; } = 30;
+
     /// <summary>Shows a "Generate exception" button in the Logs tab's
     /// toolbar, which throws a deliberate unhandled exception to exercise
     /// the FR-14.1 error-handling path without needing a real crash.</summary>

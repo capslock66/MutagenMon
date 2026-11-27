@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using Microsoft.Win32;
 using Microsoft.Extensions.Logging;
 using MutagenMon.Core.Configuration;
+using MutagenMon.Core.Logging;
 
 namespace MutagenMon.App;
 
@@ -182,6 +183,7 @@ public partial class MutagenMonitorConfigEditorView : UserControl
         ScriptTimeoutSecondsBox.Text = options.ScriptTimeoutSeconds.ToString();
 
         MinLogLevelCombo.SelectedItem = options.MinLogLevel;
+        LogRetentionDaysBox.Text = options.LogRetentionDays.ToString();
         LogPathBox.Text = options.LogPath;
         NotifyRestartConnectionCheck.IsChecked = options.NotifyRestartConnection;
         NotifyConflictsCheck.IsChecked = options.NotifyConflicts;
@@ -334,6 +336,7 @@ public partial class MutagenMonitorConfigEditorView : UserControl
             ShowMainScreenAtStartup = ShowMainScreenAtStartupCheck.IsChecked == true,
             TrayTooltip = TrayTooltipBox.Text,
             MinLogLevel = (LogLevel)(MinLogLevelCombo.SelectedItem ?? LogLevel.Trace),
+            LogRetentionDays = ParseInt(LogRetentionDaysBox, "Log retention", errors),
             LogPath = LogPathBox.Text,
             NotifyRestartConnection = NotifyRestartConnectionCheck.IsChecked == true,
             NotifyConflicts = NotifyConflictsCheck.IsChecked == true,
@@ -373,6 +376,10 @@ public partial class MutagenMonitorConfigEditorView : UserControl
         // An empty text would match the start of every status, so it must not be accepted.
         if (string.IsNullOrWhiteSpace(options.HaltedOneSidedRootEmptying))
             errors.Add("'Halted status text (root emptying)' must not be empty.");
+        // A non-numeric text was already reported by ParseInt: no second message for it.
+        if (int.TryParse(LogRetentionDaysBox.Text, out var retentionDays)
+            && (retentionDays < 1 || retentionDays > LogFilePurger.MaxRetentionDays))
+            errors.Add($"'Log retention' must be between 1 and {LogFilePurger.MaxRetentionDays} days.");
         if (options.HaltedOneSidedRootEmptyingCooldownSeconds < 0)
             errors.Add("'Auto-fix cooldown' must be greater than or equal to 0.");
 

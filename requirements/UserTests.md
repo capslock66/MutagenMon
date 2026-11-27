@@ -1322,6 +1322,32 @@ dedicated file and no longer do.
   the resulting dialog.
 * The log contains `User action: exit requested; shutting down`.
 
+**UT-14.7 — Old log entries are purged (FR-14.5)** 📋
+
+* Stop MutagenMon. Open `log/mutagenMon.log` (or wherever `LogPath`
+  points) and make sure `LogRetentionDays` is absent from
+  `config/config_mutagenmon.json` (default 30).
+* Add at the top of the file, in this order, an entry dated 40 days ago
+  (e.g. `<date 40 days ago> 08:00:00.000 +01:00 [INF] Test: old entry`) followed by
+  a continuation line without timestamp (`   at Old.StackTrace()`), then an
+  entry dated 10 days ago with its own continuation line.
+* Start MutagenMon. The log contains (right around "Configuration loaded:
+  ...", in either order — the purge runs on a background thread)
+  `Log purge: removed 2 line(s) older than 30 day(s)`; the 40-day-old
+  entry **and** its continuation line are gone, the 10-day-old entry and
+  its continuation line are still there.
+* Open the configuration editor, "Logging & notifications" tab: "Log
+  retention (days)" shows 30. Enter 0 or text and save: a validation error
+  is shown. Enter 5, save, then "Reload config & restart": the 10-day-old
+  entry is purged immediately and the log says `removed ... older than 5
+  day(s)`.
+* Leave MutagenMon running for 24 hours after its start (or last config
+  reload): the purge runs again on its own (a line is logged only when
+  something was removed).
+* Enter `1000000` as retention: the editor refuses it (maximum 36500); the
+  same value hand-written in the JSON file does not crash the app (capped
+  to 36500).
+
 ## FR-15 — Single, always-on background operation
 
 **UT-15.1 — No main window is ever shown (FR-15.1)** 📋 ✅

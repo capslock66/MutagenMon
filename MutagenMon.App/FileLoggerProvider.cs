@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using Microsoft.Extensions.Logging;
+using MutagenMon.Core.Logging;
 
 namespace MutagenMon.App;
 
@@ -44,11 +45,15 @@ public sealed class FileLoggerProvider : ILoggerProvider
     /// every entry regardless.</summary>
     private const int MaxRecentEntries = 100;
 
+    private static readonly TimeSpan PurgePeriod = TimeSpan.FromDays(1);
+
     private readonly object _writeLock = new();
     private readonly Queue<LogEntry> _recentEntries = new();
     private readonly List<string> _linesBeforePrimaryPath = new();
     private string? _primaryLogPath;
     private LogLevel _minLevel = LogLevel.Trace;
+    private int _retentionDays = LogFilePurger.DefaultRetentionDays;
+    private Timer? _purgeTimer;
 
     /// <summary>Raised synchronously, on whatever thread logged the entry,
     /// every time one is written — <see cref="LogsView"/> marshals to the UI
@@ -97,6 +102,60 @@ public sealed class FileLoggerProvider : ILoggerProvider
         {
             _minLevel = level;
         }
+    }
+
+    /// <summary>Sets how many days of entries the primary log keeps (FR-14.5)
+    /// and runs a purge right away, then once every 24 hours for as long as
+    /// the app runs — the app is a long-lived tray process, so a purge at
+    /// startup alone would let the file grow for weeks. Called again on a
+    /// config reload, which re-applies the (possibly changed) value at once.</summary>
+    public void SetRetentionDays(int retentionDays)
+    {
+        lock (_writeLock)
+        {
+            _retentionDays = LogFilePurger.NormalizeRetentionDays(retentionDays);
+            if (_purgeTimer is null)
+                _purgeTimer = new Timer(_ => PurgeOldEntriesSafely(), null, TimeSpan.Zero, PurgePeriod);
+            else
+                _purgeTimer.Change(TimeSpan.Zero, PurgePeriod);
+        }
+    }
+
+    /// <summary>Timer entry point: a broken purge must never crash the app
+    /// (an exception escaping a timer callback terminates the process).</summary>
+    private void PurgeOldEntriesSafely()
+    {
+        try
+        {
+            PurgeOldEntries();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"FileLoggerProvider: log purge failed: {ex}");
+        }
+    }
+
+    /// <summary>Deletes the entries older than the retention period from the
+    /// primary log. Holds the write lock for the whole rewrite so no entry
+    /// appended meanwhile is lost — logging callers wait for it, which is
+    /// acceptable for a log of a few MB rewritten once a day.</summary>
+    internal void PurgeOldEntries()
+    {
+        int removedLines;
+        int retentionDays;
+        lock (_writeLock)
+        {
+            if (_primaryLogPath is null)
+                return;
+            retentionDays = _retentionDays;
+            removedLines = LogFilePurger.PurgeOlderThan(_primaryLogPath, retentionDays, DateTime.Now);
+        }
+
+        // Logged after the purge so this line isn't itself part of the rewrite.
+        if (removedLines < 0 && IsLevelEnabled(LogLevel.Warning))
+            Write(nameof(FileLoggerProvider), LogLevel.Warning, "Log purge failed: the log file could not be rewritten; it is left unchanged", null);
+        else if (removedLines > 0 && IsLevelEnabled(LogLevel.Information))
+            Write(nameof(FileLoggerProvider), LogLevel.Information, $"Log purge: removed {removedLines} line(s) older than {retentionDays} day(s)", null);
     }
 
     internal bool IsLevelEnabled(LogLevel level)
@@ -194,6 +253,7 @@ public sealed class FileLoggerProvider : ILoggerProvider
 
     public void Dispose()
     {
+        _purgeTimer?.Dispose();
     }
 
     private sealed class FileLogger(string categoryName, FileLoggerProvider provider) : ILogger

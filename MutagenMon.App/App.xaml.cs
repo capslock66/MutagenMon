@@ -165,6 +165,7 @@ public partial class App //: Application
             EnsureUpdateConfigKeys(configPath);
             _loggerProvider.SetPrimaryLogPath(ResolveLogFilePath(baseDir, options.LogPath));
             _loggerProvider.SetMinLevel(options.MinLogLevel);
+            _loggerProvider.SetRetentionDays(options.LogRetentionDays);
             _logger.LogInformation(
                 "Configuration loaded: PollPeriod={PollPeriodMs}ms, StartEnabled={StartEnabled}, LogPath={LogPath}",
                 options.MutagenPollPeriodMs, options.StartEnabled, options.LogPath);
@@ -400,6 +401,7 @@ public partial class App //: Application
             newOptions.MutagenPollPeriodMs, newOptions.StartEnabled, newOptions.LogPath);
         _loggerProvider!.SetPrimaryLogPath(ResolveLogFilePath(baseDir, newOptions.LogPath));
         _loggerProvider.SetMinLevel(newOptions.MinLogLevel);
+        _loggerProvider.SetRetentionDays(newOptions.LogRetentionDays);
 
         if (_monitorService is not null)
         {
