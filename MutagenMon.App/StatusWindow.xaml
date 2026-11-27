@@ -88,6 +88,9 @@
                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button x:Name="ResolveConflictsButton" Content="Resolve conflicts" Width="130"
                                 Click="OnResolveConflictsClick" />
+                        <!-- FR-67.2: global Pause/Resume, immediately left of Stop/Start Mutagen sessions. -->
+                        <Button x:Name="PauseResumeAllButton" Content="Pause sessions" Width="130"
+                                Margin="8,0,0,0" Click="OnPauseResumeAllClick" />
                         <Button x:Name="ToggleMonitoringButton" Content="Stop Mutagen sessions" Width="150"
                                 Margin="8,0,0,0" Click="OnToggleMonitoringClick" />
                     </StackPanel>
@@ -144,6 +147,33 @@
                                             <Button Click="OnViewSyncStatusClick" ToolTip="View sync status"
                                                     Padding="2" Background="Transparent" BorderThickness="0">
                                                 <iconPacks:PackIconMaterial Kind="EyeOutline" Width="14" Height="14" />
+                                            </Button>
+                                            <!-- FR-67.1: Pause, or Resume while the session is paused. -->
+                                            <Button Click="OnPauseResumeSessionClick" Margin="4,0,0,0"
+                                                    Padding="2" Background="Transparent" BorderThickness="0">
+                                                <Button.Style>
+                                                    <Style TargetType="Button">
+                                                        <Setter Property="ToolTip" Value="Pause session" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsPaused}" Value="True">
+                                                                <Setter Property="ToolTip" Value="Resume session" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                                <!-- The icon is the button's own content (not a style setter value), so no visual is shared between rows. -->
+                                                <iconPacks:PackIconMaterial Width="14" Height="14">
+                                                    <iconPacks:PackIconMaterial.Style>
+                                                        <Style TargetType="iconPacks:PackIconMaterial">
+                                                            <Setter Property="Kind" Value="PauseCircleOutline" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsPaused}" Value="True">
+                                                                    <Setter Property="Kind" Value="PlayCircleOutline" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </iconPacks:PackIconMaterial.Style>
+                                                </iconPacks:PackIconMaterial>
                                             </Button>
                                             <Button Click="OnEditSessionClick" ToolTip="Edit session"
                                                     Margin="4,0,0,0"

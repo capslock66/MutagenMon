@@ -206,14 +206,14 @@ the design discussion that produced this document.
   flags".
   Rendering, regardless of which synonym was in the source line, always
   emits the canonical `-m <value>` (never `--mode=`/`--sync-mode=`) —
-  saving a session normalizes its mode flag to `-m`. Omitted entirely when
-  the selected value is the default `two-way-safe`, to keep generated
-  lines close to what a human would hand-write (mutagen behaves
-  identically either way since that's already its own default). This is
-  the general rule for every default-valued combobox in this window
-  (FR-22 symlink mode, FR-23 watch mode, FR-24 probe/scan mode, FR-25
-  stage mode): a flag is only ever emitted when the selected value
-  differs from mutagen's own default for it.
+  saving a session normalizes its mode flag to `-m`. The flag is **always**
+  emitted, including for `two-way-safe`: a `sync create` without `-m` can
+  resolve to a different effective mode (observed as `two-way-resolved`,
+  silently overwriting beta), so the saved line must pin the selected mode.
+  This is specific to the sync mode: for every other default-valued
+  combobox in this window (FR-22 symlink mode, FR-23 watch mode, FR-24
+  probe/scan mode, FR-25 stage mode), a flag is only emitted when the
+  selected value differs from mutagen's own default for it.
 - FR-19.3: Below the Name/Alpha/Beta boxes, every zone described by
   FR-19 through FR-26 (Sync mode, Ignore, Permissions, Symbolic links,
   Watching, Probing and scanning, Staging, Limit, and — when present —
@@ -485,6 +485,32 @@ the design discussion that produced this document.
   existing window to the front (restoring it first if minimized) instead
   of opening a duplicate — it does not re-run FR-28.2's command or refresh
   the title's timestamp; use the popup's own Refresh (FR-28.6) for that.
+
+## FR-67 — Pause / Resume sessions
+
+- FR-67.1: The sessions grid's leftmost column (FR-17.1) gains an icon button,
+  placed **after View sync status and before Edit**. For a running session it
+  shows `PackIconMaterial Kind="PauseCircleOutline"` (tooltip "Pause session")
+  and runs `mutagen sync pause <name>`; while the session is paused it shows
+  `Kind="PlayCircleOutline"` (tooltip "Resume session") and runs
+  `mutagen sync resume <name>`. A session is paused when its `Status` starts
+  with "Paused" (case-insensitive, surrounding brackets ignored). Pausing keeps
+  the session history: resuming does not reset or recreate anything.
+- FR-67.2: The Sync toolbar gains a **"Pause sessions"** / **"Resume sessions"**
+  button placed immediately **left of "Stop Mutagen sessions"** (FR-16.5). It
+  runs `mutagen sync pause --all` / `mutagen sync resume --all`. It reads
+  "Resume sessions" only when there is at least one session and every session
+  is paused, and "Pause sessions" otherwise. `--all` also applies to Mutagen
+  sessions that are not declared in the sessions file (created by another tool). Like FR-16.5's toggle it is
+  disabled while a reload is in progress (FR-7.5/FR-8.5).
+- FR-67.3: Neither action touches the monitoring state (FR-7.2): "Stop Mutagen
+  sessions" and these actions are independent. The grid and the button labels
+  follow the real state on the next poll.
+- FR-67.4: When the command fails (non-zero exit, `mutagen` unreachable), an
+  error dialog is shown (same pattern as FR-28.3) and nothing else changes.
+- FR-67.5: Known limitation: a paused session is not classified by the status
+  state machine (FR-3), which leaves its previous code untouched, so the tray
+  icon does not change because of a pause.
 
 ## Design: Add/Edit window layout (superseded — see FR-19.3)
 

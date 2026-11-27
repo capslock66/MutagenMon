@@ -193,6 +193,48 @@ public class MutagenCliClient
                 $"'{_mutagenPath} sync reset {sessionName}' exited with code {process.ExitCode}: {stdout}{stderr}");
     }
 
+    /// <summary>Runs `mutagen sync pause &lt;name&gt;`, or `mutagen sync pause --all` when
+    /// <paramref name="sessionName"/> is null (FR-67). A paused session keeps its history, so resuming it
+    /// does not reset anything.</summary>
+    public virtual Task PauseSessionAsync(string? sessionName, CancellationToken cancellationToken) =>
+        RunSyncCommandAsync("pause", sessionName, cancellationToken);
+
+    /// <summary>Runs `mutagen sync resume &lt;name&gt;`, or `mutagen sync resume --all` when
+    /// <paramref name="sessionName"/> is null (FR-67).</summary>
+    public virtual Task ResumeSessionAsync(string? sessionName, CancellationToken cancellationToken) =>
+        RunSyncCommandAsync("resume", sessionName, cancellationToken);
+
+    private async Task RunSyncCommandAsync(string verb, string? sessionName, CancellationToken cancellationToken)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = _mutagenPath,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+        psi.ArgumentList.Add("sync");
+        psi.ArgumentList.Add(verb);
+        psi.ArgumentList.Add(sessionName ?? "--all");
+
+        var target = sessionName ?? "--all";
+        _logger.LogDebug("Invoking '{MutagenPath} sync {Verb} {Target}'", _mutagenPath, verb, target);
+
+        using var process = new Process { StartInfo = psi };
+        process.Start();
+
+        var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken);
+        var stdout = await stdoutTask;
+        var stderr = await stderrTask;
+
+        if (process.ExitCode != 0)
+            throw new InvalidOperationException(
+                $"'{_mutagenPath} sync {verb} {target}' exited with code {process.ExitCode}: {stdout}{stderr}");
+    }
+
     /// <summary>Implements session recreation (FR-13.5) —
     /// re-runs the session's original `mutagen sync create ...` command line
     /// (<see cref="Sessions.SessionDefinition.RawCreateCommand"/>), with its

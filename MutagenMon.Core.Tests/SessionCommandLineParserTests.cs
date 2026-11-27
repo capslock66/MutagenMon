@@ -28,14 +28,13 @@ public class SessionCommandLineParserTests
     }
 
     [Fact]
-    public void RenderOmitsModeWhenDefault()
+    public void RenderAlwaysEmitsModeEvenWhenDefault()
     {
         var model = new SessionCommandLine { Name = "s", Alpha = "A", Beta = "B" };
 
         var line = SessionCommandLineParser.Render(model);
 
-        Assert.DoesNotContain("-m ", line);
-        Assert.Equal("mutagen sync create A B --name=s", line);
+        Assert.Equal("mutagen sync create A B --name=s -m two-way-safe", line);
     }
 
     [Fact]
@@ -253,6 +252,29 @@ public class SessionCommandLineParserTests
         Assert.Equal(SyncMode.TwoWaySafe, model.Mode);
         Assert.Single(model.UnknownFlags);
         Assert.Equal("--mode=some-future-mode", model.UnknownFlags[0].Text);
+    }
+
+    [Fact]
+    public void RenderDoesNotAddASecondModeFlagWhenAnUnrecognisedOneIsKept()
+    {
+        var line = SessionCommandLineParser.Render(
+            SessionCommandLineParser.Parse("mutagen sync create A B --name=s --mode=some-future-mode"));
+
+        Assert.DoesNotContain("-m ", line);
+        Assert.Contains("--mode=some-future-mode", line);
+    }
+
+    [Theory]
+    [InlineData("-m two-way-safe", true)]
+    [InlineData("--mode=two-way-safe", true)]
+    [InlineData("--sync-mode two-way-safe", true)]
+    [InlineData("--mode=some-future-mode", false)]
+    [InlineData("", false)]
+    public void HasExplicitModeReflectsARecognisedModeFlag(string modeFlags, bool expected)
+    {
+        var model = SessionCommandLineParser.Parse($"mutagen sync create A B --name=s {modeFlags}");
+
+        Assert.Equal(expected, model.HasExplicitMode);
     }
 
     [Fact]

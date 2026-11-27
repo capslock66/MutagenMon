@@ -204,7 +204,8 @@ steps, in this order, stopping at the first failure:
   2. monitoring is enabled (not paused by the user, FR-7), as for the
      automatic restarts of FR-13;
   3. the session's sync mode is `two-way-safe` (the session's create line,
-     FR-18/FR-19; absent `-m` means `two-way-safe`);
+     FR-18/FR-19; absent `-m` is deliberately assumed to mean `two-way-safe` —
+     lines written by the application always carry `-m`, see FR-19.2);
   4. E is determined (FR-58.2) and P is supported (FR-59.1);
   5. the cooldown has elapsed (FR-61.3) and fewer than 3 consecutive
      attempts failed (FR-61.4);
@@ -333,3 +334,7 @@ Three keys are added to
   conflicts the recovery avoids): it rewrites the directive only (and does
   not touch the file at all when the directive is unchanged too), and the new
   effective flag MUST apply without restarting any session.
+  **Exception (FR-19):** when the stored line carries no mode flag (`-m`,
+  `--mode`, `--sync-mode`), the change is never "directive only": its
+  effective mode is left to mutagen's own configuration, so Save recreates the
+  session and rewrites the line with an explicit `-m`.

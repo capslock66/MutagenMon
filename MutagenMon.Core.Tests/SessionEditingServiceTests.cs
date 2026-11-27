@@ -59,7 +59,7 @@ public class SessionEditingServiceTests
 
             Assert.Single(cli.CreatedRawCommands);
             Assert.Contains("--name=new-session", cli.CreatedRawCommands[0]);
-            Assert.Equal(["@echo off", "mutagen sync create A B --name=new-session"], File.ReadAllLines(path));
+            Assert.Equal(["@echo off", "mutagen sync create A B --name=new-session -m two-way-safe"], File.ReadAllLines(path));
         }
         finally
         {
@@ -128,7 +128,7 @@ public class SessionEditingServiceTests
 
             Assert.Empty(cli.TerminatedSessions);
             Assert.Single(cli.CreatedRawCommands);
-            Assert.Equal(["mutagen sync create A2 B2 --name=before"], File.ReadAllLines(path));
+            Assert.Equal(["mutagen sync create A2 B2 --name=before -m two-way-safe"], File.ReadAllLines(path));
         }
         finally
         {
@@ -232,7 +232,7 @@ public class SessionEditingServiceTests
             await service.AddAsync(model, CancellationToken.None);
 
             Assert.Equal(
-                ["@echo off", DirectiveForX, "", "mutagen sync terminate --all", "mutagen sync create A B --name=x"],
+                ["@echo off", DirectiveForX, "", "mutagen sync terminate --all", "mutagen sync create A B --name=x -m two-way-safe"],
                 File.ReadAllLines(path));
         }
         finally
@@ -257,7 +257,7 @@ public class SessionEditingServiceTests
             Assert.Equal(
                 [
                     "@echo off", directiveForY, "", "mutagen sync terminate --all",
-                    "mutagen sync create A B --name=y", "mutagen sync create A B --name=x",
+                    "mutagen sync create A B --name=y", "mutagen sync create A B --name=x -m two-way-safe",
                 ],
                 File.ReadAllLines(path));
         }
@@ -277,7 +277,7 @@ public class SessionEditingServiceTests
 
             await service.AddAsync(new SessionCommandLine { Name = "x", Alpha = "A", Beta = "B" }, CancellationToken.None);
 
-            Assert.Equal(["@echo off", "mutagen sync create A B --name=x"], File.ReadAllLines(path));
+            Assert.Equal(["@echo off", "mutagen sync create A B --name=x -m two-way-safe"], File.ReadAllLines(path));
         }
         finally
         {
@@ -288,7 +288,7 @@ public class SessionEditingServiceTests
     [Fact]
     public async Task AnEditThatOnlyChangesTheDirectiveDoesNotTerminateOrRecreateTheSession()
     {
-        var path = CreateTempSessionsFile("@echo off", "", "mutagen sync terminate --all", "mutagen sync create A B --name=x");
+        var path = CreateTempSessionsFile("@echo off", "", "mutagen sync terminate --all", "mutagen sync create A B --name=x -m two-way-safe");
         try
         {
             var cli = new FakeMutagenCliClient();
@@ -301,7 +301,7 @@ public class SessionEditingServiceTests
             Assert.Empty(cli.TerminatedSessions);
             Assert.Empty(cli.CreatedRawCommands);
             Assert.Equal(
-                ["@echo off", DirectiveForX, "", "mutagen sync terminate --all", "mutagen sync create A B --name=x"],
+                ["@echo off", DirectiveForX, "", "mutagen sync terminate --all", "mutagen sync create A B --name=x -m two-way-safe"],
                 File.ReadAllLines(path));
         }
         finally
@@ -337,9 +337,56 @@ public class SessionEditingServiceTests
     }
 
     [Fact]
+    public async Task AnEditOfALineWithoutModeFlagRecreatesTheSessionAndPinsTheMode()
+    {
+        // Without -m the effective mode is up to mutagen's configuration, so an unchanged-looking save must still pin it.
+        var path = CreateTempSessionsFile("@echo off", "mutagen sync create A B --name=x");
+        try
+        {
+            var cli = new FakeMutagenCliClient();
+            var service = new SessionEditingService(cli, path, new CapturingLogger<SessionEditingService>());
+
+            var outcome = await service.EditAsync(
+                "x", new SessionCommandLine { Name = "x", Alpha = "A", Beta = "B" }, CancellationToken.None);
+
+            Assert.Equal(SessionEditOutcome.Recreated, outcome);
+            Assert.Equal(["x"], cli.TerminatedSessions);
+            Assert.Equal(["mutagen sync create A B --name=x -m two-way-safe"], cli.CreatedRawCommands);
+            Assert.Contains("mutagen sync create A B --name=x -m two-way-safe", File.ReadAllLines(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task AStoredLineWithTheSyncModeSynonymStillCountsAsPinned()
+    {
+        const string stored = "mutagen sync create --name=x --sync-mode=two-way-safe A B";
+        var path = CreateTempSessionsFile(stored);
+        try
+        {
+            var cli = new FakeMutagenCliClient();
+            var service = new SessionEditingService(cli, path, new CapturingLogger<SessionEditingService>());
+            var model = SessionCommandLineParser.Parse(stored);
+            model.HaltedAutoFix = true;
+
+            var outcome = await service.EditAsync("x", model, CancellationToken.None);
+
+            Assert.Equal(SessionEditOutcome.DirectiveOnly, outcome);
+            Assert.Empty(cli.CreatedRawCommands);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public async Task AnEditWithNothingChangedLeavesTheFileAlone()
     {
-        var path = CreateTempSessionsFile("@echo off", "mutagen sync create A B --name=x");
+        var path = CreateTempSessionsFile("@echo off", "mutagen sync create A B --name=x -m two-way-safe");
         try
         {
             var cli = new FakeMutagenCliClient();
@@ -374,7 +421,7 @@ public class SessionEditingServiceTests
             Assert.Equal(SessionEditOutcome.Recreated, outcome);
             Assert.Equal(["x"], cli.TerminatedSessions);
             Assert.Equal(
-                ["@echo off", "rem sync --name=y : @halted-auto-fix: true", "", "mutagen sync terminate --all", "mutagen sync create A B --name=y"],
+                ["@echo off", "rem sync --name=y : @halted-auto-fix: true", "", "mutagen sync terminate --all", "mutagen sync create A B --name=y -m two-way-safe"],
                 File.ReadAllLines(path));
         }
         finally
@@ -396,7 +443,7 @@ public class SessionEditingServiceTests
             var outcome = await service.EditAsync("x", model, CancellationToken.None);
 
             Assert.Equal(SessionEditOutcome.Recreated, outcome);
-            Assert.Equal(["@echo off", "", "mutagen sync create A C --name=x"], File.ReadAllLines(path));
+            Assert.Equal(["@echo off", "", "mutagen sync create A C --name=x -m two-way-safe"], File.ReadAllLines(path));
         }
         finally
         {

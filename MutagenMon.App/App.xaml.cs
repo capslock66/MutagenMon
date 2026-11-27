@@ -556,6 +556,8 @@ public partial class App //: Application
             _statusWindow.EditSessionRequested += OnEditSessionRequested;
             _statusWindow.DeleteSessionRequested += OnDeleteSessionRequested;
             _statusWindow.AcceptDeletionRequested += OnAcceptDeletionRequested;
+            _statusWindow.PauseResumeSessionRequested += OnPauseResumeSessionRequested;
+            _statusWindow.PauseResumeAllRequested += OnPauseResumeAllRequested;
             _statusWindow.SizeSettled += OnStatusWindowSizeSettled;
             if (_options is not null)
             {
@@ -1170,6 +1172,37 @@ public partial class App //: Application
             _logger.LogError(ex, "Failed to delete session '{Name}'", name);
             MessageBox.Show(
                 _statusWindow, $"MutagenMon could not delete session '{name}':\n\n{ex.Message}",
+                "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void OnPauseResumeSessionRequested(object? sender, (string Name, bool Pause) request) =>
+        _ = PauseOrResumeAsync(request.Name, request.Pause);
+
+    private void OnPauseResumeAllRequested(object? sender, bool pause) => _ = PauseOrResumeAsync(null, pause);
+
+    /// <summary>Pauses or resumes one session, or every session when <paramref name="sessionName"/> is null
+    /// (FR-67). The grid follows on the next poll; a failure shows an error dialog (FR-67.4).</summary>
+    private async Task PauseOrResumeAsync(string? sessionName, bool pause)
+    {
+        if (_mutagenCliClient is null || _statusWindow is null || _logger is null)
+            return;
+
+        var verb = pause ? "pause" : "resume";
+        var target = sessionName is null ? "all sessions" : $"session '{sessionName}'";
+        try
+        {
+            if (pause)
+                await _mutagenCliClient.PauseSessionAsync(sessionName, CancellationToken.None);
+            else
+                await _mutagenCliClient.ResumeSessionAsync(sessionName, CancellationToken.None);
+            _logger.LogInformation("User action: {Verb} of {Target} done", verb, target);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to {Verb} {Target}", verb, target);
+            MessageBox.Show(
+                _statusWindow, $"MutagenMon could not {verb} {target}:\n\n{ex.Message}",
                 "MutagenMon", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }

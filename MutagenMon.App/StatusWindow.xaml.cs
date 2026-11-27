@@ -87,6 +87,14 @@ public partial class StatusWindow : Window
     /// deletion" icon is clicked. Only a row halted by a root emptying shows it.</summary>
     public event EventHandler<string>? AcceptDeletionRequested;
 
+    /// <summary>Raised when the user clicks a row's Pause/Resume icon (FR-67.1): the session name and whether to
+    /// pause (true) or resume (false) it.</summary>
+    public event EventHandler<(string Name, bool Pause)>? PauseResumeSessionRequested;
+
+    /// <summary>Raised when the user clicks the global Pause/Resume button (FR-67.2): true to pause every session,
+    /// false to resume every session.</summary>
+    public event EventHandler<bool>? PauseResumeAllRequested;
+
     // The configured HaltedOneSidedRootEmptying text (FR-57.5): which halted rows get the "Accept deletion" icon.
     private string _haltedRootEmptyingText = "";
 
@@ -99,6 +107,7 @@ public partial class StatusWindow : Window
     private bool _updateAvailable;
     private bool _updateCheckInProgress;
     private bool _reloadInProgress;
+    private bool _allSessionsPaused;
 
     /// <summary>Bound once to <c>SessionsGrid.ItemsSource</c> and updated
     /// in place on every refresh (<see cref="SyncRows"/>) rather than
@@ -336,11 +345,16 @@ public partial class StatusWindow : Window
 
         ToggleMonitoringButton.Content = snapshot.Enabled ? "Stop Mutagen sessions" : "Start Mutagen sessions";
 
+        // FR-67.2: the global button offers Resume only when every session is paused.
+        _allSessionsPaused = rows.Count > 0 && rows.All(r_ => r_.IsPaused);
+        PauseResumeAllButton.Content = _allSessionsPaused ? "Resume sessions" : "Pause sessions";
+
         // Mirrors FR-7.5's tray-menu collapse while a reload drains and
         // rebuilds the monitor stack — prevents firing a second reload or
         // toggling monitoring against a service that's about to be replaced.
         ReloadConfigButton.IsEnabled = !reloadInProgress;
         ToggleMonitoringButton.IsEnabled = !reloadInProgress;
+        PauseResumeAllButton.IsEnabled = !reloadInProgress;
         ExitButton.IsEnabled = !reloadInProgress;
         _reloadInProgress = reloadInProgress;
         UpdateButton.IsEnabled = !reloadInProgress && !_updateCheckInProgress;
@@ -485,6 +499,20 @@ public partial class StatusWindow : Window
             return;
         _logger.LogInformation("User action: status window Accept deletion clicked ({Name})", row.Name);
         AcceptDeletionRequested?.Invoke(this, row.Name);
+    }
+
+    private void OnPauseResumeSessionClick(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).DataContext is not SessionSummaryRow row)
+            return;
+        _logger.LogInformation("User action: status window {Action} session clicked ({Name})", row.IsPaused ? "Resume" : "Pause", row.Name);
+        PauseResumeSessionRequested?.Invoke(this, (row.Name, !row.IsPaused));
+    }
+
+    private void OnPauseResumeAllClick(object sender, RoutedEventArgs e)
+    {
+        _logger.LogInformation("User action: status window {Action} sessions clicked", _allSessionsPaused ? "Resume" : "Pause");
+        PauseResumeAllRequested?.Invoke(this, !_allSessionsPaused);
     }
 
     private void OnToggleMonitoringClick(object sender, RoutedEventArgs e)
@@ -636,7 +664,8 @@ public partial class StatusWindow : Window
                 status?.Beta?.Url ?? "(unknown)",
                 lastChanged,
                 SessionStateTracker.IsHalted(status?.Status),
-                HaltedSessionAnalyzer.Analyze(status, haltedRootEmptyingText).IsRootEmptying));
+                HaltedSessionAnalyzer.Analyze(status, haltedRootEmptyingText).IsRootEmptying,
+                SessionStateTracker.IsPaused(status?.Status)));
         }
 
         return rows;

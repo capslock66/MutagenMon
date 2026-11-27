@@ -2208,8 +2208,49 @@ blank line.
   the same block. **Duplicate** a session that is **Enabled**: the new session
   starts as **Enabled** too.
 * **Delete** `temp2`: its session line **and** its directive line are removed.
-* Open the Edit window of a session and click Save without changing anything:
-  the file is not modified (check its timestamp).
+* Open the Edit window of a session whose line already carries `-m` and click
+  Save without changing anything: the file is not modified (check its
+  timestamp). For a line without `-m`, see UT-19.1.
+
+**UT-19.1 — The sync mode is always written to the line (FR-19, FR-65.3)** 📋
+
+* **Add** a session with Sync mode **two-way-safe**, Save. In the sessions file
+  its line ends with `-m two-way-safe`, and `mutagen sync list -l` shows
+  "Two Way Safe".
+* Create a conflict: pause the session, modify the same file differently on
+  both sides, resume. The session reports the conflict and beta is **not**
+  overwritten.
+* Hand-edit a session line to remove its `-m ...`. **Edit** it and click Save
+  without changing anything: the session **is** recreated and the line is
+  rewritten with `-m two-way-safe`.
+
+## FR-67 — Pause / Resume sessions
+
+**UT-67.1 — Pause/Resume a single session (FR-67.1, FR-67.4)** 📋
+
+* In the Sync tab, each row shows a pause icon between the eye and the pencil
+  (tooltip "Pause session").
+* Click it on a running session: after the next poll the Status column reads
+  "Paused" and the icon becomes a play icon (tooltip "Resume session"). The
+  other sessions are untouched, and `mutagen sync list` shows the session as
+  paused.
+* While paused, edit the same file differently on alpha and beta, then click
+  the play icon: the session resumes, and a conflict is reported (two-way-safe)
+  without beta being overwritten (see UT-19.1).
+* Make `mutagen` unreachable (wrong `MutagenPath`) and click the icon: an error
+  dialog is shown.
+
+**UT-67.2 — Global Pause/Resume (FR-67.2, FR-67.3)** 📋
+
+* The toolbar shows **Pause sessions** immediately left of **Stop Mutagen
+  sessions**. Click it: every session becomes "Paused" and the button reads
+  **Resume sessions**.
+* Click **Resume sessions**: every session resumes and the label returns to
+  **Pause sessions**.
+* Pause a single session only: the button still reads **Pause sessions**. Pause
+  all but resume one: it reads **Pause sessions** again.
+* Click **Stop Mutagen sessions** and **Start Mutagen sessions**: they behave as
+  before, independent of the pause state.
 
 ## FR-59/FR-60/FR-61/FR-62 — Resolving a halted session (manual action, automatic fix, notifications)
 

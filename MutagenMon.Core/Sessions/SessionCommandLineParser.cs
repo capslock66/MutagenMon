@@ -85,7 +85,10 @@ public static class SessionCommandLineParser
             "mutagen", "sync", "create", Quote(model.Alpha), Quote(model.Beta), $"--name={model.Name}",
         };
 
-        if (model.Mode != SyncMode.TwoWaySafe)
+        // Always emitted, even for two-way-safe: the effective default mode of a `sync create` without `-m` can
+        // differ from two-way-safe (mutagen configuration), so the saved line must pin the selected mode.
+        // Unless an unrecognised mode flag is kept verbatim below: emitting a second, contradicting one would be worse.
+        if (!model.UnknownFlags.Any(f_ => f_.Keep && IsModeFlagText(f_.Text)))
             parts.Add($"-m {model.Mode.ToFlagValue()}");
 
         foreach (var pattern in model.Ignores)
@@ -127,6 +130,11 @@ public static class SessionCommandLineParser
         return string.Join(' ', parts);
     }
 
+    // Matches the text of a mode flag in any of its forms, e.g. "-m x", "--mode=x", "--sync-mode x".
+    private static bool IsModeFlagText(string text) =>
+        text.StartsWith("-m ", StringComparison.Ordinal) || text.StartsWith("-m=", StringComparison.Ordinal)
+        || text.StartsWith("--mode", StringComparison.Ordinal) || text.StartsWith("--sync-mode", StringComparison.Ordinal);
+
     private static bool TryApplyValueFlag(SessionCommandLine r, string flag, string value)
     {
         switch (flag)
@@ -141,6 +149,7 @@ public static class SessionCommandLineParser
                 if (ParseSyncMode(value) is not { } mode)
                     return false;
                 r.Mode = mode;
+                r.HasExplicitMode = true;
                 return true;
             case "-i":
             case "--ignore":

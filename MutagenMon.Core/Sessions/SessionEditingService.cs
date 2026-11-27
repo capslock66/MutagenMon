@@ -147,8 +147,14 @@ public sealed partial class SessionEditingService
 
         // Both lines go through the same parser and renderer, so a hand-written line that differs from the canonical
         // one only by formatting (flag order, -m vs --sync-mode) still counts as unchanged.
-        var storedRendered = SessionCommandLineParser.Render(SessionCommandLineParser.Parse(lines[index].Trim()));
-        return storedRendered == newRawLine;
+        var stored = SessionCommandLineParser.Parse(lines[index].Trim());
+
+        // A stored line without a mode flag runs with whatever mode mutagen defaults to, which may not be the
+        // two-way-safe the window displays: saving must rewrite it with an explicit -m and recreate the session.
+        if (!stored.HasExplicitMode)
+            return false;
+
+        return SessionCommandLineParser.Render(stored) == newRawLine;
     }
 
     private static string[] AppendSession(IReadOnlyList<string> lines, string rawCreateCommand) =>

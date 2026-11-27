@@ -51,6 +51,10 @@ public sealed class SessionCommandLine
 
     public SyncMode Mode { get; set; } = SyncMode.TwoWaySafe;
 
+    /// <summary>True when the parsed line carried a mode flag (`-m`, `--mode`, `--sync-mode`). A line without one
+    /// leaves the effective mode to mutagen's own configuration, so it is not known to be <see cref="Mode"/>.</summary>
+    public bool HasExplicitMode { get; set; }
+
     public List<string> Ignores { get; set; } = new();
 
     /// <summary>Tri-state (FR-20.5): null omits both `--ignore-vcs` and

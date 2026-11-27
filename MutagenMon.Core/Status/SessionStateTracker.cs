@@ -31,6 +31,11 @@ public sealed class SessionStateTracker
     public static bool IsHalted(string? status) =>
         status is not null && status.StartsWith(HaltedPrefix, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>FR-67.1: true when <paramref name="status"/> is Mutagen's "Paused" status (a session paused by
+    /// `mutagen sync pause`), case-insensitively and ignoring surrounding brackets.</summary>
+    public static bool IsPaused(string? status) =>
+        status is not null && status.Trim().Trim('[', ']').StartsWith("Paused", StringComparison.OrdinalIgnoreCase);
+
     private readonly Dictionary<string, Entry> _entries = new();
 
     /// <summary>Feeds one session's latest poll result in and returns its
