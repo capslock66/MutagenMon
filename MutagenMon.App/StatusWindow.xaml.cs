@@ -208,103 +208,135 @@ public partial class StatusWindow : Window
         _sessionsPathProvider = sessionsPathProvider;
         RefreshSessionsFileLink();
         _scriptRunCoordinator = new ScriptRunCoordinator(logger, scriptRunnerFactory, Dispatcher);
-        // FR-56.6: a run starting or ending on any tab changes whether Run is offered here.
-        _scriptRunCoordinator.RunningChanged += (_, _) => UpdateRunSessionScriptButton();
         // FR-52.6: while a script runs, the title also shows which one and for how long.
         _scriptRunCoordinator.RunInfoChanged += (_, info) => Title = info is null ? _baseTitle : $"{_baseTitle}  -  {info}";
         ScriptsViewControl.Initialize(
             logger, scriptsPathProvider, _scriptRunCoordinator, defaultScriptHostProvider,
             GetSelectedSession);
         ScriptsViewControl.HasUnsavedChangesChanged += (_, hasUnsavedChanges) => UpdateScriptsTabHeader(hasUnsavedChanges);
-        ScriptsViewControl.ScriptsChanged += (_, _) => RefreshSessionScripts();
-        // FR-56.2: the file can also be edited outside the application: rebuild the combo when the window comes back to the front.
-        Activated += (_, _) => RefreshSessionScripts();
     }
 
-    /// <summary>F5 runs the selected script on the Scripts tab (FR-47.2) and the
-    /// script chosen in the combo on the selected session on the Sync tab
-    /// (FR-56.3); on the other tabs the key keeps its default behaviour.</summary>
+    /// <summary>F5 runs the selected script on the Scripts tab (FR-47.2); on the other
+    /// tabs the key keeps its default behaviour.</summary>
     private void OnWindowPreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key != Key.F5)
+        if (e.Key != Key.F5 || !ScriptsTab.IsSelected)
             return;
 
-        if (ScriptsTab.IsSelected)
-        {
-            e.Handled = true;
-            ScriptsViewControl.RunSelectedScript();
-        }
-        else if (SyncTab.IsSelected)
-        {
-            e.Handled = true;
-            RunSessionScript();
-        }
+        e.Handled = true;
+        ScriptsViewControl.RunSelectedScript();
     }
 
-    /// <summary>Rebuilds the session-script combo (FR-56.2) from the scripts file
-    /// as saved on disk: the valid scripts tagged <c>@session-script</c>, in file
-    /// order. The selected script stays selected while its name is still listed.
-    /// A missing or unreadable file gives an empty, disabled combo and no message
+    /// <summary>The valid scripts tagged <c>@session-script</c>, in file order, read from the
+    /// scripts file as saved on disk each time the row menu opens (so an edit made outside the
+    /// application is picked up). A missing or unreadable file gives an empty list and no message
     /// (the Scripts tab reports it, FR-49.2).</summary>
-    public void RefreshSessionScripts()
+    private IReadOnlyList<ScriptDefinition> ReadSessionScripts()
     {
-        var previousName = (SessionScriptCombo.SelectedItem as ScriptDefinition)?.Name;
-        IReadOnlyList<ScriptDefinition> scripts;
         try
         {
-            scripts = ScriptFileParser.ParseFile(_scriptsPathProvider())
+            return ScriptFileParser.ParseFile(_scriptsPathProvider())
                 .Where(script_ => script_.IsSessionScript && script_.IsValid)
                 .ToList();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _logger.LogDebug(ex, "The session-script combo is empty: the scripts file cannot be read");
-            scripts = [];
+            _logger.LogDebug(ex, "No session script is offered: the scripts file cannot be read");
+            return [];
         }
-
-        SessionScriptCombo.ItemsSource = scripts;
-        SessionScriptCombo.SelectedItem = scripts.FirstOrDefault(script_ => script_.Name == previousName);
-        SessionScriptCombo.IsEnabled = scripts.Count > 0;
-        UpdateRunSessionScriptButton();
     }
 
-    private void OnSessionScriptSelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateRunSessionScriptButton();
-
-    /// <summary>FR-56.3: Run needs a session selected in the grid (the one the
-    /// macros would use, FR-55.3), a script selected in the combo and no script
-    /// running on any tab.</summary>
-    private void UpdateRunSessionScriptButton() =>
-        RunSessionScriptButton.IsEnabled = !_scriptRunCoordinator.IsRunning
-            && SessionScriptCombo.SelectedItem is ScriptDefinition
-            && GetSelectedSession() is not null;
-
-    /// <summary>The Run button (FR-56.3); see <see cref="RunSessionScript"/>.</summary>
-    private void OnRunSessionScriptClick(object sender, RoutedEventArgs e) => RunSessionScript();
-
-    /// <summary>FR-56.4: runs the script chosen in the combo on the selected session. The
-    /// file is read again so the run uses the script as saved now; the session is read once,
-    /// here. Declining the `@confirm` confirmation opens nothing; a macro error opens the dialog
-    /// with the message (FR-56.5).</summary>
-    private void RunSessionScript()
+    /// <summary>Runs <paramref name="script"/> on <paramref name="session"/> (FR-56.4). The file is read
+    /// again so the run uses the script as saved now. Declining the `@confirm` confirmation opens
+    /// nothing; a macro error opens the dialog with the message (FR-56.5).</summary>
+    private void RunSessionScript(string scriptName, SessionSummaryRow session)
     {
-        if (!RunSessionScriptButton.IsEnabled)
-            return;
-
-        _logger.LogInformation("User action: status window Run session script requested ('{Script}')",
-            (SessionScriptCombo.SelectedItem as ScriptDefinition)?.Name);
-        RefreshSessionScripts();
-        if (SessionScriptCombo.SelectedItem is not ScriptDefinition script || GetSelectedSession() is not { } session)
+        _logger.LogInformation("User action: status window Run session script requested ('{Script}')", scriptName);
+        var script = ReadSessionScripts().FirstOrDefault(script_ => script_.Name == scriptName);
+        if (script is null || _scriptRunCoordinator.IsRunning)
         {
-            _logger.LogInformation("Run session script: the script or the session is no longer available");
+            _logger.LogInformation("Run session script: the script is no longer available or another script is running");
             return;
         }
 
+        // The macros of the script (FR-55.3) resolve to the session whose menu was used.
+        _selectedSessionName = session.Name;
         _logger.LogDebug("Run session script: '{Script}' on session '{Session}'", script.Name, session.Name);
         var preparation = _scriptRunCoordinator.Prepare(this, script, session);
         if (preparation is null)
             return;
 
         ScriptRunWindow.ShowRun(this, _logger, _scriptRunCoordinator, preparation, session.Name);
+    }
+
+    /// <summary>Opens the row menu from the hamburger button.</summary>
+    private void OnSessionMenuClick(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).DataContext is not SessionSummaryRow row)
+            return;
+
+        SessionsGrid.SelectedItem = row;
+        var menu = BuildSessionMenu(row);
+        menu.PlacementTarget = (UIElement)sender;
+        menu.Placement = PlacementMode.Bottom;
+        menu.IsOpen = true;
+    }
+
+    /// <summary>Right click on a row opens the same menu at the mouse position.</summary>
+    private void OnSessionsGridPreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (FindAncestorOrSelf<DataGridRow>(e.OriginalSource as DependencyObject) is not { Item: SessionSummaryRow row })
+            return;
+
+        SessionsGrid.SelectedItem = row;
+        var menu = BuildSessionMenu(row);
+        menu.PlacementTarget = SessionsGrid;
+        menu.Placement = PlacementMode.MousePoint;
+        menu.IsOpen = true;
+        e.Handled = true;
+    }
+
+    /// <summary>The row menu: View sync status, Pause/Resume, Edit, Delete, Duplicate, a separator and one entry
+    /// per session script (disabled while a script runs, FR-56.6). Built on each opening because it depends on the
+    /// session's state and on the scripts file.</summary>
+    private ContextMenu BuildSessionMenu(SessionSummaryRow row)
+    {
+        var menu = new ContextMenu();
+        menu.Items.Add(CreateMenuItem("View sync status", PackIconMaterialKind.EyeOutline, () => OnViewSyncStatus(row)));
+        menu.Items.Add(row.IsPaused
+            ? CreateMenuItem("Resume", PackIconMaterialKind.PlayCircleOutline, () => OnPauseResumeSession(row))
+            : CreateMenuItem("Pause", PackIconMaterialKind.PauseCircleOutline, () => OnPauseResumeSession(row)));
+        menu.Items.Add(CreateMenuItem("Edit", PackIconMaterialKind.PencilOutline, () => OnEditSession(row)));
+        menu.Items.Add(CreateMenuItem("Delete", PackIconMaterialKind.TrashCanOutline, () => OnDeleteSession(row)));
+        menu.Items.Add(CreateMenuItem("Duplicate", PackIconMaterialKind.ContentCopy, () => OnDuplicateSession(row)));
+
+        var scripts = ReadSessionScripts();
+        if (scripts.Count == 0)
+            return menu;
+
+        menu.Items.Add(new Separator());
+        foreach (var script in scripts)
+        {
+            var scriptName = script.Name;
+            // Green "play" icon, like the Run button of the Scripts tab.
+            var item = CreateMenuItem(scriptName, PackIconMaterialKind.Play, () => RunSessionScript(scriptName, row));
+            ((PackIconMaterial)item.Icon).Foreground = new SolidColorBrush(Color.FromRgb(0x2E, 0x9E, 0x3E));
+            item.IsEnabled = !_scriptRunCoordinator.IsRunning;
+            menu.Items.Add(item);
+        }
+
+        return menu;
+    }
+
+    private static MenuItem CreateMenuItem(string header, PackIconMaterialKind kind, Action onClick)
+    {
+        var item = new MenuItem
+        {
+            Header = header.Replace("_", "__"),
+            Icon = new PackIconMaterial { Kind = kind, Width = 14, Height = 14 },
+        };
+        item.Click += (_, _) => onClick();
+        return item;
     }
 
     /// <summary>"Scripts", or a bold "Scripts *" while a script has unsaved changes.</summary>
@@ -335,8 +367,6 @@ public partial class StatusWindow : Window
         }
 
         RestoreSessionSelection();
-        // The session selected may have disappeared in this refresh.
-        UpdateRunSessionScriptButton();
 
         ConflictsText.Text = BuildConflictsSection(sessionNames, snapshot.Conflicts);
 
@@ -398,26 +428,20 @@ public partial class StatusWindow : Window
         AddSessionRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    private void OnDuplicateSessionClick(object sender, RoutedEventArgs e)
+    private void OnDuplicateSession(SessionSummaryRow row)
     {
-        if (SessionsGrid.SelectedItem is not SessionSummaryRow row)
-            return;
         _logger.LogInformation("User action: status window Duplicate session clicked ({Name})", row.Name);
         DuplicateSessionRequested?.Invoke(this, row.Name);
     }
 
-    /// <summary>The toolbar's "Duplicate" button (FR-16.1-style, but unlike
-    /// Add it needs a source session) only makes sense once a row is
-    /// selected.</summary>
+    /// <summary>Keeps the selected session's name for the `{{session:…}}` macros (FR-55.3).</summary>
     private void OnSessionsGridSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        DuplicateSessionButton.IsEnabled = SessionsGrid.SelectedItem is SessionSummaryRow;
         if (SessionsGrid.SelectedItem is SessionSummaryRow row)
             _selectedSessionName = row.Name;
         // Otherwise the user cleared the selection (the refresh's own clearing is restored in UpdateContent).
         else if (!_isSyncingRows)
             _selectedSessionName = null;
-        UpdateRunSessionScriptButton();
     }
 
     /// <summary>The current row of the selected session, or null when none
@@ -469,26 +493,20 @@ public partial class StatusWindow : Window
         return null;
     }
 
-    private void OnViewSyncStatusClick(object sender, RoutedEventArgs e)
+    private void OnViewSyncStatus(SessionSummaryRow row)
     {
-        if (((FrameworkElement)sender).DataContext is not SessionSummaryRow row)
-            return;
         _logger.LogInformation("User action: status window View sync status clicked ({Name})", row.Name);
         ViewSyncStatusRequested?.Invoke(this, row.Name);
     }
 
-    private void OnEditSessionClick(object sender, RoutedEventArgs e)
+    private void OnEditSession(SessionSummaryRow row)
     {
-        if (((FrameworkElement)sender).DataContext is not SessionSummaryRow row)
-            return;
         _logger.LogInformation("User action: status window Edit session clicked ({Name})", row.Name);
         EditSessionRequested?.Invoke(this, row.Name);
     }
 
-    private void OnDeleteSessionClick(object sender, RoutedEventArgs e)
+    private void OnDeleteSession(SessionSummaryRow row)
     {
-        if (((FrameworkElement)sender).DataContext is not SessionSummaryRow row)
-            return;
         _logger.LogInformation("User action: status window Delete session clicked ({Name})", row.Name);
         DeleteSessionRequested?.Invoke(this, row.Name);
     }
@@ -501,10 +519,8 @@ public partial class StatusWindow : Window
         AcceptDeletionRequested?.Invoke(this, row.Name);
     }
 
-    private void OnPauseResumeSessionClick(object sender, RoutedEventArgs e)
+    private void OnPauseResumeSession(SessionSummaryRow row)
     {
-        if (((FrameworkElement)sender).DataContext is not SessionSummaryRow row)
-            return;
         _logger.LogInformation("User action: status window {Action} session clicked ({Name})", row.IsPaused ? "Resume" : "Pause", row.Name);
         PauseResumeSessionRequested?.Invoke(this, (row.Name, !row.IsPaused));
     }

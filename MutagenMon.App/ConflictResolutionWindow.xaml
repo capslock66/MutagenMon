@@ -4,6 +4,7 @@
         Title="MutagenMon: resolve file conflicts" Width="1000" Height="480"
         MinWidth="720" MinHeight="320"
         WindowStartupLocation="CenterOwner" ResizeMode="CanResize"
+        ContentRendered="OnContentRendered"
         ShowInTaskbar="False"
         Icon="pack://siteoforigin:,,,/Assets/Icons/app_icon_monitor.ico">
     <Grid x:Name="RootGrid" Margin="16">
@@ -29,13 +30,46 @@
                     <DataGridTextColumn Header="Session" Binding="{Binding SessionName}" Width="Auto" />
                     <DataGridTextColumn Header="File" Binding="{Binding FileName}" Width="2*" />
                     <DataGridTextColumn Header="Conflict description" Binding="{Binding Description}" Width="3*" />
-                    <DataGridTextColumn Header="Resolution" Binding="{Binding Resolution}" Width="*" />
+                    <!-- The resolution is picked right in the cell: Alpha wins / Beta wins (preselected from the dates)
+                         or Visual merge (runs the merge tool at once). Nothing is applied before the dialog's OK. -->
+                    <DataGridTemplateColumn Header="Resolution" Width="*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <ComboBox ItemsSource="{Binding ChoiceOptions}"
+                                              SelectedItem="{Binding SelectedChoiceText, Mode=OneWay}"
+                                              SelectionChanged="OnChoiceSelectionChanged"
+                                              IsEnabled="{Binding CanEdit}" Padding="4,1">
+                                        <ComboBox.Style>
+                                            <Style TargetType="ComboBox">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ShowStatusText}" Value="True">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </ComboBox.Style>
+                                    </ComboBox>
+                                    <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ShowStatusText}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                 </DataGrid.Columns>
             </DataGrid>
 
-            <!-- Always visible. Only the options (OptionsPanel) are shown, and
-                 only for an unresolved row; they are hidden again after OK
-                 until the user selects another row. -->
+            <!-- Details of the selected row: full description and both sides. -->
             <StackPanel x:Name="ChoicePanel" Grid.Column="1" Width="300" Margin="12,0,0,0">
                 <TextBlock x:Name="StatusText" TextWrapping="Wrap" FontWeight="Bold" Margin="0,0,0,8" />
                 <TextBlock x:Name="DescriptionText" TextWrapping="Wrap" Foreground="Red" Margin="0,0,0,4" />
@@ -43,19 +77,12 @@
                            Foreground="Gray" Margin="0,0,0,8" />
                 <TextBlock x:Name="AlphaInfoText" TextWrapping="Wrap" FontFamily="Consolas" Margin="0,0,0,8" />
                 <TextBlock x:Name="BetaInfoText" TextWrapping="Wrap" FontFamily="Consolas" Margin="0,0,0,12" />
-                <StackPanel x:Name="OptionsPanel" Visibility="Collapsed">
-                <RadioButton x:Name="VisualMergeOption" Content="Visual merge" GroupName="ResolutionChoice"
-                             Margin="0,0,0,6" Checked="OnChoiceChecked" />
-                <RadioButton x:Name="AWinsOption" Content="Alpha wins" GroupName="ResolutionChoice"
-                             Margin="0,0,0,6" Checked="OnChoiceChecked" />
-                <RadioButton x:Name="BWinsOption" Content="Beta wins" GroupName="ResolutionChoice"
-                             Margin="0,0,0,16" Checked="OnChoiceChecked" />
-                <Button x:Name="OkButton" Content="OK" Width="90" HorizontalAlignment="Left" Click="OnOkClick" />
-                </StackPanel>
             </StackPanel>
         </Grid>
 
-        <Button x:Name="CloseButton" Grid.Row="1" Content="Close" Width="90"
-                HorizontalAlignment="Right" Margin="0,12,0,0" IsCancel="True" Click="OnCloseClick" />
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button x:Name="OkButton" Content="OK" Width="90" IsDefault="True" Click="OnOkClick" />
+            <Button x:Name="CancelButton" Content="Cancel" Width="90" Margin="8,0,0,0" IsCancel="True" Click="OnCancelClick" />
+        </StackPanel>
     </Grid>
 </Window>

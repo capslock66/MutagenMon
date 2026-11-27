@@ -277,12 +277,18 @@ The full specification lives in
   to the right of the grid (always visible), the endpoint URL, file size and last-modified timestamp of
   each side (fetched locally or via SSH `stat` for remote endpoints),
   laid out as `"Alpha: <url1>\n<size> bytes, <timestamp>"` (and likewise for
-  Beta), followed by the three options **Visual merge**, **Alpha wins**,
-  **Beta wins** and an **OK** button. The Resolution column MUST follow the
-  user's pick (`"<choice> (pending)"`), and OK MUST apply it and show
-  `"<choice> (resolved)"`. After OK the options MUST disappear until the
-  user selects another row; a row already resolved MUST NOT offer the
-  options again.
+  Beta). The **Resolution** column MUST be a drop-down in each row offering
+  **Alpha wins** and **Beta wins**, plus **Visual merge** when both sides are
+  files that exist. When the window opens, every row MUST already show the
+  suggested choice (FR-9.3). Changing the drop-down between Alpha wins and
+  Beta wins MUST only record the pick (nothing is applied before **OK**).
+  Picking **Visual merge** MUST launch the merge tool at once (no extra
+  confirmation); if the tool changed neither side the row goes back to its
+  previous pick and an informational dialog says so. The bottom buttons are
+  **OK**, which applies every pick (Alpha/Beta copy, or propagation of the
+  merged file) and closes the window when all succeed (a failing row shows
+  its error and stays open), and **Cancel**, which applies nothing. A resolved
+  row MUST NOT be editable again.
 - FR-9.2: The user MUST be able to choose one of: **Visual merge** (opens
   an external diff/merge tool, `MergePath`, on local copies of both files;
   if the local "A" copy's file was modified afterwards — mtime changed —
@@ -300,12 +306,12 @@ The full specification lives in
   > directory). **A wins**/**B wins** mirrors the winning side's subtree
   > onto the other side recursively, or deletes the destination entirely
   > when the winning side has nothing at that path.
-- FR-9.3: The options MUST pre-select "A wins" or "B wins" automatically
-  based on which side has the more recent modification timestamp, as a
-  suggested default the user can override.
+- FR-9.3: Every row MUST be preselected on "Alpha wins" or "Beta wins"
+  automatically based on which side has the more recent modification
+  timestamp ("Beta wins" on a tie), as a suggested default the user can override.
 - FR-9.4: There is no per-conflict Cancel and no batch: the user resolves
-  the rows they want, in any order, and leaves the others unresolved by
-  closing the window ("Close"). (Supersedes the legacy
+  the rows they want, in any order, and applies them with **OK**; the
+  window can be left with **Cancel** (or its close button) to apply nothing. (Supersedes the legacy
   one-dialog-per-conflict loop and its Cancel semantics.)
 - FR-9.5: If more than 100 unresolved (non-autoresolved) conflicts are
   pending, the application MUST NOT open the resolution window and MUST

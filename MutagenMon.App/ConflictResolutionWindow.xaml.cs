@@ -8,30 +8,34 @@ namespace MutagenMon.App;
 
 /// <summary>
 /// Implements the manual conflict resolution dialog (FR-9): a grid of every
-/// pending conflict (Alpha, Beta, Resolution). Selecting an unresolved row
-/// shows, to the right of the grid, the Visual merge / Alpha wins / Beta
-/// wins options and an OK button; the Resolution column follows the pick,
-/// and OK applies it. Once applied, the options disappear until another row
-/// is selected, and a resolved row never offers them again.
+/// pending conflict whose Resolution cell offers Alpha wins / Beta wins
+/// (preselected from the modification dates) and Visual merge. Picking Visual
+/// merge launches the merge tool at once; nothing is propagated before OK,
+/// which applies every pick. Cancel (or closing) changes nothing.
 /// </summary>
 public partial class ConflictResolutionWindow : Window
 {
     private readonly ObservableCollection<ConflictItem> _items = new();
     private readonly ConflictResolutionService _service;
     private readonly ILogger _logger;
-    private ConflictItem? _current;
-    private int _selectionVersion;
-    private bool _suppressChoiceEvents;
+
+    private bool _isClosed;
 
     private ConflictResolutionWindow(ConflictResolutionService service, ILogger logger, IReadOnlyList<ConflictItem> items)
     {
         InitializeComponent();
+        Closed += (_, _) => _isClosed = true;
         _service = service;
         _logger = logger;
         foreach (var item in items)
+        {
+            item.ChoiceChangedByUser += OnItemChoiceChanged;
             _items.Add(item);
+        }
+
         ConflictsGrid.ItemsSource = _items;
-        StatusText.Text = "Select a conflict.";
+        OkButton.IsEnabled = false;
+        StatusText.Text = "Loading conflicts...";
     }
 
     /// <summary>Shows the dialog modally; returns once the user closes it.</summary>
@@ -42,15 +46,43 @@ public partial class ConflictResolutionWindow : Window
         dialog.ShowDialog();
     }
 
-    private async void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    /// <summary>Fetches both sides' state of every conflict (a stat can mean an SSH round trip), which gives
+    /// each row its default choice from the dates.</summary>
+    private async void OnContentRendered(object? sender, EventArgs e)
     {
-        _current = null;
-        OptionsPanel.Visibility = Visibility.Collapsed;
+        ContentRendered -= OnContentRendered;
+        await RunBusyAsync(() => ConnectingIndicatorWindow.RunAsync(this, async () =>
+        {
+            foreach (var item in _items)
+                await StatItemAsync(item);
+            return true;
+        }));
+
+        OkButton.IsEnabled = _items.Any(item_ => item_.CanEdit);
+        OnSelectionChanged(this, null!);
+    }
+
+    private async Task StatItemAsync(ConflictItem item)
+    {
+        try
+        {
+            var alpha = await _service.StatAlphaAsync(item.Conflict, CancellationToken.None);
+            var beta = await _service.StatBetaAsync(item.Conflict, CancellationToken.None);
+            item.SetStats(alpha, beta);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to stat conflict {FileName} ({SessionName})", item.Conflict.FileName, item.SessionName);
+            item.MarkFailed(ex.Message);
+        }
+    }
+
+    private void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
         AlphaInfoText.Text = "";
         BetaInfoText.Text = "";
         DescriptionText.Text = "";
         DetailsText.Text = "";
-        var version = ++_selectionVersion;
 
         if (ConflictsGrid.SelectedItem is not ConflictItem item)
         {
@@ -58,81 +90,11 @@ public partial class ConflictResolutionWindow : Window
             return;
         }
 
+        StatusText.Text = item.StatusText;
         // The grid truncates long descriptions; the full text goes here.
         DescriptionText.Text = item.Description;
         DetailsText.Text = item.Details;
 
-        if (item.IsResolved)
-        {
-            ShowSides(item);
-            StatusText.Text = item.Resolution;
-            return;
-        }
-
-        StatusText.Text = "";
-
-        try
-        {
-            if (item.AlphaStat is null || item.BetaStat is null)
-            {
-                var conflict = item.Conflict;
-                var (alpha, beta) = await RunBusyAsync(() =>
-                    ConnectingIndicatorWindow.RunAsync(this, async () =>
-                    {
-                        var a = await _service.StatAlphaAsync(conflict, CancellationToken.None);
-                        var b = await _service.StatBetaAsync(conflict, CancellationToken.None);
-                        return (a, b);
-                    }));
-                item.AlphaStat = alpha;
-                item.BetaStat = beta;
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to stat conflict {FileName} ({SessionName})", item.Conflict.FileName, item.SessionName);
-            item.MarkFailed(ex.Message);
-            return;
-        }
-
-        // The user moved to another row while the stat was running.
-        if (version != _selectionVersion)
-            return;
-
-        ShowChoices(item);
-    }
-
-    private void ShowChoices(ConflictItem item)
-    {
-        var alphaStat = item.AlphaStat!;
-        var betaStat = item.BetaStat!;
-        _current = item;
-
-        ShowSides(item);
-
-        // Visual merge needs two actual files to diff — not applicable to a
-        // directory-level conflict, or when one side no longer exists.
-        VisualMergeOption.IsEnabled = !alphaStat.IsDirectory && !betaStat.IsDirectory && alphaStat.Exists && betaStat.Exists;
-
-        // FR-9.3: prefer the more recently modified side, "Beta wins" on a tie.
-        var choice = item.Choice ?? (alphaStat.ModifiedUtc > betaStat.ModifiedUtc
-            ? ConflictResolutionChoice.AWins
-            : ConflictResolutionChoice.BWins);
-
-        _suppressChoiceEvents = true;
-        VisualMergeOption.IsChecked = choice == ConflictResolutionChoice.VisualMerge;
-        AWinsOption.IsChecked = choice == ConflictResolutionChoice.AWins;
-        BWinsOption.IsChecked = choice == ConflictResolutionChoice.BWins;
-        _suppressChoiceEvents = false;
-
-        item.SetPending(choice);
-        OptionsPanel.Visibility = Visibility.Visible;
-    }
-
-    /// <summary>Fills the side panel's Alpha/Beta details, when the row's
-    /// stats have been fetched (always the case once it was selected
-    /// unresolved).</summary>
-    private void ShowSides(ConflictItem item)
-    {
         if (item.AlphaStat is null || item.BetaStat is null)
             return;
 
@@ -140,74 +102,115 @@ public partial class ConflictResolutionWindow : Window
         BetaInfoText.Text = FormatSide("Beta", item.Conflict.Beta.Url, item.BetaStat);
     }
 
-    private void OnChoiceChecked(object sender, RoutedEventArgs e)
+    /// <summary>Forwards the user's pick to the row. Done here rather than through a two-way binding, whose setter
+    /// would run the merge tool inside the binding engine (which swallows errors raised there).</summary>
+    private void OnChoiceSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_suppressChoiceEvents || _current is null)
-            return;
-
-        _current.SetPending(SelectedChoice());
+        if (sender is ComboBox { DataContext: ConflictItem item } && e.AddedItems.Count == 1 && e.AddedItems[0] is string text)
+            item.SelectedChoiceText = text;
     }
 
-    private ConflictResolutionChoice SelectedChoice() =>
-        VisualMergeOption.IsChecked == true
-            ? ConflictResolutionChoice.VisualMerge
-            : AWinsOption.IsChecked == true
-                ? ConflictResolutionChoice.AWins
-                : ConflictResolutionChoice.BWins;
-
-    private async void OnOkClick(object sender, RoutedEventArgs e)
+    /// <summary>The user picked another option in a Resolution cell. Switching between the two "wins" only
+    /// records the pick (applied by OK); Visual merge runs the merge tool now.</summary>
+    private async void OnItemChoiceChanged(object? sender, ConflictResolutionChoice choice)
     {
-        if (_current is not { IsResolved: false } item)
+        if (sender is not ConflictItem item)
             return;
 
-        var choice = SelectedChoice();
         _logger.LogInformation(
-            "User action: conflict resolution OK clicked ({Choice}, session={SessionName}, file={FileName})",
+            "User action: conflict resolution choice changed ({Choice}, session={SessionName}, file={FileName})",
             choice, item.SessionName, item.Conflict.FileName);
 
+        if (choice != ConflictResolutionChoice.VisualMerge)
+        {
+            item.MergePreparation = null;
+            return;
+        }
+
+        var previous = item.PreviousChoice ?? DefaultChoice(item);
         try
         {
-            var applied = await RunBusyAsync(() => ApplyAsync(item.Conflict, choice));
-            if (!applied)
+            var preparation = await RunBusyAsync(() => RunMergeToolAsync(item));
+            if (preparation is null)
             {
+                item.MergePreparation = null;
+                item.RestoreChoice(previous);
                 GenericMessageDialog.ShowInfo(
                     this, _logger, "MutagenMon: resolve file conflict",
-                    $"No change was made in the merge tool; the conflict is still unresolved:\n\n{item.Conflict.FileName}");
+                    $"No change was made in the merge tool; the conflict keeps its previous resolution:\n\n{item.Conflict.FileName}");
                 return;
             }
+
+            item.MergePreparation = preparation;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to run the merge tool for {FileName} ({SessionName})", item.Conflict.FileName, item.SessionName);
+            item.MarkFailed(ex.Message);
+        }
+    }
+
+    /// <summary>FR-9.3: the more recently modified side wins, "Beta wins" on a tie.</summary>
+    private static ConflictResolutionChoice DefaultChoice(ConflictItem item) =>
+        item.AlphaStat!.ModifiedUtc > item.BetaStat!.ModifiedUtc ? ConflictResolutionChoice.AWins : ConflictResolutionChoice.BWins;
+
+    /// <summary>Fetches the local copies, runs the merge tool and returns the preparation, or null when the tool
+    /// modified neither side.</summary>
+    private async Task<VisualMergePreparation?> RunMergeToolAsync(ConflictItem item)
+    {
+        var preparation = await ConnectingIndicatorWindow.RunAsync(
+            this, () => _service.PrepareVisualMergeAsync(item.Conflict, CancellationToken.None));
+        await _service.RunMergeToolAsync(preparation, CancellationToken.None);
+        return ConflictResolutionService.IsMergeModified(preparation) ? preparation : null;
+    }
+
+    /// <summary>Applies every pick, in grid order. A failing row shows its error and stays unresolved; the dialog
+    /// then stays open, otherwise it closes.</summary>
+    private async void OnOkClick(object sender, RoutedEventArgs e)
+    {
+        _logger.LogInformation("User action: conflict resolution OK clicked");
+        await RunBusyAsync(async () =>
+        {
+            foreach (var item in _items.Where(item_ => item_.CanEdit))
+                await ApplyItemAsync(item);
+            return true;
+        });
+
+        // The window may have been closed with its title bar while the choices were applied.
+        if (!_isClosed && !_items.Any(item_ => item_.HasError))
+            Close();
+
+        OkButton.IsEnabled = _items.Any(item_ => item_.CanEdit);
+        OnSelectionChanged(this, null!);
+    }
+
+    private async Task<bool> ApplyItemAsync(ConflictItem item)
+    {
+        var choice = item.Choice!.Value;
+        try
+        {
+            if (choice == ConflictResolutionChoice.VisualMerge)
+            {
+                var applied = await ConnectingIndicatorWindow.RunAsync(this, () => _service.CompleteVisualMergeAsync(
+                    item.Conflict, item.MergePreparation!, DateTimeOffset.UtcNow, CancellationToken.None));
+                if (!applied)
+                    throw new InvalidOperationException("The merged file was not modified.");
+            }
+            else
+            {
+                await ConnectingIndicatorWindow.RunAsync(
+                    this, () => _service.ResolveAsync(item.Conflict, choice, DateTimeOffset.UtcNow, CancellationToken.None));
+            }
+
+            item.MarkResolved();
+            return true;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to resolve conflict {FileName} ({SessionName})", item.Conflict.FileName, item.SessionName);
             item.MarkFailed(ex.Message);
-            return;
+            return false;
         }
-
-        item.MarkResolved(choice);
-        // The options only come back once another row is selected.
-        _current = null;
-        OptionsPanel.Visibility = Visibility.Collapsed;
-        StatusText.Text = item.Resolution;
-    }
-
-    /// <summary>Applies <paramref name="choice"/>; returns false only for a
-    /// visual merge in which neither side was modified.</summary>
-    private async Task<bool> ApplyAsync(PendingConflict conflict, ConflictResolutionChoice choice)
-    {
-        if (choice != ConflictResolutionChoice.VisualMerge)
-        {
-            await ConnectingIndicatorWindow.RunAsync(
-                this, () => _service.ResolveAsync(conflict, choice, DateTimeOffset.UtcNow, CancellationToken.None));
-            return true;
-        }
-
-        var preparation = await ConnectingIndicatorWindow.RunAsync(
-            this, () => _service.PrepareVisualMergeAsync(conflict, CancellationToken.None));
-
-        await _service.RunMergeToolAsync(preparation, CancellationToken.None);
-
-        return await ConnectingIndicatorWindow.RunAsync(
-            this, () => _service.CompleteVisualMergeAsync(conflict, preparation, DateTimeOffset.UtcNow, CancellationToken.None));
     }
 
     /// <summary>Blocks input to the whole dialog while a (possibly remote)
@@ -235,9 +238,9 @@ public partial class ConflictResolutionWindow : Window
         return $"{label}: {url}\n{stat.SizeBytes} bytes, {stat.ModifiedUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}";
     }
 
-    private void OnCloseClick(object sender, RoutedEventArgs e)
+    private void OnCancelClick(object sender, RoutedEventArgs e)
     {
-        _logger.LogInformation("User action: conflict resolution Close clicked");
+        _logger.LogInformation("User action: conflict resolution Cancel clicked");
         Close();
     }
 }

@@ -501,35 +501,26 @@ pick such a script and run it on the session selected in the sessions grid,
 without going through the Scripts tab.
 
 - FR-56.1: **Toolbar.** The Sync tab toolbar (FR-16) is laid out, from left
-  to right, as: **Add**, **Duplicate**, the **script combo** (FR-56.2), the
-  **Run** button (FR-56.3), then, aligned to the right edge,
-  **Resolve conflicts** and, as the rightmost control, the
+  to right, as: **Add**, then, aligned to the right edge, **Resolve conflicts**,
+  **Pause/Resume sessions** and, as the rightmost control, the
   **Stop Mutagen sessions** / **Start Mutagen sessions** toggle (FR-7.2).
-  The toggle's label, behaviour and disabled-while-reloading state are
-  unchanged: only its position changes, from "immediately right of Add"
-  (FR-16.5) to the far right of the toolbar.
-- FR-56.2: **Script combo.** It lists the **valid** scripts (FR-49.2) whose
-  `@session-script` value is `true`, in file order, shown by name. Scripts
-  without the flag, with `: false`, or invalid are not listed. It reads the
-  scripts file as saved on disk (the unsaved edits of the Scripts tab are not
-  used). The list is rebuilt when the status window is brought to the front
-  (shown or activated again, which also picks up an edit of the file made
-  outside the application), when a configuration reload ends, and whenever
-  the Scripts tab saves, reloads, adds, deletes or moves a script; the selected script stays selected when
-  its name is still in the list, otherwise nothing is selected. When the file
-  is missing or unreadable, or no script is flagged, the combo is empty and
-  disabled and no error is shown (FR-49.2 already reports it in the Scripts
-  tab). The choice is kept in memory only.
-- FR-56.3: **Run button and F5.** The button sits right of the combo, with
-  the same green ▶ icon as the Scripts tab Run button (FR-47.2) and the
-  tooltip "Run (F5)". **Run is enabled only when all of the following hold**:
-  a session is selected in the sessions grid, a script is selected in the
-  combo, and no script is running (FR-56.6). Otherwise it is disabled,
-  and so is its shortcut: **F5** on the Sync tab does exactly what a click
-  on Run does, and does nothing when Run is disabled. F5 keeps its behaviour
-  on the Scripts tab (FR-47.2) and does nothing on the other tabs.
-- FR-56.4: **Starting a run.** The session is read once, at the click
-  (or key press), like FR-55.3; it is the session the `{{session:…}}`
+  Duplicate, the script combo and the Run button no longer exist there: they
+  moved to the row menu (FR-56.2).
+- FR-56.2: **Row menu.** Each row of the sessions grid has a single
+  hamburger button (and a right click on the row opens the same menu) with,
+  in order: **View sync status**, **Pause** (**Resume** while the session is
+  paused), **Edit**, **Delete**, **Duplicate**, each with an icon; then, after
+  a separator, one entry per **valid** script (FR-49.2) whose `@session-script`
+  value is `true`, in file order, shown by name with a green ▶ icon. The
+  scripts file is read as saved on disk each time the menu opens. When the
+  file is missing or unreadable, or no script is flagged, the separator and
+  script entries are omitted and no error is shown.
+- FR-56.3: **Running from the menu.** Choosing a script entry runs it on the
+  session of that row. The entries are disabled while a script runs (FR-56.6).
+  F5 only keeps its behaviour on the Scripts tab (FR-47.2) and does nothing on
+  the other tabs.
+- FR-56.4: **Starting a run.** The session is the row whose menu was used, read
+  once at the click, like FR-55.3; it is the session the `{{session:…}}`
   macros of the script resolve to. The script is the one parsed from the
   file (FR-48), read again at the click. Then, exactly as on the Scripts tab: the `@confirm`
   confirmation if the script asks for it (FR-53.1, with the

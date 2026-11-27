@@ -878,68 +878,53 @@ conflict on its next poll.
   (right after Status) shows `2`.
 * Click "Resolve conflicts".
 * A window titled "MutagenMon: resolve file conflicts" is displayed with a
-  grid (Session, File, Conflict description, Resolution) and one row per conflict. No
-  options are shown yet (the side panel is visible but empty), and nothing
-  is resolved automatically.
-* Select the first row.
-* In the side panel to the right of the grid, for each of Alpha and Beta: the endpoint URL,
-  the file size in bytes and the last-modified timestamp, followed by the
-  options "Visual merge", "Alpha wins", "Beta wins" and an "OK" button.
+  grid (Session, File, Conflict description, Resolution), one row per conflict,
+  and the buttons **OK** and **Cancel** at the bottom. Nothing is resolved
+  automatically.
+* Each row's Resolution cell already shows a drop-down set on "Alpha wins" or
+  "Beta wins".
+* Select the first row: in the side panel to the right of the grid, for each of
+  Alpha and Beta: the endpoint URL, the file size in bytes and the last-modified timestamp.
 
 **UT-9.2 — Default choice follows the most recently modified side
 (FR-9.3)** 📋 ✅
 
-* In the window from UT-9.1, note which radio button, "Alpha wins" or
-  "Beta wins", is pre-selected.
-* Compare the two timestamps shown above it.
-* The pre-selected option matches the side with the more recent timestamp.
-* The row's Resolution cell reads "<choice> (pending)".
-* Click another radio button: the Resolution cell follows immediately.
+* In the window from UT-9.1, compare, for each row, the two timestamps shown in the side panel.
+* The Resolution drop-down shows the side with the more recent timestamp.
+* Change a drop-down between "Alpha wins" and "Beta wins": nothing is applied
+  (the files are untouched) and no dialog appears.
 
 **UT-9.3 — "Alpha wins" resolution (FR-9.2)** 📋 ✅
 
-* With a row selected, click the "Alpha wins" radio button.
-* Click "OK".
-* Beta's copy of the file now has Alpha's content (compare the two files
-  directly).
-* The Resolution cell reads "Alpha wins (resolved)" and the options
-  disappear.
-* The side panel stays visible; the options do not come back until
-  another row is selected.
-* Select the resolved row again: the panel shows its resolution but offers
-  no options.
-* Open `log/mutagenMon.log`.
-* A new "Conflict resolved" line is present with the session name, both
-  URLs, the file name, method "A wins", and no "[AUTO]" tag.
+* Set a row's drop-down on "Alpha wins" and click "OK".
+* Beta's copy of the file now has Alpha's content (compare the two files directly).
+* The window closes.
+* Open `log/mutagenMon.log`: a new "Conflict resolved" line is present with
+  the session name, both URLs, the file name, method "A wins", and no "[AUTO]" tag.
 
 **UT-9.4 — "Beta wins" resolution (FR-9.2)** 📋 ✅
 
-* Select the other row, click the "Beta wins" radio button and click "OK".
+* Set the other row to "Beta wins" and click "OK".
 * Alpha's copy of the file now has Beta's content.
-* `log/mutagenMon.log` has a new "Conflict resolved" line with method "B
-  wins".
+* `log/mutagenMon.log` has a new "Conflict resolved" line with method "B wins".
 
 **UT-9.5 — Visual merge resolution (FR-9.2)** 📋 ✅
 
 * Set `MergePath` in `config_mutagenmon.json` to a real merge tool (e.g.
   WinMerge) and restart MutagenMon.
-* Produce a conflict, open the resolution window and select its row.
-* Click the "Visual merge" radio button.
-* Click "OK".
-* The configured merge tool opens with local copies of both Alpha and
-  Beta.
-* Edit and save the left (Alpha) pane in the merge tool.
-* Close the merge tool.
-* Both Alpha and Beta now contain the merged content, and the Resolution
-  cell reads "Visual merge (resolved)".
+* Produce a conflict, open the resolution window and set its drop-down on "Visual merge".
+* The configured merge tool opens at once with local copies of both Alpha and
+  Beta (no OK needed).
+* Edit and save the left (Alpha) pane in the merge tool, then close the tool.
+* The drop-down still reads "Visual merge"; nothing has been propagated yet.
+* Click "OK": both Alpha and Beta now contain the merged content.
 
-**UT-9.6 — Visual merge with no change leaves the row unresolved
+**UT-9.6 — Visual merge with no change goes back to the previous pick
 (FR-9.2)** 📋 ✅
 
 * Repeat UT-9.5, but close the merge tool without changing either pane.
-* An informational dialog says no change was made and the conflict is
-  still unresolved.
-* The row stays unresolved and its options remain available.
+* An informational dialog says no change was made.
+* The row's drop-down is back on its previous pick and the conflict is untouched.
 
 **UT-9.7 — Closing the window leaves unresolved rows untouched
 (FR-9.4)** 📋 ✅
@@ -2038,41 +2023,35 @@ flag and with `echo "plain"`.
   `# @session-script`.
 * Write `# @Session-Script` (other case): same as the lower-case form `# @session-script`.
 
-**UT-56.2 — Toolbar layout and script combo (FR-56.1, FR-56.2)** 📋 ✅
+**UT-56.2 — Toolbar layout and row menu (FR-56.1, FR-56.2)** 📋 ✅
 
-* Open the Sync tab. Left to right: **Add**, **Duplicate**, a combo, a green
-  ▶ **Run** button; at the right edge, **Resolve conflicts** then, as the
-  last control, **Stop Mutagen sessions**. Click the toggle: it reads
-  "Start Mutagen sessions" and still works as before.
-* Open the combo: it lists `sess-a` and `sess-b` (file order), not `plain`.
-* Select `sess-b`. In the Scripts tab, add the line `# @session-script` to
-  `plain` and Save, then return to the Sync tab: `plain` is now listed and
-  `sess-b` is still selected. Rename `sess-b` to `sess-c` and Save: the combo
-  shows `sess-c` in the list and nothing is selected.
-* Edit `scripts.ini` in an external editor (add `# @session-script` to another
-  script, save), then click the MutagenMon window again (or Alt+Tab back to
-  it): the combo is up to date and the selected script is still selected.
+* Open the Sync tab. The toolbar has **Add** at the left; at the right edge
+  **Resolve conflicts**, **Pause sessions** then, as the last control, **Stop
+  Mutagen sessions**. There is no Duplicate button, combo or Run button.
+* Each row has one hamburger button. Click it, then right-click the row: the same menu opens
+  with, in order, View sync status, Pause (Resume if paused), Edit, Delete,
+  Duplicate, each with an icon, then a separator and `sess-a`, `sess-b` (file
+  order), not `plain`, with a green ▶ icon.
+* In the Scripts tab, add the line `# @session-script` to `plain` and Save, then
+  open the row menu again: `plain` is listed. Edit `scripts.ini` in an external
+  editor and open the menu again: it is up to date.
 * Rename the scripts file in the configuration (or make it unreadable) and
-  reload the configuration: the combo is empty and disabled, no error popup.
+  reload the configuration: the menu has no separator and no script entry,
+  and no error popup.
 
-**UT-56.3 — Run enabled rules and F5 (FR-56.3)** 📋 ✅
+**UT-56.3 — Running a script from the menu (FR-56.3)** 📋 ✅
 
-* With no session selected in the grid: **Run** is disabled and **F5** does
-  nothing, whatever the combo holds.
-* Select a session, with no script selected in the combo: Run disabled, F5
-  does nothing. Select a script: Run enabled; hovering shows "Run (F5)".
-* Deselect the session (Ctrl+click): Run is disabled again.
-* With a session and a script selected, press **F5**: same as clicking Run
-  (the dialog of UT-56.4 opens). On the Scripts tab F5 still runs the selected
-  script of that tab; on the configuration tabs and "Logs" it does nothing.
+* Choose a script in a row's menu: the dialog of UT-56.4 opens for that row's session.
+* While a script runs (started from the Scripts tab), the script entries are disabled.
+* F5 on the Sync tab does nothing; on the Scripts tab it still runs the selected script.
 
 **UT-56.4 — Run dialog: output and status (FR-56.4, FR-56.5)** 📋 ✅
 
-* Select session `S` and script `sess-a`, click Run: a dialog opens titled
+* Open the menu of session `S`, choose `sess-a`: a dialog opens titled
   with `sess-a` and `S`; the output shows `session=[S]` and the status line
   ends with `Exit code 0 (x.xs)`. **Close** is disabled while it runs and
   enabled at the end; the title bar ✕ and **Esc** do nothing while it runs.
-* Select `sess-b`, click Run: the confirmation names the script and the host
+* Choose `sess-b` in the menu: the confirmation names the script and the host
   (and `Selected session: S` only if the script uses a `session` macro); Cancel
   it: no dialog. Run again and confirm: the output shows `b` and `err` (red),
   the status line is red and reads `Exit code 3 (x.xs)`.
@@ -2089,11 +2068,11 @@ flag and with `echo "plain"`.
 **UT-56.5 — One run at a time (FR-56.6)** 📋 ✅
 
 * Start a long script (`sleep 60`) from the Scripts tab, then go to the Sync
-  tab: **Run** is disabled (and F5 does nothing). When the Scripts tab run
-  ends, Run is enabled again.
+  tab: the script entries of a row menu are disabled. When the Scripts tab run
+  ends, they are enabled again.
 * Start a long script from the Sync tab dialog: the status window is blocked
-  by the modal dialog; after Cancel and Close, the Run buttons of both tabs
-  are enabled again.
+  by the modal dialog; after Cancel and Close, the Run button of the Scripts tab and
+  the script entries of the row menu are enabled again.
 
 **UT-56.6 — Logging (FR-56.7)** 📋 ✅
 

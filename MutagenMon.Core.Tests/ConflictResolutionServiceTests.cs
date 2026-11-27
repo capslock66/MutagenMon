@@ -113,6 +113,24 @@ public class ConflictResolutionServiceTests
         Assert.Empty(logger.Messages);
     }
 
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(true, false, true)]
+    [InlineData(false, true, true)]
+    public async Task IsMergeModifiedReportsWhetherTheToolChangedEitherLocalCopy(bool touchFirst, bool touchSecond, bool expected)
+    {
+        var (service, client, _) = Build();
+        client.LocalCopy1 = NewTempFile();
+        client.LocalCopy2 = NewTempFile();
+        client.TouchLocalPath1DuringMerge = touchFirst;
+        client.TouchLocalPath2DuringMerge = touchSecond;
+
+        var preparation = await service.PrepareVisualMergeAsync(Conflict, CancellationToken.None);
+        await service.RunMergeToolAsync(preparation, CancellationToken.None);
+
+        Assert.Equal(expected, ConflictResolutionService.IsMergeModified(preparation));
+    }
+
     [Fact]
     public async Task CompleteVisualMergePushesToBothSidesAndLogsWhenTheToolChangedAlphaLocalCopy()
     {

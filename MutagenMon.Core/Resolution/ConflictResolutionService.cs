@@ -62,6 +62,12 @@ public sealed class ConflictResolutionService
     public Task RunMergeToolAsync(VisualMergePreparation preparation, CancellationToken cancellationToken) =>
         _fileClient.RunMergeToolAsync(preparation.LocalPath1, preparation.LocalPath2, cancellationToken);
 
+    /// <summary>True when the merge tool modified at least one of the two local copies. Lets the caller tell
+    /// right after the tool closes whether the merge is worth keeping, before anything is propagated.</summary>
+    public static bool IsMergeModified(VisualMergePreparation preparation) =>
+        File.GetLastWriteTimeUtc(preparation.LocalPath1) != preparation.OldMtimeUtc1
+        || File.GetLastWriteTimeUtc(preparation.LocalPath2) != preparation.OldMtimeUtc2;
+
     /// <summary>Propagates whichever side the merge tool actually modified.
     /// Checking only the alpha-side copy
     /// silently no-ops when the user instead merges into the beta/right

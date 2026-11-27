@@ -446,8 +446,6 @@ public partial class App //: Application
         // monitor, so re-read the directives and give them to the new one.
         RefreshHaltedAutoFixDirectives();
         _trayIconController = BuildAndStartTrayIconController(newOptions, newSessionNames);
-        // FR-56.2: the scripts file path may have changed with the new options.
-        _statusWindow?.RefreshSessionScripts();
         _statusWindow?.RefreshSessionsFileLink();
         // FR-66.2: the deploy path may have changed with the new options.
         _ = CheckForUpdateAsync();

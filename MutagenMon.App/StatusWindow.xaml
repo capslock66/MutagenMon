@@ -32,54 +32,19 @@
                         <Hyperlink x:Name="OpenSessionsFileLink" Click="OnOpenSessionsFileLinkClick" ToolTip="Open in the default editor" />
                     </TextBlock>
 
-                    <!-- FR-16 / FR-56.1: toolbar above the grid — Add, Duplicate, session script + Run; Resolve conflicts and Stop/Start sessions on the right. -->
+                    <!-- FR-16 / FR-56.1: toolbar above the grid — Add; Resolve conflicts and Stop/Start sessions on the right. -->
                     <Grid Grid.Row="1" Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <!-- FR-56.1: left = Add, Duplicate, the session-script combo and its Run button. -->
+                    <!-- FR-56.1: left = Add. -->
                     <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left">
                         <Button x:Name="AddSessionButton"
                                 Padding="8,4" Click="OnAddSessionClick" ToolTip="Add session">
                             <StackPanel Orientation="Horizontal">
                                 <iconPacks:PackIconMaterial Kind="PlusThick" Width="16" Height="16" VerticalAlignment="Center" />
                                 <TextBlock Text="Add" Margin="6,0,0,0" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-
-                        <Button x:Name="DuplicateSessionButton" IsEnabled="False"
-                                Margin="8,0,0,0" Padding="8,4" Click="OnDuplicateSessionClick" ToolTip="Duplicate session">
-                            <StackPanel Orientation="Horizontal">
-                                <iconPacks:PackIconMaterial Kind="ContentCopy" Width="16" Height="16" VerticalAlignment="Center" />
-                                <TextBlock Text="Duplicate" Margin="6,0,0,0" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-
-                        <!-- FR-56.2: the valid scripts tagged @session-script; empty and disabled when there is none. -->
-                        <ComboBox x:Name="SessionScriptCombo" Width="160" Margin="8,0,0,0" IsEnabled="False"
-                                  DisplayMemberPath="Name" VerticalContentAlignment="Center"
-                                  ToolTip="Script to run on the selected session (scripts tagged @session-script)"
-                                  SelectionChanged="OnSessionScriptSelectionChanged" />
-
-                        <!-- FR-56.3: enabled only with a session and a script selected and no script running. -->
-                        <Button x:Name="RunSessionScriptButton" IsEnabled="False"
-                                Margin="8,0,0,0" Padding="8,4" Click="OnRunSessionScriptClick" ToolTip="Run (F5)">
-                            <StackPanel Orientation="Horizontal">
-                                <!-- Green "play" triangle, grayed while the button is disabled (same as the Scripts tab). -->
-                                <TextBlock Text="&#x25B6;" Margin="0,0,6,0" VerticalAlignment="Center">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="#2E9E3E" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsEnabled, RelativeSource={RelativeSource AncestorType=Button}}" Value="False">
-                                                    <Setter Property="Foreground" Value="Gray" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                                <TextBlock Text="Run" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                     </StackPanel>
@@ -102,6 +67,7 @@
                               GridLinesVisibility="Horizontal" HeadersVisibility="Column"
                               SelectionMode="Single" SelectionUnit="FullRow"
                               SelectionChanged="OnSessionsGridSelectionChanged"
+                              PreviewMouseRightButtonDown="OnSessionsGridPreviewMouseRightButtonDown"
                               MouseDoubleClick="OnSessionsGridMouseDoubleClick">
                         <!-- A session with unresolved conflicts is shown entirely in red. -->
                         <DataGrid.RowStyle>
@@ -122,8 +88,7 @@
                             </Style>
                         </DataGrid.RowStyle>
                         <DataGrid.Columns>
-                            <!-- FR-17.1: Edit/Delete row actions, leftmost, before Name.
-                                 FR-28: View sync status, leftmost of the three. -->
+                            <!-- FR-17.1 / FR-28 / FR-67.1: row actions menu, leftmost, before Name. -->
                             <DataGridTemplateColumn Header="" Width="Auto" CanUserResize="False">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
@@ -144,45 +109,11 @@
                                                 </Button.Style>
                                                 <iconPacks:PackIconMaterial Kind="DeleteSweepOutline" Width="14" Height="14" />
                                             </Button>
-                                            <Button Click="OnViewSyncStatusClick" ToolTip="View sync status"
+                                            <!-- One hamburger button per row (the same menu opens on a right click): View sync status,
+                                                 Pause/Resume, Edit, Delete, Duplicate, then one entry per session script. -->
+                                            <Button Click="OnSessionMenuClick" ToolTip="Actions"
                                                     Padding="2" Background="Transparent" BorderThickness="0">
-                                                <iconPacks:PackIconMaterial Kind="EyeOutline" Width="14" Height="14" />
-                                            </Button>
-                                            <!-- FR-67.1: Pause, or Resume while the session is paused. -->
-                                            <Button Click="OnPauseResumeSessionClick" Margin="4,0,0,0"
-                                                    Padding="2" Background="Transparent" BorderThickness="0">
-                                                <Button.Style>
-                                                    <Style TargetType="Button">
-                                                        <Setter Property="ToolTip" Value="Pause session" />
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsPaused}" Value="True">
-                                                                <Setter Property="ToolTip" Value="Resume session" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Button.Style>
-                                                <!-- The icon is the button's own content (not a style setter value), so no visual is shared between rows. -->
-                                                <iconPacks:PackIconMaterial Width="14" Height="14">
-                                                    <iconPacks:PackIconMaterial.Style>
-                                                        <Style TargetType="iconPacks:PackIconMaterial">
-                                                            <Setter Property="Kind" Value="PauseCircleOutline" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsPaused}" Value="True">
-                                                                    <Setter Property="Kind" Value="PlayCircleOutline" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </iconPacks:PackIconMaterial.Style>
-                                                </iconPacks:PackIconMaterial>
-                                            </Button>
-                                            <Button Click="OnEditSessionClick" ToolTip="Edit session"
-                                                    Margin="4,0,0,0"
-                                                    Padding="2" Background="Transparent" BorderThickness="0">
-                                                <iconPacks:PackIconMaterial Kind="PencilOutline" Width="14" Height="14" />
-                                            </Button>
-                                            <Button Click="OnDeleteSessionClick" ToolTip="Delete session"
-                                                    Padding="2" Margin="4,0,0,0" Background="Transparent" BorderThickness="0">
-                                                <iconPacks:PackIconMaterial Kind="TrashCanOutline" Width="14" Height="14" />
+                                                <iconPacks:PackIconMaterial Kind="Menu" Width="14" Height="14" />
                                             </Button>
                                         </StackPanel>
                                     </DataTemplate>
