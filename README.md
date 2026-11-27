@@ -62,7 +62,7 @@ It is a .NET WPF rewrite of [rualark/MutagenMon](https://github.com/rualark/Muta
 
 - **Show status** — open the status window.
 - **Move to main screen** — bring the window back if it ended up off-screen.
-- **Stop / Start Mutagen sessions** — pause or resume monitoring; the tray
+- **Stop / Start sessions** — pause or resume monitoring; the tray
   icon shows a "disabled" variant while paused.
 - **Reload config & restart mutagen** — restart every session with the
   current configuration.

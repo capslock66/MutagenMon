@@ -342,6 +342,7 @@ scripts file.
   | `ConflictDisplay` | the Conflict column: the number, empty when there is none |
   | `LastChangedUtc` | last change as ISO 8601 (`2026-11-08T12:30:00.0000000+00:00`), empty when unknown |
   | `LastChangedDisplay` | the "Last changed" column (`yyyy-MM-dd HH:mm:ss`, local time zone, `—` when unknown): prefer `LastChangedUtc` in a script, it does not depend on the workstation time zone |
+  | `SyncMode` | sync mode of the session's create command (the Mode column), e.g. `two-way-safe` |
   | `IconKey` | internal key of the tray icon image of the session (not meant for scripts) |
 
   The list follows the row model: a property added to it is available
@@ -501,9 +502,10 @@ pick such a script and run it on the session selected in the sessions grid,
 without going through the Scripts tab.
 
 - FR-56.1: **Toolbar.** The Sync tab toolbar (FR-16) is laid out, from left
-  to right, as: **Add**, then, aligned to the right edge, **Resolve conflicts**,
-  **Pause/Resume sessions** and, as the rightmost control, the
-  **Stop Mutagen sessions** / **Start Mutagen sessions** toggle (FR-7.2).
+  to right, all aligned to the left edge, as: **Add**, **Pause/Resume
+  sessions**, the **Stop sessions** / **Start sessions** toggle (FR-7.2) and,
+  immediately right of it, **Resolve conflicts**, which is greyed out
+  (disabled) rather than hidden while there is no unresolved conflict.
   Duplicate, the script combo and the Run button no longer exist there: they
   moved to the row menu (FR-56.2).
 - FR-56.2: **Row menu.** Each row of the sessions grid has a single

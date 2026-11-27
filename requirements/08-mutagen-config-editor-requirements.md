@@ -253,7 +253,7 @@ window is the window-level "Close" in that shared toolbar.
 
 ```
 ┌─ MutagenMon ─────────────────────────────────────────────────────────┐
-│ [+ Add] [■ Stop Mutagen sessions]                                    │
+│ [+ Add] [■ Stop sessions]                                            │
 ├────┬──────┬─────────────────────┬──────────┬──────────┬─────────────┤
 ```
 

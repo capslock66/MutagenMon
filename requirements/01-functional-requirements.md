@@ -161,8 +161,8 @@ The full specification lives in
     menu — it was a plain duplicate of the status view toolbar's action
     (07-session-management-requirements.md FR-16.1/16.2), which remains
     the only entry point.
-- FR-7.2: The toggle action "Stop Mutagen sessions" (when monitoring is
-  currently enabled) / "Start Mutagen sessions" (when currently disabled):
+- FR-7.2: The toggle action "Stop sessions" (when monitoring is
+  currently enabled) / "Start sessions" (when currently disabled):
   - Disabling MUST stop (terminate) every running session.
   - Enabling MUST resume monitoring (sessions that are missing/stopped are
     (re)started by the normal restart logic, FR-9).
@@ -201,7 +201,10 @@ The full specification lives in
 
 - FR-8.1: On demand (left-click or menu), the application MUST show a
   resizable window with the full status of every configured session, one
-  row per session in a grid: Name, Status (a small per-session status icon —
+  row per session in a grid: Name, Mode (the session's sync mode as written
+  on its create command in the sessions file, e.g. `two-way-safe`;
+  `two-way-safe`, Mutagen's default, when the command has no mode flag),
+  Status (a small per-session status icon —
   the same 15-key icon set as the tray icon, FR-5/FR-3, resolved from that
   session's own numeric code and the global enabled/disabled state, not the
   aggregated worst-of-all-sessions code — to the left of the raw status text;
@@ -222,7 +225,9 @@ The full specification lives in
   status view — it stays open and live (FR-8.4) behind the conflict
   dialogs (FR-9), which are modal and appear on top of it.
 - FR-8.3: If there are no unresolved conflicts, the view MUST be purely
-  informational (single dismiss action).
+  informational (single dismiss action). **(changed)** In the tabbed status
+  view, the Sync toolbar's "Resolve conflicts" button is then shown greyed
+  out (disabled) rather than hidden, so the toolbar layout never shifts.
 - FR-8.4: While the status view is open, it MUST stay live: whenever the
   background poller (FR-2/FR-3) produces a new snapshot, the already-open
   view MUST re-render with it, without requiring the user to close and
@@ -231,19 +236,19 @@ The full specification lives in
   e.g. a new conflict appearing, was silently invisible until the next
   open.)
 - FR-8.5: The status view MUST offer "Reload config & restart mutagen"
-  (FR-7.1), "Stop/Start Mutagen sessions" (FR-7.2), and "Exit MutagenMon"
+  (FR-7.1), "Stop/Start sessions" (FR-7.2), and "Exit MutagenMon"
   (FR-7.4) as buttons, without requiring the user to right-click the tray
   icon separately. The dismiss action's button is labeled "Close". The
   three action buttons MUST be disabled while a reload triggered from the
   status view is in progress (mirrors FR-7.5).
   - **(changed 2026-09-17)** "Reload config & restart mutagen" and
-    "Stop/Start Mutagen sessions" are no longer also offered from the tray
+    "Stop/Start sessions" are no longer also offered from the tray
     context menu (FR-7.1/FR-7.2) — the status view is now their only entry
     point, not merely a convenience duplicate of it. "Exit MutagenMon"
     remains available from both places.
   - **Rewrite change**: see
     [07-session-management-requirements.md](07-session-management-requirements.md)
-    FR-16 — the "Stop/Start Mutagen sessions" toggle (FR-16.5) was
+    FR-16 — the "Stop/Start sessions" toggle (FR-16.5) was
     relocated from this bottom action row into a new toolbar above the
     grid (alongside "Add"); "Reload config & restart mutagen" followed it
     there too, temporarily.

@@ -435,6 +435,7 @@ public partial class App //: Application
 
         _options = newOptions;
         _sessionDefinitions = newSessionResult.Sessions;
+        _statusWindow?.SetSessionModes(BuildSessionModes());
         ApplyHaltedAutoFixDirectives(newSessionResult);
         _sessionNames = newSessionNames;
         _monitorService = newMonitorService;
@@ -538,6 +539,18 @@ public partial class App //: Application
         }
     }
 
+    /// <summary>Sync mode of each session (e.g. "two-way-safe"), read from the
+    /// create command of its definition — a command without a mode flag uses
+    /// Mutagen's default, two-way-safe.</summary>
+    private Dictionary<string, string> BuildSessionModes()
+    {
+        // Not ToDictionary: a duplicate session name (only logged as a warning at load) must not throw here.
+        var modes = new Dictionary<string, string>();
+        foreach (var definition in _sessionDefinitions)
+            modes[definition.Name] = SessionCommandLineParser.Parse(definition.RawCreateCommand).Mode.ToFlagValue();
+        return modes;
+    }
+
     private void ShowStatusWindow()
     {
         if (_statusWindow is null)
@@ -565,6 +578,7 @@ public partial class App //: Application
                 _statusWindow.SetHaltedRootEmptyingText(_options.HaltedOneSidedRootEmptying);
             }
         }
+        _statusWindow.SetSessionModes(BuildSessionModes());
         if (_stateStore is not null)
             _statusWindow.UpdateContent(_stateStore.Get(), _sessionNames, _trayIconController?.IsReloadInProgress ?? false);
         _statusWindow.SetUpdateFeatureEnabled(!string.IsNullOrWhiteSpace(_options?.DeployPath));

@@ -182,11 +182,11 @@ kept (FR-1.2)** 📋 ✅ *(log-only in this rewrite — see the note below)*
 
 **UT-100.8 — Stopping monitoring changes the icon (FR-7.2 interaction)** 📋 ✅
 
-* With a session Ready, open the status view and click "Stop Mutagen
+* With a session Ready, open the status view and click "Stop
   sessions" in its toolbar.
 * The icon shows `green-stop`.
 * The tooltip reads "MutagenMon: mutagen is stopping".
-* Click "Start Mutagen sessions" in the toolbar.
+* Click "Start sessions" in the toolbar.
 * The icon eventually reflects the session's real state again (note: the
   underlying stopped session is not itself relaunched by this toggle —
   re-enabling monitoring alone does not restart it. Either "Reload config &
@@ -204,7 +204,7 @@ kept (FR-1.2)** 📋 ✅ *(log-only in this rewrite — see the note below)*
   connect") for a few consecutive polls.
 * The icon shows `orange-restart`.
 * The tooltip reads "MutagenMon: error (starting)".
-* Click "Stop Mutagen sessions" in the toolbar.
+* Click "Stop sessions" in the toolbar.
 * The icon switches to `orange`.
 * The tooltip reads "MutagenMon: error (disabled)".
 * Restore the working endpoint in `mutagen-create.bat` and reload again
@@ -248,7 +248,7 @@ kept (FR-1.2)** 📋 ✅ *(log-only in this rewrite — see the note below)*
 * A menu is displayed with these options, top to bottom: "Show status",
   "Move to main screen", a separator, "Exit MutagenMon" (see FR-7.1/FR-7.2's
   2026-09-17 change note — "Reload config & restart mutagen" and
-  "Stop/Start Mutagen sessions" are status-view-toolbar-only now, not tray
+  "Stop/Start sessions" are status-view-toolbar-only now, not tray
   menu items).
 
 **UT-100.14 — Resilient to a stale native tray icon (e.g. after resuming
@@ -318,7 +318,7 @@ Covered above by UT-100.10 and UT-100.11.
   disabled.
 * Restore the config file afterwards and reload again to confirm recovery.
 
-**UT-7.2 — "Stop Mutagen sessions" / "Start Mutagen sessions" (FR-7.2)** 📋 ✅
+**UT-7.2 — "Stop sessions" / "Start sessions" (FR-7.2)** 📋 ✅
 
 No longer a tray menu item (see the FR-7.2 change note) — covered by
 UT-8.5 via the status view's toolbar toggle.
@@ -388,18 +388,25 @@ Covered above by UT-7.1.
 * A window is displayed. Its title bar reads plain "MutagenMon" — there is
   no separate header line above the grid.
 * The window's content shows a grid with one row per configured session,
-  columns Name / Status / Alpha / Beta / Last changed. Session identifiers
+  columns Name / Mode / Status / Alpha / Beta / Last changed (Mode shows
+  the sync mode of the session's create command, e.g. `two-way-safe`). Session identifiers
   are never shown. Each row's Status cell shows a small status icon (the
   same icon that would be shown in the system tray if this were the only/
   worst session) to the left of the status text, e.g. green for "Watching
   for changes". "Last changed" reads "—" for a session that hasn't synced
   anything since the app started, or a timestamp otherwise.
 * Below the grid, a "Conflicts:" label reads "(none)".
+* The Mode column (between Name and Status) shows each session's sync mode:
+  a session created with `--sync-mode one-way-replica` shows
+  `one-way-replica`, one without any mode flag shows `two-way-safe`. After
+  editing a session's mode and "Reload config & restart", the column
+  follows.
 * The window can be resized (drag an edge/corner) and the grid grows/
   shrinks with it.
 * A "Close" button is displayed (alongside the "Reload config & restart
-  mutagen" / "Stop Mutagen sessions" / "Exit" buttons, FR-8.5) — no
-  "Cancel", no "Resolve conflicts".
+  mutagen" / "Stop sessions" / "Exit" buttons, FR-8.5) — no
+  "Cancel", and no "Resolve conflicts" in that bottom row (the Sync
+  toolbar's "Resolve conflicts" is shown greyed out).
 * Click "Close".
 * The window closes.
 
@@ -412,7 +419,8 @@ Covered above by UT-7.1.
   "`[autoresolving]`" suffix instead if an `AutoResolve` rule matches it
   — see FR-10 below).
 * Both a "Cancel" button and a "Resolve conflicts" button are displayed —
-  no plain "Close".
+  no plain "Close". (In the tabbed status view, the toolbar's "Resolve
+  conflicts" button is enabled now, and greyed out when there is no conflict.)
 * Click "Cancel".
 * The window closes without starting conflict resolution.
 * Reopen the status view and click "Resolve conflicts" instead. The status
@@ -458,22 +466,22 @@ Covered above by UT-7.1.
 16.5)** 📋 ✅
 
 * Left-click the tray icon to open the status view.
-* "Add" and "Stop Mutagen sessions" (or "Start Mutagen sessions" if
-  monitoring is currently off) are in the toolbar above the grid, anchored
+* "Add", "Pause sessions", "Stop sessions" (or "Start sessions" if
+  monitoring is currently off) and "Resolve conflicts" are in the toolbar above the grid, anchored
   to its left edge, in that order; "Reload config" is in the same toolbar,
   anchored to its right edge.
 * In the bottom action row (below the grid/conflicts section), "Exit" is
   anchored to the left edge; "Close" (and "Cancel"/"Resolve conflicts"
   when conflicts are unresolved) are anchored to the right edge.
-* Click "Stop Mutagen sessions" in the toolbar. Every running session is
-  terminated (FR-7.2); the button's label flips to "Start Mutagen
+* Click "Stop sessions" in the toolbar. Every running session is
+  terminated (FR-7.2); the button's label flips to "Start
   sessions" on the next refresh.
   `log/mutagenMon.log` records `User action: status window Stop/Start
   sessions clicked` followed by `User action: toggling monitoring to
   False`.
 * Click "Reload config" in the toolbar. The status window stays open
   throughout (see UT-7.1 for the full reload behavior) — it keeps
-  refreshing live, and "Reload config"/"Stop Mutagen sessions"/"Exit" grey
+  refreshing live, and "Reload config"/"Stop sessions"/"Exit" grey
   out while `log/mutagenMon.log`'s "Reloading..." state is active, then
   re-enable once reload completes.
 * Click "Exit" in the status window, then confirm in the resulting
@@ -865,9 +873,9 @@ is actually saved (FR-33.1/FR-33.2)** 📋 ✅
 ## FR-9 — Manual conflict resolution
 
 **Setup used by every test below**: to produce a real conflict, open the
-status view and click "Stop Mutagen sessions" in its toolbar; edit the
+status view and click "Stop sessions" in its toolbar; edit the
 *same* file with different content directly in the alpha folder and in
-the beta folder (or its remote equivalent); then click "Start Mutagen
+the beta folder (or its remote equivalent); then click "Start
 sessions" again. Mutagen detects this as a two-sided edit and reports a
 conflict on its next poll.
 
@@ -1203,7 +1211,7 @@ FR-11.4)** 📋 ✅
 
 **UT-13.5 — Disabled monitoring never auto-restarts (FR-13.6)** 📋 ✅
 
-* In the status view's toolbar, click "Stop Mutagen sessions" (FR-7.2).
+* In the status view's toolbar, click "Stop sessions" (FR-7.2).
 * Leave a session in an abnormal state (or let it disappear) well past its
   configured threshold.
 * No automatic restart happens — the session stays terminated, matching
@@ -1300,7 +1308,7 @@ dedicated file and no longer do.
 * In the status window, click "Reload config" — the log contains `User
   action: status window Reload config clicked` followed by `User action:
   reload config & restart mutagen requested` (see UT-7.1).
-* In the status window, click "Stop Mutagen sessions" (or "Start Mutagen
+* In the status window, click "Stop sessions" (or "Start
   sessions") — the log contains `User action: status window Stop/Start
   sessions clicked` followed by `User action: toggling monitoring to True`
   (or `False`).
@@ -2051,9 +2059,11 @@ flag and with `echo "plain"`.
 
 **UT-56.2 — Toolbar layout and row menu (FR-56.1, FR-56.2)** 📋 ✅
 
-* Open the Sync tab. The toolbar has **Add** at the left; at the right edge
-  **Resolve conflicts**, **Pause sessions** then, as the last control, **Stop
-  Mutagen sessions**. There is no Duplicate button, combo or Run button.
+* Open the Sync tab. The toolbar has, all at the left and in this order,
+  **Add**, **Pause sessions**, **Stop sessions** (**Start sessions** while
+  monitoring is off) and **Resolve conflicts**. With no unresolved conflict,
+  **Resolve conflicts** is greyed out (not hidden) and becomes enabled as
+  soon as one appears. There is no Duplicate button, combo or Run button.
 * Each row has one hamburger button. Click it, then right-click the row: the same menu opens
   with, in order, View sync status, Pause (Resume if paused), Edit, Delete,
   Duplicate, each with an icon, then a separator and `sess-a`, `sess-b` (file
@@ -2247,14 +2257,14 @@ blank line.
 
 **UT-67.2 — Global Pause/Resume (FR-67.2, FR-67.3)** 📋
 
-* The toolbar shows **Pause sessions** immediately left of **Stop Mutagen
+* The toolbar shows **Pause sessions** immediately right of **Add** and left of **Stop
   sessions**. Click it: every session becomes "Paused" and the button reads
   **Resume sessions**.
 * Click **Resume sessions**: every session resumes and the label returns to
   **Pause sessions**.
 * Pause a single session only: the button still reads **Pause sessions**. Pause
   all but resume one: it reads **Pause sessions** again.
-* Click **Stop Mutagen sessions** and **Start Mutagen sessions**: they behave as
+* Click **Stop sessions** and **Start sessions**: they behave as
   before, independent of the pause state.
 
 ## FR-59/FR-60/FR-61/FR-62 — Resolving a halted session (manual action, automatic fix, notifications)

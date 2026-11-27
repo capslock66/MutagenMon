@@ -21,7 +21,7 @@ more added tab by tab) plus a toolbar shared by every tab, below the
 — out of the toolbar FR-16 describes below and into that new shared
 toolbar, positioned left of "Exit mutagen monitor" (also relocated there
 from the bottom action row). The toolbar FR-16 describes is now specific to
-the Sync tab (Add + Stop/Start Mutagen sessions only); other tabs have
+the Sync tab (Add, Pause/Resume sessions, Stop/Start sessions, Resolve conflicts — FR-56.1); other tabs have
 their own, separate toolbars. FR-16.1's and FR-16.2's specifics about the
 reload action's toolbar position and the exact `Grid.Row` it lived in are
 superseded by this; FR-16.3 (icon choice)/FR-16.4/FR-16.5 (Stop/Start
@@ -72,9 +72,9 @@ the design discussion that produced this document.
 - FR-16.4: "Edit" and "Delete" are NOT toolbar actions — they exist only
   as the per-row icons described in FR-17 below **(confirmed: row icons
   only, no toolbar duplication)**.
-- FR-16.5: **(new)** The **"Stop Mutagen sessions"**/**"Start Mutagen
+- FR-16.5: **(new)** The **"Stop sessions"**/**"Start
   sessions"** toggle (FR-7.2) is also relocated into this toolbar,
-  immediately to the right of "Add" — it no longer appears in the bottom
+  to the right of "Add" and "Pause sessions" — it no longer appears in the bottom
   `Grid.Row="3"` action row of `StatusWindow.xaml` (only "Exit mutagen
   monitor" remains there). Its label, click behavior, and
   disabled-while-reloading state (FR-7.5/FR-8.5) are unchanged — only its
@@ -497,13 +497,13 @@ the design discussion that produced this document.
   with "Paused" (case-insensitive, surrounding brackets ignored). Pausing keeps
   the session history: resuming does not reset or recreate anything.
 - FR-67.2: The Sync toolbar gains a **"Pause sessions"** / **"Resume sessions"**
-  button placed immediately **left of "Stop Mutagen sessions"** (FR-16.5). It
+  button placed immediately **right of "Add"** and left of "Stop sessions" (FR-16.5; toolbar order Add, Pause/Resume sessions, Stop/Start sessions, Resolve conflicts, all aligned left — FR-56.1). It
   runs `mutagen sync pause --all` / `mutagen sync resume --all`. It reads
   "Resume sessions" only when there is at least one session and every session
   is paused, and "Pause sessions" otherwise. `--all` also applies to Mutagen
   sessions that are not declared in the sessions file (created by another tool). Like FR-16.5's toggle it is
   disabled while a reload is in progress (FR-7.5/FR-8.5).
-- FR-67.3: Neither action touches the monitoring state (FR-7.2): "Stop Mutagen
+- FR-67.3: Neither action touches the monitoring state (FR-7.2): "Stop
   sessions" and these actions are independent. The grid and the button labels
   follow the real state on the next poll.
 - FR-67.4: When the command fails (non-zero exit, `mutagen` unreachable), an
@@ -616,24 +616,24 @@ This sketch predates the tabbed status view; it shows the Sync tab's own
 toolbar, no longer the window's only toolbar (see `TABS_UI_PLAN.md`).
 
 ```
-┌─ MutagenMon ─────────────────────────────────────────────────────────┐
-│ Sync │ Mutagen Configuration │ ...                                   │
-├────┬──────┬─────────────────────┬──────────┬──────────┬─────────────┤
-│ [+ Add] [■ Stop Mutagen sessions]                                   │
-├────┬──────┬─────────────────────┬──────────┬──────────┬─────────────┤
-│    │ Name │ Status              │ Alpha    │ Beta     │ Last changed│
-├────┼──────┼─────────────────────┼──────────┼──────────┼─────────────┤
-│👁✎🗑│ web  │ ● Watching for chg. │ /a/path  │ /b/path  │ 2h ago      │
-├────┴──────┴─────────────────────┴──────────┴──────────┴─────────────┤
-│ [⟲ Reload config & restart] [Exit mutagen monitor]         [Close]  │
-└───────────────────────────────────────────────────────────────────────┘
+┌─ MutagenMon ────────────────────────────────────────────────────────────────┐
+│ Sync │ Mutagen Configuration │ ...                                          │
+├────┬──────┬─────────────┬───────────────────┬─────────┬─────────┬───────────┤
+│ [+ Add] [Pause sessions] [■ Stop sessions] [Resolve conflicts]              │
+├────┬──────┬─────────────┬───────────────────┬─────────┬─────────┬───────────┤
+│    │ Name │ Mode        │ Status            │ Alpha   │ Beta    │ Last chg. │
+├────┼──────┼─────────────┼───────────────────┼─────────┼─────────┼───────────┤
+│👁✎🗑 │ web  │ two-way-safe│ ● Watching        │ /a/path │ /b/path │ 2h ago    │
+├────┴──────┴─────────────┴───────────────────┴─────────┴─────────┴───────────┤
+│ [⟲ Reload config & restart] [Exit mutagen monitor]        [Close]           │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 `👁`/`✎`/`🗑` stand in for the actual View sync status/Edit/Delete icons
 (`EyeOutline`/`PencilOutline`/`TrashCanOutline`, FR-28.1/FR-17.1); `⟲`
 stands in for the reload icon (`CogRefreshOutline`), explicitly **not** a
 plain circular refresh glyph per FR-16.3; `■` stands in for the plain-text
-Stop/Start Mutagen sessions toggle button (FR-16.5) — it has no icon. The
+Stop/Start sessions toggle button (FR-16.5) — it has no icon. The
 bottom row (Reload config & restart / Exit / Close) is shared by every tab,
 not specific to Sync.
 

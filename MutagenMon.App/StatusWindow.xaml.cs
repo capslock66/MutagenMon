@@ -40,7 +40,7 @@ public partial class StatusWindow : Window
     /// (FR-7.1).</summary>
     public event EventHandler? ReloadConfigRequested;
 
-    /// <summary>Raised when the user clicks "Stop/Start Mutagen sessions" —
+    /// <summary>Raised when the user clicks "Stop/Start sessions" —
     /// handled by App.xaml.cs, which owns the monitor service (FR-7.2).</summary>
     public event EventHandler? ToggleMonitoringRequested;
 
@@ -102,7 +102,15 @@ public partial class StatusWindow : Window
     /// creation and after each configuration reload.</summary>
     public void SetHaltedRootEmptyingText(string text) => _haltedRootEmptyingText = text;
 
+    /// <summary>Sets the sync mode of each session, by name (taken from the
+    /// sessions file, since <c>mutagen sync list</c> output is not parsed for
+    /// it); called at creation and after each configuration reload, and
+    /// shown by the next refresh.</summary>
+    public void SetSessionModes(IReadOnlyDictionary<string, string> modesBySessionName) => _sessionModes = modesBySessionName;
+
     private static readonly Brush UpdateAvailableBackground = CreateFrozenBrush(Color.FromRgb(0xAD, 0xD8, 0xF2));
+
+    private IReadOnlyDictionary<string, string> _sessionModes = new Dictionary<string, string>();
 
     private bool _updateAvailable;
     private bool _updateCheckInProgress;
@@ -355,7 +363,7 @@ public partial class StatusWindow : Window
     {
         var rows = BuildSessionRows(
             sessionNames, snapshot.SessionStatuses, snapshot.LastChangedUtc, snapshot.SessionCodes, snapshot.Conflicts, snapshot.Enabled,
-            _haltedRootEmptyingText);
+            _haltedRootEmptyingText, _sessionModes);
         _isSyncingRows = true;
         try
         {
@@ -371,9 +379,10 @@ public partial class StatusWindow : Window
         ConflictsText.Text = BuildConflictsSection(sessionNames, snapshot.Conflicts);
 
         var hasUnresolvedConflicts = HasUnresolvedConflicts(snapshot.Conflicts);
-        ResolveConflictsButton.Visibility = hasUnresolvedConflicts ? Visibility.Visible : Visibility.Collapsed;
+        // Greyed out rather than hidden when there is nothing to resolve, so the toolbar layout never shifts.
+        ResolveConflictsButton.IsEnabled = hasUnresolvedConflicts;
 
-        ToggleMonitoringButton.Content = snapshot.Enabled ? "Stop Mutagen sessions" : "Start Mutagen sessions";
+        ToggleMonitoringButton.Content = snapshot.Enabled ? "Stop sessions" : "Start sessions";
 
         // FR-67.2: the global button offers Resume only when every session is paused.
         _allSessionsPaused = rows.Count > 0 && rows.All(r_ => r_.IsPaused);
@@ -658,7 +667,8 @@ public partial class StatusWindow : Window
         IReadOnlyDictionary<string, SessionStatusCode> sessionCodes,
         IReadOnlyDictionary<string, IReadOnlyList<ConflictRecord>> conflicts,
         bool enabled,
-        string haltedRootEmptyingText)
+        string haltedRootEmptyingText,
+        IReadOnlyDictionary<string, string> sessionModes)
     {
         var rows = new List<SessionSummaryRow>();
         foreach (var name in sessionNames)
@@ -666,6 +676,7 @@ public partial class StatusWindow : Window
             statuses.TryGetValue(name, out var status);
             lastChangedUtc.TryGetValue(name, out var lastChanged);
             sessionCodes.TryGetValue(name, out var code);
+            sessionModes.TryGetValue(name, out var syncMode);
 
             var conflictCount = conflicts.TryGetValue(name, out var sessionConflicts)
                 ? sessionConflicts.Count(c => !c.AutoResolved)
@@ -681,7 +692,8 @@ public partial class StatusWindow : Window
                 lastChanged,
                 SessionStateTracker.IsHalted(status?.Status),
                 HaltedSessionAnalyzer.Analyze(status, haltedRootEmptyingText).IsRootEmptying,
-                SessionStateTracker.IsPaused(status?.Status)));
+                SessionStateTracker.IsPaused(status?.Status),
+                syncMode ?? ""));
         }
 
         return rows;
