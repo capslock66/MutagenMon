@@ -135,11 +135,22 @@ public sealed partial class SessionMonitorService : BackgroundService
             "Session monitor loop starting: {SessionCount} session(s), poll period {PollPeriod}",
             _sessionNames.Count, _pollPeriod);
         using var timer = new PeriodicTimer(_pollPeriod);
-        do
+        try
         {
-            await PollOnceAsync(stoppingToken);
+            do
+            {
+                await PollOnceAsync(stoppingToken);
+            }
+            while (await timer.WaitForNextTickAsync(stoppingToken));
         }
-        while (await timer.WaitForNextTickAsync(stoppingToken));
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            // A requested stop is not a failure. PeriodicTimer throws on cancellation instead of returning false;
+            // left uncaught, the host (which only expects it during its own shutdown, not when the service is
+            // stopped on its own, e.g. by a configuration reload) logs "BackgroundService failed" and, with the
+            // default StopHost behavior, tries to stop the application.
+            _logger.LogInformation("Session monitor loop stopped");
+        }
     }
 
     public async Task PollOnceAsync(CancellationToken cancellationToken)

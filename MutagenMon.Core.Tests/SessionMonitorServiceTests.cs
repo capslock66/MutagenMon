@@ -31,11 +31,17 @@ public class SessionMonitorServiceTests
         public string? FailTerminationFor;
         public string? FailCreationFor;
 
+        /// <summary>Completed when the first poll starts: proof that the service loop is running.</summary>
+        public readonly TaskCompletionSource FirstPollStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         public void Enqueue(string response) => _responses.Enqueue(() => response);
         public void EnqueueFailure(string message) => _responses.Enqueue(() => throw new InvalidOperationException(message));
 
-        public override Task<string> GetSyncListRawAsync(CancellationToken cancellationToken) =>
-            Task.FromResult(_responses.Count > 0 ? _responses.Dequeue()() : "");
+        public override Task<string> GetSyncListRawAsync(CancellationToken cancellationToken)
+        {
+            FirstPollStarted.TrySetResult();
+            return Task.FromResult(_responses.Count > 0 ? _responses.Dequeue()() : "");
+        }
 
         public override Task<string> GetSyncStatusDetailAsync(string sessionName, CancellationToken cancellationToken) => Task.FromResult("");
 
@@ -152,6 +158,30 @@ public class SessionMonitorServiceTests
             notificationQueue ?? new NotificationQueue(),
             (ILogger<SessionMonitorService>?)logger ?? NullLogger<SessionMonitorService>.Instance,
             haltedRecovery);
+    }
+
+    [Fact]
+    public async Task StoppingTheServiceEndsTheLoopWithoutFailing()
+    {
+        // Stopped by hand (as a configuration reload does), not by the host: the loop must end normally, because
+        // the host reports a canceled ExecuteTask as "BackgroundService failed" outside its own shutdown.
+        var cli = new FakeMutagenCliClient();
+        cli.Enqueue(ReadySession("alpha-sync", "id-a") + "\n" + ReadySession("beta-sync", "id-b"));
+        var logger = new CapturingLogger<SessionMonitorService>();
+        var sessions = new[] { new SessionDefinition("alpha-sync", "mutagen sync create --name=alpha-sync ...") };
+        var service = BuildService(cli, new SessionStateStore(), sessions, logger: logger);
+
+        await service.StartAsync(CancellationToken.None);
+        // BackgroundService starts ExecuteAsync on the thread pool: stopping before it has begun would cancel
+        // the task without ever running the loop, and the test would no longer exercise the fix.
+        await cli.FirstPollStarted.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        // Bounded: a regression that keeps the loop alive must fail the test, not hang it.
+        using var stopTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await service.StopAsync(stopTimeout.Token);
+
+        Assert.NotNull(service.ExecuteTask);
+        Assert.True(service.ExecuteTask.IsCompletedSuccessfully);
+        Assert.Contains(logger.Messages, message_ => message_.Contains("Session monitor loop stopped"));
     }
 
     [Fact]
